@@ -2,6 +2,7 @@
 import { HOME_HREF, parentHref } from '../router.ts';
 import { ParentGate } from './gate.tsx';
 import { unlockParentArea, useParentAreaUnlocked } from './gate-state.ts';
+import { AddToHomeScreenTip } from '../pwa/install-tip.tsx';
 import { PARENT_SECTIONS } from './sections.ts';
 
 export function ParentArea({ path }: { path: string[] }) {
@@ -39,6 +40,7 @@ export function ParentArea({ path }: { path: string[] }) {
       ) : (
         <>
           <h1 class="screen__title">Grown-ups</h1>
+          <AddToHomeScreenTip />
           <ul class="parent__entries">
             {PARENT_SECTIONS.map((s) => (
               <li key={s.id}>

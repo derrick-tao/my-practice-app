@@ -3,22 +3,18 @@
 // and run against pwa-site.ts, a server that can publish a new version while the app is open.
 import type { Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
+import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
 import { expect, NEW_TITLE, test } from './pwa-site.ts';
 
-/** One online visit: wait until the service worker has installed (precached everything) and controls the page. */
-async function visitOnline(page: Page): Promise<void> {
-  await page.goto('./');
+/** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
+async function startAtHome(page: Page): Promise<void> {
+  await setUpLearner(page);
   await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
-}
-
-/** Where every spec here starts: home, in the browser, online. */
-async function startAtHome(page: Page): Promise<void> {
-  await visitOnline(page);
 }
 
 async function swState(page: Page): Promise<{ waiting: boolean; installing: boolean }> {
@@ -139,5 +135,27 @@ test.describe('updates', () => {
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     expect(await swState(page)).toEqual({ waiting: false, installing: false });
     await expect(page.getByRole('button', { name: /New words are ready/ })).toHaveCount(0);
+  });
+});
+
+test.describe('install tip', () => {
+  test('the parent area suggests Add to Home Screen once; "Got it" hides it for good', async ({ page }) => {
+    await setUpLearner(page);
+    await openParentArea(page);
+    const tip = page.getByTestId('install-tip');
+    await expect(tip).toContainText('Add to Home Screen');
+    // The child's home never shows it.
+    await page.getByRole('link', { name: 'Home' }).click();
+    await expect(page.getByTestId('install-tip')).toHaveCount(0);
+
+    await page.getByRole('link', { name: 'Parent area' }).click();
+    await passGate(page);
+    await page.getByRole('button', { name: 'Got it' }).click();
+    await expect(tip).toHaveCount(0);
+
+    await page.reload();
+    await passGate(page);
+    await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
+    await expect(tip).toHaveCount(0);
   });
 });

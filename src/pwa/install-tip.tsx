@@ -1,8 +1,8 @@
 // One-time "Add to Home Screen" tip for the parent area (Chrome on iOS).
 //
-// NOT MOUNTED YET: the parent area does not exist at this point in the build. The ticket that creates it
-// should render <AddToHomeScreenTip /> there. The component owns everything else: it hides itself when the
-// app already runs from the home screen, and once dismissed it never comes back on this device.
+// Mounted at the top of the parent area's section list (src/parent/area.tsx). The component owns everything
+// else: it hides itself when the app already runs from the home screen, and once dismissed it never comes
+// back on this device.
 import { useState } from 'preact/hooks';
 
 const DISMISSED_KEY = 'practice.installTipDismissed';
