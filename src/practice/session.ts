@@ -1,0 +1,163 @@
+// Practice state: Session -> Round -> Mark, plain JSON with item ids only (an item's id is its
+// target, which is unique within a list). Every function here is pure: it takes a session and
+// returns the next one (or the same object when the action does not apply).
+//
+// Nothing persists yet (ticket 05 adds the StorageAdapter), but the shape is the spec's data
+// model so persistence, retry rounds, undo and breaks extend it instead of rewriting it.
+import type { ListData } from '../content/types.ts';
+import { shuffled, type RandomSource } from './random.ts';
+
+export type Mark = 'correct' | 'wrong';
+export type Phase = 'listening' | 'revealed';
+export type SessionStatus = 'active' | 'completed' | 'stopped';
+
+export interface Round {
+  /** 1-based. */
+  index: number;
+  /** Ordered item ids (targets) for this round. */
+  itemIds: string[];
+  /** Index into itemIds of the current item; equals itemIds.length once the round is over. */
+  position: number;
+  phase: Phase;
+  /** The audio for the current item has started at least once. */
+  heardCurrent: boolean;
+  /** item id -> mark, for items marked so far. */
+  marks: Record<string, Mark>;
+  startedAt: string;
+  completedAt?: string;
+}
+
+/** Ticket 06 fills this in. */
+export interface UndoEntry {
+  roundIndex: number;
+  itemId: string;
+  position: number;
+  previousMark?: Mark;
+}
+
+export interface Session {
+  id: string;
+  profileId: string;
+  subject: string;
+  practiceType: string;
+  listId: string;
+  contentVersion: string;
+  status: SessionStatus;
+  startedAt: string;
+  completedAt?: string;
+  rounds: Round[];
+  /** Ticket 06. */
+  undo: UndoEntry | null;
+  /** Ticket 06. */
+  marksSinceBreak: number;
+}
+
+/** Everything non-deterministic the practice logic needs; injected so tests can pin it. */
+export interface PracticeEnv {
+  random: RandomSource;
+  now(): string;
+  newId(): string;
+}
+
+/** Until profiles exist (ticket 07) everything belongs to this implicit profile. */
+export const DEFAULT_PROFILE_ID = 'default';
+
+export function createSession(
+  list: Pick<ListData, 'id' | 'subject' | 'items'>,
+  options: { practiceType: string; contentVersion: string; shuffle: boolean },
+  env: PracticeEnv,
+): Session {
+  const itemIds = list.items.map((item) => item.target);
+  const now = env.now();
+  return {
+    id: env.newId(),
+    profileId: DEFAULT_PROFILE_ID,
+    subject: list.subject,
+    practiceType: options.practiceType,
+    listId: list.id,
+    contentVersion: options.contentVersion,
+    status: 'active',
+    startedAt: now,
+    rounds: [
+      {
+        index: 1,
+        itemIds: options.shuffle ? shuffled(itemIds, env.random) : itemIds,
+        position: 0,
+        phase: 'listening',
+        heardCurrent: false,
+        marks: {},
+        startedAt: now,
+      },
+    ],
+    undo: null,
+    marksSinceBreak: 0,
+  };
+}
+
+export const currentRound = (session: Session): Round => session.rounds[session.rounds.length - 1]!;
+
+export const isRoundOver = (round: Round): boolean => round.position >= round.itemIds.length;
+
+/** The item being practiced, or undefined when the round is over. */
+export const currentItemId = (round: Round): string | undefined => round.itemIds[round.position];
+
+export function markCounts(round: Round): { correct: number; wrong: number } {
+  const marks = Object.values(round.marks);
+  return {
+    correct: marks.filter((m) => m === 'correct').length,
+    wrong: marks.filter((m) => m === 'wrong').length,
+  };
+}
+
+function withCurrentRound(session: Session, update: (round: Round) => Round): Session {
+  const round = currentRound(session);
+  const next = update(round);
+  if (next === round) return session;
+  return { ...session, rounds: [...session.rounds.slice(0, -1), next] };
+}
+
+/** Where the learner is, so late async results (audio started) can be matched to the item they were for. */
+export interface Place {
+  roundIndex: number;
+  position: number;
+}
+
+export const placeOf = (session: Session): Place => {
+  const round = currentRound(session);
+  return { roundIndex: round.index, position: round.position };
+};
+
+/** Audio for the item at `place` started. Ignored if the learner has already moved on. */
+export function markHeard(session: Session, place: Place): Session {
+  return withCurrentRound(session, (round) =>
+    round.index !== place.roundIndex || round.position !== place.position || round.heardCurrent
+      ? round
+      : { ...round, heardCurrent: true },
+  );
+}
+
+/** Check: only available once the current item's audio has been heard. */
+export function reveal(session: Session): Session {
+  return withCurrentRound(session, (round) =>
+    isRoundOver(round) || round.phase !== 'listening' || !round.heardCurrent
+      ? round
+      : { ...round, phase: 'revealed' },
+  );
+}
+
+/** Record the learner's mark for the revealed item and move to the next one (or finish the round). */
+export function mark(session: Session, result: Mark, env: PracticeEnv): Session {
+  return withCurrentRound(session, (round) => {
+    const itemId = currentItemId(round);
+    if (itemId === undefined || round.phase !== 'revealed') return round;
+    const position = round.position + 1;
+    return {
+      ...round,
+      marks: { ...round.marks, [itemId]: result },
+      position,
+      phase: 'listening',
+      heardCurrent: false,
+      ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
+    };
+  });
+}
