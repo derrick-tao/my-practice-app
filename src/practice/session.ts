@@ -250,15 +250,20 @@ function finishIfClean(session: Session, env: PracticeEnv, listed?: ReadonlySet<
  *  - removed items still to come drop out of the current round, so they never show up and never reach a
  *    later round. If the current item was removed practice moves to the next one; if that ends the round
  *    the usual summary (or completion) follows;
- *  - marks already made stay on the session as history, removed item or not;
+ *  - marks already made stay on the session as history, removed item or not; but the undo entry of a
+ *    removed item is dropped (nothing to take back to), and the break count is kept;
  *  - items the list gained are not added (the next session picks them up);
  *  - if none of the session's items are in the list any more, the session is stopped.
  * Returns the same object when nothing needed to change.
  */
 export function reconcileWithList(session: Session, listed: ReadonlySet<string>, env: PracticeEnv): Session {
   if (session.status !== 'active') return session;
-  if (!session.rounds[0]!.itemIds.some((id) => listed.has(id))) return { ...session, status: 'stopped' };
-  const pruned = withCurrentRound(session, (round) => {
+  if (!session.rounds[0]!.itemIds.some((id) => listed.has(id))) return { ...session, status: 'stopped', undo: null };
+  // Undo must never reopen an item the list no longer has. (Entries always point before the current
+  // position, which pruning below never touches, so the position stays valid; the break count is left
+  // alone: the marks it counts are kept as history.)
+  const kept = session.undo && !listed.has(session.undo.itemId) ? { ...session, undo: null } : session;
+  const pruned = withCurrentRound(kept, (round) => {
     if (isRoundOver(round)) return round;
     const itemIds = round.itemIds.filter((id, i) => i < round.position || listed.has(id));
     if (itemIds.length === round.itemIds.length) return round;

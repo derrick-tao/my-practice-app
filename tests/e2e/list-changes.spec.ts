@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { publishListEdit } from './list-edits.ts';
+import { setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
 
 interface Fixtures {
@@ -12,12 +13,12 @@ interface Fixtures {
   loadList: (id: string) => Promise<ListData>;
 }
 
-/** Start practicing a fixture list from the home screen. The one place this file reaches home. */
+/** Start practicing a fixture list from the home screen. The one place this file reaches home: the real first run. */
 async function start(
   { page, audio, loadList }: Fixtures,
   listId: string,
 ): Promise<{ practice: PracticeScreen; list: ListData }> {
-  await page.goto('./');
+  await setUpLearner(page);
   const list = await loadList(listId);
   const practice = new PracticeScreen(page, audio, list);
   await practice.open();
@@ -248,5 +249,57 @@ test.describe('a list edited during practice', () => {
     await expect(practice.progressText()).toHaveText(`0 / ${list.items.length}`);
     const order = await practice.playRound(() => true);
     expect(order.sort()).toEqual(['换0', '换1', '换2']);
+  });
+
+  test('Undo (ticket 06) composes with a list edit: it is dropped when its item was removed, kept when another item was', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    const [first, second] = await practice.markMany(2);
+    const third = await currentTarget(practice);
+    // The last mark was on `second`; the list loses it, so there is nothing to take back to.
+    await publishListEdit(page, 'fixture-five', without(second!));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.progressText()).toHaveText('2 / 5'); // marks made stay as history, removed item or not
+    await expect(practice.undo).toHaveCount(0);
+    expect(await practice.reveal()).toBe(third);
+
+    // Another edit removes an item that is not the undo target: Undo is still there and still works.
+    await practice.gotIt.click();
+    const fourth = await currentTarget(practice);
+    await publishListEdit(page, 'fixture-five', without(second!, fourth));
+    await practice.reopenViaKeepGoing();
+    await expect(practice.undo).toBeVisible();
+    await practice.undo.click();
+    await expect(practice.target).toHaveText(third);
+    await expect(practice.progressText()).toHaveText('2 / 4');
+    expect(first).not.toBe(third);
+  });
+
+  test('the break count (ticket 06) survives a list edit: marks on removed items still count towards the next break', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-twelve'); // a break every 10 marks
+    const marked = await practice.markMany(8);
+    const current = await currentTarget(practice);
+    const unseen = list.items.map((item) => item.target).find((t) => !marked.includes(t) && t !== current)!;
+    await publishListEdit(page, 'fixture-twelve', without(marked[7]!, unseen));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.undo).toHaveCount(0);
+    await expect(practice.progressText()).toHaveText('8 / 11');
+    await expect(practice.breakPrompt).toHaveCount(0);
+    await practice.markMany(2);
+    // 8 + 2 marks since the last break: the prompt comes on time, not 1 late or never.
+    await expect(practice.breakPrompt).toBeVisible();
+    await practice.keepOn.click();
+    await expect(practice.check).toBeVisible();
   });
 });
