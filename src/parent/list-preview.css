@@ -1,0 +1,85 @@
+/* Parent area: List preview section (src/parent/sections/list-preview.tsx). */
+.preview-lists {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-header {
+  margin: 0 0 16px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 4px solid var(--accent);
+}
+
+.preview-header__title {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+}
+
+.preview-header__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  font-size: 1.1rem;
+}
+
+.preview-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 12px 20px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 2px solid var(--accent);
+}
+
+.preview-item__target {
+  min-width: 3ch;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.preview-item__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 140px;
+  gap: 2px;
+  font-size: 1.2rem;
+}
+
+.preview-item__pinyin {
+  font-weight: 700;
+}
+
+.preview-item__buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.preview-item__play {
+  min-height: 56px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
