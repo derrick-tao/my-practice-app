@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.DS_Store
+.env*
+
+# Generated at build time
+public/content/
+
+# Learner data must never be committed
+*backup*.json
+.privacy-denylist
