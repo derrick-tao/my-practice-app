@@ -1,5 +1,5 @@
 import { fetchManifest } from '../content/client.ts';
-import type { ListSummary } from '../content/types.ts';
+import type { ListSummary, PracticeTypeId } from '../content/types.ts';
 import { findActiveSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
@@ -7,7 +7,7 @@ import { listHref } from '../router.ts';
 import { getStorage, NewerSchemaError } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 
-function ListCard({ subject, practiceType, list }: { subject: string; practiceType: string; list: ListSummary }) {
+function ListCard({ subject, practiceType, list }: { subject: string; practiceType: PracticeTypeId; list: ListSummary }) {
   return (
     <a class="list-card" href={listHref(subject, practiceType, list.id)}>
       <span class="list-card__title">{list.title}</span>

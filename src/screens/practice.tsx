@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchList, fetchManifest } from '../content/client.ts';
-import type { ItemData, ListData } from '../content/types.ts';
+import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { createRandomSource } from '../practice/random.ts';
 import { openSession } from '../practice/resume.ts';
@@ -16,6 +16,7 @@ import {
   placeOf,
   reveal,
   sessionResult,
+  skipUnknownItems,
   startRetryRound,
   type Mark,
   type PracticeEnv,
@@ -35,12 +36,23 @@ function HomeButton() {
   );
 }
 
+/** The address named no list we have (unknown list, or a subject / practice type it does not belong to). */
+export function ListNotFound() {
+  return (
+    <main class="screen">
+      <HomeButton />
+      <p class="notice">We couldn't find this list.</p>
+    </main>
+  );
+}
+
 export function PracticeScreen({
+  subject,
   practiceType,
   listId,
 }: {
   subject: string;
-  practiceType: string;
+  practiceType: PracticeTypeId;
   listId: string;
 }) {
   const loaded = useLoad(
@@ -51,19 +63,23 @@ export function PracticeScreen({
     [listId],
   );
   if (loaded.status === 'ready') {
+    const { list } = loaded.value;
+    // Checked before anything is opened, so a wrong address can never stop the saved practice.
+    if (list.subject !== subject || !list.practiceTypes.includes(practiceType)) return <ListNotFound />;
     return (
       <OpenPractice
         key={listId}
-        list={loaded.value.list}
+        list={list}
         practiceType={practiceType}
         contentVersion={loaded.value.contentVersion}
       />
     );
   }
+  if (loaded.status === 'error') return <ListNotFound />;
   return (
     <main class="screen">
       <HomeButton />
-      <p class="notice">{loaded.status === 'loading' ? 'Loading…' : "We couldn't find this list."}</p>
+      <p class="notice">Loading…</p>
     </main>
   );
 }
@@ -91,15 +107,15 @@ function OpenPractice({
   contentVersion,
 }: {
   list: ListData;
-  practiceType: string;
+  practiceType: PracticeTypeId;
   contentVersion: string;
 }) {
   const env = useMemo(realEnv, []);
-  const [attempt, setAttempt] = useState(0);
+  const [openTries, setOpenTries] = useState(0);
   const opened = useLoad(
     // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
     () => openSession(getStorage(), list, { practiceType, contentVersion, shuffle: true }, env),
-    [attempt],
+    [openTries],
   );
   if (opened.status === 'ready') {
     return <PracticeRun list={list} env={env} initial={opened.value.session} resumed={opened.value.resumed} />;
@@ -110,7 +126,7 @@ function OpenPractice({
       {opened.status === 'loading' ? (
         <p class="notice">Loading…</p>
       ) : (
-        <SaveFailed onRetry={() => setAttempt((n) => n + 1)} />
+        <SaveFailed onRetry={() => setOpenTries((n) => n + 1)} />
       )}
     </main>
   );
@@ -130,6 +146,7 @@ function PracticeRun({
 }) {
   const player = useMemo(createAudioPlayer, []);
   const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
+  const listedIds = useMemo(() => new Set(itemsById.keys()), [itemsById]);
 
   // What is shown is always what is saved: every change goes through `sync`, which saves it first.
   const [view, setView] = useState<SyncState>({ session: initial, saveFailed: false });
@@ -144,14 +161,18 @@ function PracticeRun({
   const item = itemId === undefined ? undefined : itemsById.get(itemId);
 
   /**
-   * Request audio for the item at `place`; once playback starts the heard flag is saved (dropped if
-   * the learner has moved on by then).
+   * Request audio for the item at `place`. The heard flag (which unlocks Check) is saved (dropped if the
+   * learner has moved on by then):
+   *  - for a tap, as soon as it is requested, even if play() then fails, so missing or undecodable
+   *    audio never strands the child;
+   *  - for auto-play, only once playback actually starts, so a browser-blocked auto-play does not.
    */
-  const requestAudio = (target: ItemData, rendition: 'normal' | 'slow', autoplay: boolean, place: Place): void => {
+  const requestAudio = (target: ItemData, rendition: Rendition, autoplay: boolean, place: Place): void => {
+    if (!autoplay) sync.dispatch((s) => markHeard(s, place));
     void player.play(target.audio[rendition]).then((started) => {
       if (started) {
         setBlockedAt(null);
-        sync.dispatch((s) => markHeard(s, place));
+        if (autoplay) sync.dispatch((s) => markHeard(s, place));
       } else if (autoplay) {
         setBlockedAt(place);
       }
@@ -173,12 +194,13 @@ function PracticeRun({
 
   /**
    * Run a step that moves the learner on. It is ignored while a save is running or has failed, so a
-   * quick double tap cannot act twice. Returns the session it will show once saved.
+   * quick double tap cannot act twice. Items no longer in the list are skipped over, so the child is
+   * never stuck on one. Returns the session it will show once saved.
    */
   const advance = (step: (from: Session) => Session): Session | undefined => {
     if (sync.busy()) return undefined;
     const before = sync.state().session;
-    const after = step(before);
+    const after = skipUnknownItems(step(before), listedIds, env);
     if (after === before) return undefined;
     sync.dispatch((s) => (s === before ? after : s));
     return after;

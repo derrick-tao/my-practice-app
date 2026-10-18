@@ -5,7 +5,7 @@
 // The shape is the spec's data model and is persisted as is through the StorageAdapter (see
 // session-sync.ts), so retry rounds, undo and breaks extend it instead of rewriting it. Changing
 // the persisted shape needs a schema migration (src/storage/migrations.ts).
-import type { ListData } from '../content/types.ts';
+import type { ListData, PracticeTypeId } from '../content/types.ts';
 import { shuffled, type RandomSource } from './random.ts';
 
 export type Mark = 'correct' | 'wrong';
@@ -40,7 +40,7 @@ export interface Session {
   id: string;
   profileId: string;
   subject: string;
-  practiceType: string;
+  practiceType: PracticeTypeId;
   listId: string;
   contentVersion: string;
   status: SessionStatus;
@@ -65,7 +65,7 @@ export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(
   list: Pick<ListData, 'id' | 'subject' | 'items'>,
-  options: { practiceType: string; contentVersion: string; shuffle: boolean; profileId?: string },
+  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; profileId?: string },
   env: PracticeEnv,
 ): Session {
   const itemIds = list.items.map((item) => item.target);
@@ -178,6 +178,28 @@ function finishIfClean(session: Session, env: PracticeEnv): Session {
   const round = currentRound(session);
   if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round).length > 0) return session;
   return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now() };
+}
+
+/**
+ * Minimal guard for a list that changed under a saved session (ticket 10 does the full reconciliation):
+ * step past current items that are no longer in the list, so the child is never stuck on one. If that
+ * ends the round, the usual summary (or completion) follows.
+ */
+export function skipUnknownItems(session: Session, listed: ReadonlySet<string>, env: PracticeEnv): Session {
+  if (session.status !== 'active') return session;
+  const skipped = withCurrentRound(session, (round) => {
+    let position = round.position;
+    while (position < round.itemIds.length && !listed.has(round.itemIds[position]!)) position++;
+    if (position === round.position) return round;
+    return {
+      ...round,
+      position,
+      phase: 'listening',
+      heardCurrent: false,
+      ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
+    };
+  });
+  return skipped === session ? session : finishIfClean(skipped, env);
 }
 
 /**

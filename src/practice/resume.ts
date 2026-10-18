@@ -1,7 +1,7 @@
 // Finding and (re)opening the learner's session through the StorageAdapter.
-import type { ListData } from '../content/types.ts';
+import type { ListData, PracticeTypeId } from '../content/types.ts';
 import type { StorageAdapter } from '../storage/types.ts';
-import { createSession, DEFAULT_PROFILE_ID, type PracticeEnv, type Session } from './session.ts';
+import { createSession, DEFAULT_PROFILE_ID, skipUnknownItems, type PracticeEnv, type Session } from './session.ts';
 
 /** The active profile's id, or the implicit default profile until profiles exist (ticket 07). */
 export async function currentProfileId(storage: StorageAdapter): Promise<string> {
@@ -32,13 +32,16 @@ export interface OpenedSession {
 export async function openSession(
   storage: StorageAdapter,
   list: Pick<ListData, 'id' | 'subject' | 'items'>,
-  options: { practiceType: string; contentVersion: string; shuffle: boolean },
+  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean },
   env: PracticeEnv,
 ): Promise<OpenedSession> {
   const profileId = await currentProfileId(storage);
   const active = await activeSessionOf(storage, profileId);
   if (active && active.listId === list.id && active.practiceType === options.practiceType) {
-    return { session: active, resumed: true };
+    // A list edited since the session was saved may have dropped the item it was on.
+    const settled = skipUnknownItems(active, new Set(list.items.map((item) => item.target)), env);
+    if (settled !== active) await storage.putSession(settled);
+    return { session: settled, resumed: true };
   }
   if (active) await storage.putSession({ ...active, status: 'stopped' });
   const session = createSession(list, { ...options, profileId }, env);

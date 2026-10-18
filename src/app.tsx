@@ -1,5 +1,5 @@
 import { HomeScreen } from './screens/home.tsx';
-import { PracticeScreen } from './screens/practice.tsx';
+import { ListNotFound, PracticeScreen } from './screens/practice.tsx';
 import { useRoute } from './router.ts';
 
 export function App() {
@@ -7,6 +7,8 @@ export function App() {
   switch (route.name) {
     case 'list':
       return <PracticeScreen subject={route.subject} practiceType={route.practiceType} listId={route.listId} />;
+    case 'not-found':
+      return <ListNotFound />;
     case 'home':
       return <HomeScreen />;
   }

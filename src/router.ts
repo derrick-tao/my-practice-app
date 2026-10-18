@@ -3,22 +3,27 @@
 //   #/                                  home
 //   #/<subject>/<practiceType>/<listId> e.g. #/chinese/dictation/fall-2026-assessment
 import { useEffect, useState } from 'preact/hooks';
+import { isPracticeTypeId, type PracticeTypeId } from './content/types.ts';
 
 export type Route =
   | { name: 'home' }
-  | { name: 'list'; subject: string; practiceType: string; listId: string };
+  | { name: 'list'; subject: string; practiceType: PracticeTypeId; listId: string }
+  /** Looks like a list address but names a practice type that does not exist. */
+  | { name: 'not-found' };
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').split('?')[0] ?? '';
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
   if (parts.length === 3) {
     const [subject, practiceType, listId] = parts as [string, string, string];
-    return { name: 'list', subject, practiceType, listId };
+    return isPracticeTypeId(practiceType)
+      ? { name: 'list', subject, practiceType, listId }
+      : { name: 'not-found' };
   }
   return { name: 'home' };
 }
 
-export function listHref(subject: string, practiceType: string, listId: string): string {
+export function listHref(subject: string, practiceType: PracticeTypeId, listId: string): string {
   return `#/${[subject, practiceType, listId].map(encodeURIComponent).join('/')}`;
 }
 

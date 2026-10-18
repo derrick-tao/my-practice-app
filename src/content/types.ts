@@ -3,8 +3,15 @@
 
 export type Script = 'simplified' | 'traditional';
 
-/** One entry in the practice-type registry's id space. Dictation is the only one in v1. */
-export type PracticeTypeId = 'dictation';
+/** The practice-type registry's id space. Dictation is the only one in v1. */
+export const PRACTICE_TYPE_IDS = ['dictation'] as const;
+export type PracticeTypeId = (typeof PRACTICE_TYPE_IDS)[number];
+
+export const isPracticeTypeId = (value: string): value is PracticeTypeId =>
+  (PRACTICE_TYPE_IDS as readonly string[]).includes(value);
+
+/** The two recordings made of every item. */
+export type Rendition = 'normal' | 'slow';
 
 export interface ListSummary {
   id: string;

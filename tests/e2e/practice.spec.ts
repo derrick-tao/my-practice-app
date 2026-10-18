@@ -84,6 +84,30 @@ test.describe('practice: listening', () => {
     expect(played.map((p) => p.rendition)).toEqual(['slow']);
   });
 
+  for (const tap of ['listen', 'slow'] as const) {
+    test(`tapping ${tap} unlocks Check even when the audio cannot play, so missing audio never strands the child`, async ({
+      page,
+      audio,
+      loadList,
+    }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await rejectAudioPlayback(page); // auto-play blocked, and every tap's play() fails too
+      const { practice } = await start({ page, audio, loadList }, 'fixture-three');
+      await expect(practice.listen).toHaveClass(/pulse/);
+      await expect(practice.check).toHaveCount(0);
+
+      await practice[tap].click();
+
+      await expect(practice.check).toBeVisible();
+      await practice.reveal();
+      await practice.gotIt.click();
+      // The next item's blocked auto-play does not unlock Check by itself.
+      await expect(practice.progressText()).toHaveText('1 / 3');
+      await expect(practice.listen).toHaveClass(/pulse/);
+      await expect(practice.check).toHaveCount(0);
+    });
+  }
+
   test('Listen and Slow can be tapped any number of times, before and after Check', async ({
     page,
     audio,
