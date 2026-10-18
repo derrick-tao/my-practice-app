@@ -75,3 +75,248 @@ body {
 .notice {
   font-size: 1.2rem;
 }
+
+/* Home header: greeting and the gear that opens the parent gate. */
+.home__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  font-size: 1.8rem;
+  text-decoration: none;
+  background: #ece7fb;
+  opacity: 0.8;
+}
+
+.home-button--quiet {
+  background: #ece7fb;
+  color: var(--ink);
+}
+
+/* First run */
+.first-run {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.first-run__hello {
+  font-size: 2.2rem;
+  margin: 32px 0 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field__label {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.field__input {
+  min-height: 64px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 1.4rem;
+  border: 3px solid var(--accent);
+  border-radius: 16px;
+}
+
+.avatars {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 12px;
+}
+
+.avatar {
+  min-height: 72px;
+  font-size: 2.2rem;
+  border: 4px solid transparent;
+  border-radius: 20px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.avatar--chosen {
+  border-color: var(--accent);
+  box-shadow: 0 3px 0 var(--accent);
+}
+
+/* On/off switch per list */
+.switches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.switch {
+  width: 100%;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: var(--card);
+  border: 4px solid #cfc7ee;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.switch--on {
+  border-color: var(--accent);
+}
+
+.switch__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch__title {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.switch__meta {
+  font-size: 1rem;
+}
+
+.switch__track {
+  flex: none;
+  width: 64px;
+  height: 36px;
+  padding: 4px;
+  border-radius: 18px;
+  background: #cfc7ee;
+}
+
+.switch--on .switch__track {
+  background: var(--accent);
+}
+
+.switch__thumb {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.switch--on .switch__thumb {
+  transform: translateX(28px);
+}
+
+/* Parent gate and its number pad */
+.gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.gate__title {
+  font-size: 1.6rem;
+  margin: 8px 0 0;
+}
+
+.gate__question {
+  font-size: 3rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.gate__answer {
+  min-width: 160px;
+  min-height: 72px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  border-bottom: 4px solid var(--accent);
+}
+
+.gate__missed {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 88px);
+  gap: 12px;
+}
+
+.numpad__key {
+  min-height: 72px;
+  font: inherit;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--card);
+  border: 3px solid var(--accent);
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.numpad__key--minor {
+  border-color: #cfc7ee;
+}
+
+.numpad__key--ok {
+  color: #fff;
+  background: var(--accent);
+}
+
+/* Parent area */
+.parent__nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.parent__entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parent__entry {
+  display: flex;
+  align-items: center;
+  min-height: 72px;
+  padding: 0 20px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+  background: var(--card);
+  border: 4px solid var(--accent);
+  border-radius: 20px;
+}

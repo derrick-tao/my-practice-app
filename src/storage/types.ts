@@ -35,7 +35,7 @@ export interface ParentMetadata {
 export interface AppRecord {
   schemaVersion: number;
   profiles: Profile[];
-  /** Null until a profile exists (ticket 07); until then the implicit default profile is used. */
+  /** Null until the first profile is created (first-run set-up). */
   activeProfileId: string | null;
   parent: ParentMetadata;
 }

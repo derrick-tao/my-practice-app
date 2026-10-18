@@ -60,7 +60,7 @@ export interface PracticeEnv {
   newId(): string;
 }
 
-/** Until profiles exist (ticket 07) everything belongs to this implicit profile. */
+/** Sessions saved before profiles existed (ticket 05) belong to this implicit profile; the first real profile adopts them (profiles.ts). */
 export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(

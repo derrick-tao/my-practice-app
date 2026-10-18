@@ -1,11 +1,12 @@
 // Smoke test of the production build (real content/, the artifact that gets deployed to Pages).
 import { REAL_BASE_URL } from './servers.ts';
 import { expect, test } from './harness.ts';
+import { setUpLearner } from './parent-driver.ts';
 
 test.use({ baseURL: REAL_BASE_URL });
 
 test('the Fall 2026 Assessment card shows its test dates and 37 characters', async ({ page }) => {
-  await page.goto('./');
+  await setUpLearner(page); // against the real manifest, with every published list assigned
   const card = page.getByRole('link', { name: /Fall 2026 Assessment/ });
   await expect(card).toBeVisible();
   await expect(card).toContainText('Test: 2026-10-26 to 2026-10-30');
