@@ -3,6 +3,7 @@
 // <phoneme> markup. This provider therefore receives plain text (supportsPhonemes = false) and polyphones
 // such as 什/么/只/分 can be read wrongly; give those items an explicit `say` override when using it.
 import { looksLikeMp3 } from './mp3.ts';
+import { defaultSleep, escapeXml, withRetries, type Sleep } from './retry.ts';
 import type { TtsProvider, TtsRequest } from './types.ts';
 
 export interface EdgeCall {
@@ -18,18 +19,17 @@ export type EdgeTransport = (call: EdgeCall) => Promise<Uint8Array>;
 
 export interface EdgeProviderOptions {
   transport?: EdgeTransport;
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: Sleep;
   log?: (line: string) => void;
-  maxAttempts?: number;
 }
 
+const MAX_ATTEMPTS = 3;
 const SUPPORTED_FORMATS = ['audio-24khz-48kbitrate-mono-mp3', 'audio-24khz-96kbitrate-mono-mp3'];
 
 export function createEdgeProvider(options: EdgeProviderOptions = {}): TtsProvider {
   const transport = options.transport ?? msEdgeTransport;
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const sleep = options.sleep ?? defaultSleep;
   const log = options.log ?? (() => {});
-  const maxAttempts = options.maxAttempts ?? 3;
 
   return {
     id: 'edge',
@@ -46,26 +46,22 @@ export function createEdgeProvider(options: EdgeProviderOptions = {}): TtsProvid
         format: request.format,
         ...(request.rate !== '0%' && { rate: request.rate }),
       };
-      let lastError = 'unknown error';
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = await withRetries<Uint8Array>(MAX_ATTEMPTS, sleep, async (attempt) => {
         try {
           const bytes = await transport(call);
           if (!looksLikeMp3(bytes)) throw new Error(`response was not MP3 audio (${bytes.length} bytes)`);
           log(`edge tts ok: ${request.label} phoneme=no attempts=${attempt} bytes=${bytes.length}`);
-          return bytes;
+          return { value: bytes };
         } catch (error) {
-          lastError = error instanceof Error ? error.message : String(error);
-          log(`edge tts retry: ${request.label} attempt=${attempt}: ${lastError}`);
-          if (attempt < maxAttempts) await sleep(2_000 * attempt);
+          const reason = error instanceof Error ? error.message : String(error);
+          log(`edge tts retry: ${request.label} attempt=${attempt}: ${reason}`);
+          return { retry: { reason, waitMs: 2_000 * attempt } };
         }
-      }
-      throw new Error(`Edge TTS ${request.label} failed after ${maxAttempts} attempts: ${lastError}`);
+      });
+      if ('value' in result) return result.value;
+      throw new Error(`Edge TTS ${request.label} failed after ${MAX_ATTEMPTS} attempts: ${result.exhausted}`);
     },
   };
-}
-
-function escapeXml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** The real transport: one websocket synthesis through msedge-tts (loaded lazily, never in tests). */

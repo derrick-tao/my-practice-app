@@ -1,22 +1,20 @@
+// Seam 2: the edge (fallback) provider, observed only through the content build. tts.config.ts selects
+// the provider; the msedge-tts websocket call and the clock are injected at the build.
 import { describe, expect, it } from 'vitest';
 import { ttsConfig } from '../../tts.config.ts';
 import { silentMp3 } from '../../content-build/tts/fake-provider.ts';
-import { createProvider, type ProviderDeps } from '../../content-build/tts/provider-factory.ts';
-import { createWorkspace, listYaml } from './harness.ts';
+import type { ProviderDeps } from '../../content-build/tts/provider-factory.ts';
+import { createWorkspace, listYaml, type Workspace } from './harness.ts';
 
 const edgeConfig = { ...ttsConfig, provider: 'edge' as const };
 
-interface EdgeCall {
-  text: string;
-  voice: string;
-  rate?: string;
-  format: string;
-}
+type Transport = NonNullable<ProviderDeps['edgeTransport']>;
+type EdgeCall = Parameters<Transport>[0];
 
-function edge(transport?: NonNullable<ProviderDeps['edgeTransport']>) {
+function edge(transport?: Transport) {
   const calls: EdgeCall[] = [];
   const sleeps: number[] = [];
-  const provider = createProvider(edgeConfig, {
+  const providerDeps: ProviderDeps = {
     env: {}, // no Azure key anywhere
     edgeTransport:
       transport ??
@@ -27,23 +25,27 @@ function edge(transport?: NonNullable<ProviderDeps['edgeTransport']>) {
     sleep: async (ms) => {
       sleeps.push(ms);
     },
-  });
-  return { provider, calls, sleeps };
+  };
+  return { providerDeps, calls, sleeps };
 }
 
-describe('edge provider (fallback behind the config flag)', () => {
-  it('needs no Azure key and cannot carry phoneme markup', () => {
-    const { provider } = edge();
-    expect(provider.id).toBe('edge');
-    expect(provider.extension).toBe('mp3');
-    expect(provider.supportsPhonemes).toBe(false);
-    expect(provider.unavailableReason?.()).toBeUndefined();
-  });
+const ONE_ITEM = listYaml('t', '\n  - target: 点\n    clue: 几点\n    pinyin: diǎn\n');
 
-  it('builds a whole list without any credentials, sending plain text with no phoneme tags', async () => {
-    const { provider, calls } = edge();
-    const ws = await createWorkspace({
-      'chinese/t.yaml': listYaml(
+const workspace = (items = ONE_ITEM): Promise<Workspace> => createWorkspace({ 'chinese/t.yaml': items });
+
+const buildError = (ws: Workspace, options: Parameters<Workspace['buildConfigured']>[0]): Promise<Error> =>
+  ws.buildConfigured(options).then(
+    () => {
+      throw new Error('expected the build to fail, but it succeeded');
+    },
+    (e: Error) => e,
+  );
+
+describe('edge provider (fallback behind the config flag)', () => {
+  it('needs no Azure key: builds a whole list with plain text, no phoneme tags, and the configured voice and format', async () => {
+    const { providerDeps, calls } = edge();
+    const ws = await workspace(
+      listYaml(
         't',
         `
   - target: 什
@@ -55,8 +57,8 @@ describe('edge provider (fallback behind the config flag)', () => {
     say: 分数的分
 `,
       ),
-    });
-    await ws.build({ provider, tts: edgeConfig });
+    );
+    await ws.buildConfigured({ tts: edgeConfig, providerDeps });
 
     expect(calls.map((c) => [c.text, c.rate])).toEqual([
       ['什，什么的什', undefined],
@@ -71,55 +73,55 @@ describe('edge provider (fallback behind the config flag)', () => {
   });
 
   it('escapes XML-significant characters, because the service wraps the text in its own SSML', async () => {
-    const { provider, calls } = edge();
-    const ws = await createWorkspace({
-      'chinese/t.yaml': listYaml('t', '\n  - target: 点\n    pinyin: diǎn\n    say: "a < b & c"\n'),
-    });
-    await ws.build({ provider, tts: edgeConfig });
+    const { providerDeps, calls } = edge();
+    const ws = await workspace(listYaml('t', '\n  - target: 点\n    pinyin: diǎn\n    say: "a < b & c"\n'));
+    await ws.buildConfigured({ tts: edgeConfig, providerDeps });
     expect(calls[0]!.text).toBe('a &lt; b &amp; c');
   });
 
-  it('names its audio differently from Azure audio for the same content', async () => {
-    const items = '\n  - target: 点\n    clue: 几点\n    pinyin: diǎn\n';
-    const a = await createWorkspace({ 'chinese/t.yaml': listYaml('t', items) });
-    const b = await createWorkspace({ 'chinese/t.yaml': listYaml('t', items) });
-    await a.build({ provider: edge().provider, tts: edgeConfig });
-    await b.build();
+  it('names its audio differently from the same content made by another provider', async () => {
+    const a = await workspace();
+    const b = await workspace();
+    await a.buildConfigured({ tts: edgeConfig, providerDeps: edge().providerDeps });
+    await b.build(); // the fake provider fills its store under its own file names
     const [aNames, bNames] = [await a.storedAudio(), await b.storedAudio()];
+    expect(aNames).toHaveLength(2);
     expect(aNames.filter((name) => bNames.includes(name))).toEqual([]);
   });
 
-  it('retries a failed synthesis a few times, then fails with a clear message', async () => {
+  it('retries a failed synthesis a few times, then fails the build with a clear message', async () => {
     let attempts = 0;
-    const { provider, sleeps } = edge(async () => {
+    const { providerDeps, sleeps } = edge(async () => {
       attempts++;
       throw new Error('Stream closed before the synthesis completed');
     });
-    const request = { text: '点', ssml: '', voice: 'v', rate: '0%', format: ttsConfig.format, label: 'l/点 normal' };
-    await expect(provider.synthesize(request)).rejects.toThrow(/edge tts.*l\/点 normal.*3 attempts/i);
+    const error = await buildError(await workspace(), { tts: edgeConfig, providerDeps });
+    expect(error.message).toMatch(/edge tts.*t\/点 normal.*3 attempts/i);
     expect(attempts).toBe(3);
     expect(sleeps.length).toBe(2);
   });
 
   it('succeeds when a later attempt works', async () => {
     let attempts = 0;
-    const { provider } = edge(async () => {
+    const { providerDeps } = edge(async () => {
       attempts++;
       if (attempts < 2) throw new Error('No audio was received');
       return silentMp3();
     });
-    const request = { text: '点', ssml: '', voice: 'v', rate: '0%', format: ttsConfig.format, label: 'l' };
-    expect((await provider.synthesize(request)).length).toBeGreaterThan(0);
+    const ws = await workspace();
+    await ws.buildConfigured({ tts: edgeConfig, providerDeps });
+    expect(await ws.outputAudio()).toHaveLength(2);
   });
 
   it('refuses output that is not MP3 audio, and formats the service cannot produce', async () => {
     const tiny = edge(async () => new Uint8Array(10));
-    const request = { text: '点', ssml: '', voice: 'v', rate: '0%', format: ttsConfig.format, label: 'l' };
-    await expect(tiny.provider.synthesize(request)).rejects.toThrow(/not MP3 audio/);
+    const notMp3 = await buildError(await workspace(), { tts: edgeConfig, providerDeps: tiny.providerDeps });
+    expect(notMp3.message).toMatch(/not MP3 audio/);
 
-    const { provider } = edge();
-    await expect(provider.synthesize({ ...request, format: 'riff-24khz-16bit-mono-pcm' })).rejects.toThrow(
-      /edge tts supports only/i,
-    );
+    const pcm = await buildError(await workspace(), {
+      tts: { ...edgeConfig, format: 'riff-24khz-16bit-mono-pcm' },
+      providerDeps: edge().providerDeps,
+    });
+    expect(pcm.message).toMatch(/edge tts supports only/i);
   });
 });

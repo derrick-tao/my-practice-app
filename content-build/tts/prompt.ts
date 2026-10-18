@@ -1,5 +1,6 @@
 import type { TtsConfig } from './config.ts';
 import { toSapi } from '../pinyin.ts';
+import { escapeXml } from './retry.ts';
 
 export interface PromptItem {
   target: string;
@@ -12,10 +13,6 @@ export function spokenPrompt(item: PromptItem): string {
   if (item.say) return item.say;
   if (item.clue) return `${item.target}，${item.clue}的${item.target}`;
   return item.target;
-}
-
-function escapeXml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 export interface SsmlOptions {

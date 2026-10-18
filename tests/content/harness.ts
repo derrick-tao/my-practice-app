@@ -15,6 +15,11 @@ export interface Workspace {
   writeLists(files: Record<string, string>): Promise<void>;
   /** Build with the workspace's fake provider; pass overrides to swap provider, prune, etc. */
   build(overrides?: Partial<BuildOptions>): Promise<BuildResult>;
+  /**
+   * Build the way production does: the provider is the one `tts` (default tts.config.ts) selects.
+   * Stub credentials, network and clock through `providerDeps`.
+   */
+  buildConfigured(options?: Partial<Omit<BuildOptions, 'provider'>>): Promise<BuildResult>;
   /** File names in the audio store (the committed `audio/` folder in real life). */
   storedAudio(): Promise<string[]>;
   manifest(): Promise<Manifest>;
@@ -47,6 +52,7 @@ export async function createWorkspace(files: Record<string, string> = {}): Promi
     provider,
     writeLists,
     build: (overrides) => buildContent({ contentDir, outDir, audioStoreDir, provider, ...overrides }),
+    buildConfigured: (options) => buildContent({ contentDir, outDir, audioStoreDir, ...options }),
     storedAudio: async () => {
       try {
         return (await readdir(audioStoreDir)).sort();
