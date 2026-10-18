@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchList, fetchManifest } from '../content/client.ts';
 import type { ItemData, ListData } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { createRandomSource } from '../practice/random.ts';
+import { openSession } from '../practice/resume.ts';
+import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
 import {
   canRetry,
-  createSession,
   currentItemId,
   currentRound,
   isRoundOver,
@@ -21,7 +22,9 @@ import {
   type Place,
   type Session,
 } from '../practice/session.ts';
+import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
+import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 
 function HomeButton() {
@@ -49,7 +52,7 @@ export function PracticeScreen({
   );
   if (loaded.status === 'ready') {
     return (
-      <PracticeRun
+      <OpenPractice
         key={listId}
         list={loaded.value.list}
         practiceType={practiceType}
@@ -71,31 +74,18 @@ const realEnv = (): PracticeEnv => ({
   newId: () => crypto.randomUUID(),
 });
 
-function StarBar({ done, total }: { done: number; total: number }) {
-  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+function SaveFailed({ onRetry }: { onRetry: () => void }) {
   return (
-    <div class="starbar">
-      <div
-        class="starbar__track"
-        role="progressbar"
-        aria-label="Progress"
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={done}
-      >
-        <div class="starbar__fill" style={{ width: `${percent}%` }} />
-      </div>
-      <span class="starbar__star" aria-hidden="true">
-        ⭐
-      </span>
-      <span class="starbar__text" data-testid="progress-text">
-        {done} / {total}
-      </span>
+    <div role="alert" class="save-failed">
+      <button type="button" class="btn btn--primary btn--bad" onClick={onRetry}>
+        <span aria-hidden="true">⚠️ </span>Couldn't save — tap to retry
+      </button>
     </div>
   );
 }
 
-function PracticeRun({
+/** Continues the saved session for this list, or starts and saves a new one, before showing practice. */
+function OpenPractice({
   list,
   practiceType,
   contentVersion,
@@ -105,19 +95,47 @@ function PracticeRun({
   contentVersion: string;
 }) {
   const env = useMemo(realEnv, []);
+  const [attempt, setAttempt] = useState(0);
+  const opened = useLoad(
+    // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
+    () => openSession(getStorage(), list, { practiceType, contentVersion, shuffle: true }, env),
+    [attempt],
+  );
+  if (opened.status === 'ready') {
+    return <PracticeRun list={list} env={env} initial={opened.value.session} resumed={opened.value.resumed} />;
+  }
+  return (
+    <main class="screen">
+      <HomeButton />
+      {opened.status === 'loading' ? (
+        <p class="notice">Loading…</p>
+      ) : (
+        <SaveFailed onRetry={() => setAttempt((n) => n + 1)} />
+      )}
+    </main>
+  );
+}
+
+function PracticeRun({
+  list,
+  env,
+  initial,
+  resumed,
+}: {
+  list: ListData;
+  env: PracticeEnv;
+  initial: Session;
+  /** Continuing saved progress: audio must wait for the child's tap (iOS gesture rules). */
+  resumed: boolean;
+}) {
   const player = useMemo(createAudioPlayer, []);
   const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
 
-  const [session, setSessionState] = useState<Session>(() =>
-    // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
-    createSession(list, { practiceType, contentVersion, shuffle: true }, env),
-  );
-  // Handlers read the latest session from the ref so a quick double tap cannot act on stale state.
-  const latest = useRef(session);
-  const setSession = (next: Session): void => {
-    latest.current = next;
-    setSessionState(next);
-  };
+  // What is shown is always what is saved: every change goes through `sync`, which saves it first.
+  const [view, setView] = useState<SyncState>({ session: initial, saveFailed: false });
+  const sync = useMemo(() => createSessionSync(getStorage(), initial, setView), []);
+  useEffect(() => () => sync.detach(), []);
+  const { session, saveFailed } = view;
   /** Auto-play for this place was rejected by the browser: the Listen button pulses. */
   const [blockedAt, setBlockedAt] = useState<Place | null>(null);
 
@@ -125,22 +143,24 @@ function PracticeRun({
   const itemId = currentItemId(round);
   const item = itemId === undefined ? undefined : itemsById.get(itemId);
 
-  /** Request audio for the item at the current place; the heard flag is set once playback starts. */
-  const requestAudio = (target: ItemData, rendition: 'normal' | 'slow', autoplay: boolean): void => {
-    const place = placeOf(latest.current);
+  /**
+   * Request audio for the item at `place`; once playback starts the heard flag is saved (dropped if
+   * the learner has moved on by then).
+   */
+  const requestAudio = (target: ItemData, rendition: 'normal' | 'slow', autoplay: boolean, place: Place): void => {
     void player.play(target.audio[rendition]).then((started) => {
       if (started) {
         setBlockedAt(null);
-        setSession(markHeard(latest.current, place));
+        sync.dispatch((s) => markHeard(s, place));
       } else if (autoplay) {
         setBlockedAt(place);
       }
     });
   };
 
-  // First item of a new session: auto-play on arrival.
+  // First item of a new session: auto-play on arrival (not when resuming).
   useEffect(() => {
-    if (item) requestAudio(item, 'normal', true);
+    if (item && !resumed) requestAudio(item, 'normal', true, placeOf(session));
   }, []);
 
   // Preload the current item's audio and the next item's.
@@ -151,30 +171,38 @@ function PracticeRun({
     player.preload(upcoming.flatMap((x) => [x.audio.normal, x.audio.slow]));
   }, [round.index, round.position]);
 
-  const onCheck = (): void => setSession(reveal(latest.current));
+  /**
+   * Run a step that moves the learner on. It is ignored while a save is running or has failed, so a
+   * quick double tap cannot act twice. Returns the session it will show once saved.
+   */
+  const advance = (step: (from: Session) => Session): Session | undefined => {
+    if (sync.busy()) return undefined;
+    const before = sync.state().session;
+    const after = step(before);
+    if (after === before) return undefined;
+    sync.dispatch((s) => (s === before ? after : s));
+    return after;
+  };
+
+  /** Auto-play the current item of `after` from inside the tap handler, so iOS allows the audio. */
+  const autoplayCurrent = (after: Session): void => {
+    const id = currentItemId(currentRound(after));
+    const next = id === undefined ? undefined : itemsById.get(id);
+    if (next) requestAudio(next, 'normal', true, placeOf(after));
+  };
+
+  const onCheck = (): void => void advance(reveal);
 
   const onMark = (result: Mark): void => {
-    const before = latest.current;
-    const after = mark(before, result, env);
-    if (after === before) return;
-    setSession(after);
-    // Auto-play the next item from inside this tap handler so iOS allows the audio.
-    const nextRound = currentRound(after);
-    const nextId = currentItemId(nextRound);
-    const next = nextId === undefined ? undefined : itemsById.get(nextId);
-    if (next) requestAudio(next, 'normal', true);
+    const after = advance((s) => mark(s, result, env));
+    if (after) autoplayCurrent(after);
   };
 
   const onRetry = (): void => {
-    const before = latest.current;
-    const after = startRetryRound(before, env);
-    if (after === before) return;
-    setSession(after);
+    const after = advance((s) => startRetryRound(s, env));
+    if (!after) return;
     setBlockedAt(null);
-    // Like a mark, the first item of the new round auto-plays from inside the tap handler.
-    const first = currentItemId(currentRound(after));
-    const firstItem = first === undefined ? undefined : itemsById.get(first);
-    if (firstItem) requestAudio(firstItem, 'normal', true);
+    autoplayCurrent(after);
   };
 
   if (session.status === 'completed') {
@@ -193,13 +221,10 @@ function PracticeRun({
     <main class="screen practice">
       <header class="practice__top">
         <HomeButton />
-        {round.index > 1 && (
-          <span class="round-badge" data-testid="round-badge" role="img" aria-label={`Round ${round.index}`}>
-            <span aria-hidden="true">🔁 {round.index}</span>
-          </span>
-        )}
+        <RoundBadge index={round.index} />
         <StarBar done={round.position} total={round.itemIds.length} />
       </header>
+      {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{list.title}</h1>
       {item && !isRoundOver(round) && (
         <section class="practice__body">
@@ -217,11 +242,15 @@ function PracticeRun({
               <button
                 type="button"
                 class={`btn btn--audio${pulse ? ' pulse' : ''}`}
-                onClick={() => requestAudio(item, 'normal', false)}
+                onClick={() => requestAudio(item, 'normal', false, place)}
               >
                 <span aria-hidden="true">🔊 </span>Listen
               </button>
-              <button type="button" class="btn btn--audio" onClick={() => requestAudio(item, 'slow', false)}>
+              <button
+                type="button"
+                class="btn btn--audio"
+                onClick={() => requestAudio(item, 'slow', false, place)}
+              >
                 <span aria-hidden="true">🐢 </span>Slow
               </button>
             </div>

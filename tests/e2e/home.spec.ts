@@ -38,7 +38,9 @@ test.describe('home screen', () => {
 
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/#\/$/);
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    // The practice just started is waiting under Keep going, next to the list's own card.
+    await expect(page.getByRole('link', { name: /Keep going/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Fixture Three/ }).filter({ hasNotText: 'Keep going' })).toBeVisible();
   });
 
   test('opening a list route directly works', async ({ page }) => {

@@ -49,6 +49,8 @@ export class PracticeScreen {
   readonly retry: Locator;
   readonly roundBadge: Locator;
   readonly completion: Locator;
+  /** The home screen's resume card. */
+  readonly keepGoing: Locator;
 
   constructor(
     readonly page: Page,
@@ -67,12 +69,25 @@ export class PracticeScreen {
     this.retry = page.getByRole('button', { name: /Practice the .* words/ });
     this.roundBadge = page.getByTestId('round-badge');
     this.completion = page.getByTestId('completion');
+    this.keepGoing = page.getByRole('link', { name: /Keep going/ });
+  }
+
+  /** The list's card on the home screen (not the Keep going card, which also names the list). */
+  listCard(): Locator {
+    return this.page.getByRole('link', { name: new RegExp(this.list.title) }).filter({ hasNotText: 'Keep going' });
   }
 
   /** Home screen -> tap the list's card. */
   async open(): Promise<void> {
     await this.page.goto('./');
-    await this.page.getByRole('link', { name: new RegExp(this.list.title) }).click();
+    await this.listCard().click();
+  }
+
+  /** Close and reopen the app (a fresh load of the home screen), then tap Keep going. */
+  async reopenViaKeepGoing(): Promise<void> {
+    await this.page.goto('./');
+    await this.page.reload();
+    await this.keepGoing.click();
   }
 
   /** The "n / total" text next to the star bar. */

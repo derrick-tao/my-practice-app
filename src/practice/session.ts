@@ -2,8 +2,9 @@
 // target, which is unique within a list). Every function here is pure: it takes a session and
 // returns the next one (or the same object when the action does not apply).
 //
-// Nothing persists yet (ticket 05 adds the StorageAdapter), but the shape is the spec's data
-// model so persistence, retry rounds, undo and breaks extend it instead of rewriting it.
+// The shape is the spec's data model and is persisted as is through the StorageAdapter (see
+// session-sync.ts), so retry rounds, undo and breaks extend it instead of rewriting it. Changing
+// the persisted shape needs a schema migration (src/storage/migrations.ts).
 import type { ListData } from '../content/types.ts';
 import { shuffled, type RandomSource } from './random.ts';
 
@@ -64,14 +65,14 @@ export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(
   list: Pick<ListData, 'id' | 'subject' | 'items'>,
-  options: { practiceType: string; contentVersion: string; shuffle: boolean },
+  options: { practiceType: string; contentVersion: string; shuffle: boolean; profileId?: string },
   env: PracticeEnv,
 ): Session {
   const itemIds = list.items.map((item) => item.target);
   const now = env.now();
   return {
     id: env.newId(),
-    profileId: DEFAULT_PROFILE_ID,
+    profileId: options.profileId ?? DEFAULT_PROFILE_ID,
     subject: list.subject,
     practiceType: options.practiceType,
     listId: list.id,

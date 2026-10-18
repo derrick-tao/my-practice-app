@@ -67,8 +67,13 @@ test.describe('practice: listening', () => {
     audio,
     loadList,
   }) => {
+    // Wait for the blocked auto-play to have happened before allowing playback, otherwise a slow start
+    // lets the first item's auto-play succeed (an extra `normal` request). Reduced motion keeps the
+    // pulse class but stops the animation so the buttons stay clickable.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await rejectAudioPlayback(page);
     const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
+    await expect(practice.listen).toHaveClass(/pulse/);
     await expect(practice.check).toHaveCount(0);
 
     await allowAudioPlayback(page);
@@ -207,19 +212,21 @@ test.describe('practice: reveal and marking', () => {
     loadList,
   }) => {
     const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
-    const homeCard = page.getByRole('link', { name: /Fixture Three/ });
+    const homeCard = practice.listCard();
 
     await expect(practice.check).toBeVisible();
     await practice.home.click();
     await expect(page).toHaveURL(/#\/$/);
     await expect(homeCard).toBeVisible();
 
-    await homeCard.click();
+    // Nothing is lost by going home: Keep going comes back to the same place (see resume.spec.ts).
+    await practice.keepGoing.click();
     await practice.reveal();
     await practice.home.click();
     await expect(homeCard).toBeVisible();
 
-    await homeCard.click();
+    await practice.keepGoing.click();
+    await practice.gotIt.click();
     await practice.playRound((_, i) => i !== 0);
     await expect(practice.summary).toBeVisible();
     await practice.home.click();

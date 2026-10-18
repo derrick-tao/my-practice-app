@@ -253,3 +253,46 @@
   font-size: 1.6rem;
   font-weight: 700;
 }
+
+/* Keep going card on the home screen (ticket 05) */
+.keep-going {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+
+.keep-going__label {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.keep-going__title {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.keep-going__progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.keep-going .round-badge {
+  border-color: #fff;
+}
+
+/* "Couldn't save — tap to retry" */
+.save-failed {
+  display: flex;
+}
+
+.save-failed .btn {
+  width: 100%;
+}

@@ -17,6 +17,19 @@ test('the Fall 2026 Assessment card shows its test dates and 37 characters', asy
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
 });
 
+test('the deployed app carries no test-only hooks (seeded random, forced storage failures)', async ({ page }) => {
+  await page.goto('./');
+  const scripts = await page.evaluate(() =>
+    Array.from(document.scripts, (s) => s.src).filter((src) => src.includes('/assets/')),
+  );
+  expect(scripts.length).toBeGreaterThan(0);
+  for (const src of scripts) {
+    const code = await (await page.request.get(src)).text();
+    expect(code, src).not.toContain('__practiceSeed');
+    expect(code, src).not.toContain('__failStorageWrites');
+  }
+});
+
 test('every one of the 37 items has normal and slow audio references that resolve', async ({
   page,
   loadList,
