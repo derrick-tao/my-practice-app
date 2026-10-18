@@ -1,0 +1,85 @@
+name: Deploy
+
+# Pushes to main: validate -> (audio generation, ticket 02) -> typecheck -> Seam 2 -> build -> Seam 1 -> deploy to Pages.
+# Live site: https://derrick-tao.github.io/my-practice-app/
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One Pages deploy at a time. Never cancel a deploy that is already running; later runs queue.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # TICKET-02: this job needs `contents: write` to commit generated audio back to main.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate lists
+        run: npm run validate
+
+      # ---------------------------------------------------------------------------------------
+      # TICKET-02 HOOK: audio generation + commit-back goes here, after validate and before build.
+      #
+      #   - name: Generate audio
+      #     env:
+      #       AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+      #       AZURE_SPEECH_REGION: ${{ secrets.AZURE_SPEECH_REGION }}
+      #     run: npm run audio:generate        # script added by ticket 02; never echo the key
+      #
+      #   - name: Commit new audio
+      #     run: |
+      #       git config user.name "github-actions[bot]"
+      #       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      #       git add audio
+      #       git diff --cached --quiet || (git commit -m "chore(audio): generate audio [skip ci]" && git push)
+      #
+      # Secrets are referenced ONLY in this workflow (pull-request builds in ci.yml never get them).
+      # ---------------------------------------------------------------------------------------
+
+      - run: npm run typecheck
+
+      - name: Content pipeline tests (Seam 2)
+        run: npm run test:content
+
+      - name: Build site
+        run: npm run build
+
+      - name: Install WebKit for Playwright (Seam 1)
+        run: npx playwright install --with-deps webkit
+
+      - name: App tests in WebKit (Seam 1)
+        run: npm run test:e2e
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
