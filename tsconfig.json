@@ -23,6 +23,7 @@
   "include": [
     "src",
     "content-build",
+    "scripts",
     "tests",
     "vite.config.ts",
     "vitest.config.ts",

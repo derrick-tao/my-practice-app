@@ -8,6 +8,16 @@ A kid-friendly practice web app hosted on GitHub Pages. The first practice type 
 
 Learner data stays on the device. Never commit names or backup files.
 
+## Privacy: keep the child's name out of the repo
+
+Names, avatars and progress live only on the device and in backup files you export (`*backup*.json` is git-ignored). The app makes no request outside its own origin (a browser test checks this). To also stop a name slipping into a commit, set up a local denylist:
+
+1. Create `.privacy-denylist` in the repo root, one term per line (for example the child's name, in any spelling you use). Matching is case-insensitive; blank lines and lines starting with `#` are ignored. The file is git-ignored, so it is never committed or pushed.
+2. `npm run privacy:install-hook` installs an opt-in git `pre-commit` hook (nothing installs it for you). A commit whose staged files, or file names, contain a term is blocked with a message naming each file and line; the message never repeats the term. It won't overwrite a pre-commit hook you already have.
+3. `npm run privacy:check` runs the same scan on what is staged; `npm run privacy:check -- --all` scans every tracked file.
+
+With no `.privacy-denylist` (as in CI and on a fresh clone) the check passes silently and commits are unaffected.
+
 ## Publish a word list
 
 Add `content/<subject>/<list-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. See `content/chinese/fall-2026-assessment.yaml` for the format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
