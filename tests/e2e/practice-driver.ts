@@ -6,8 +6,6 @@ import { expect, type AudioProbe } from './harness.ts';
 
 declare global {
   interface Window {
-    /** Test builds only (`--mode e2e`): seeds the practice random source. */
-    __practiceSeed?: number;
     /** Set by `rejectAudioPlayback`: while true, play() rejects like iOS blocking auto-play. */
     __rejectAudio?: boolean;
   }

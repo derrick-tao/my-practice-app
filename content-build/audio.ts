@@ -3,18 +3,26 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { itemPinyin } from './pinyin.ts';
+import { ttsConfig as defaultTtsConfig } from '../tts.config.ts';
+import type { Rendition } from '../src/content/types.ts';
 import { buildSsml, spokenPrompt } from './tts/prompt.ts';
 import type { TtsConfig } from './tts/config.ts';
+import { createProvider, type ProviderDeps } from './tts/provider-factory.ts';
 import type { TtsProvider, TtsRequest } from './tts/types.ts';
 import type { SourceList } from './validate.ts';
-
-export type Rendition = 'normal' | 'slow';
 
 export interface AudioOptions {
   /** Content-addressed store of real audio (the committed `audio/` folder). */
   audioStoreDir: string;
-  provider: TtsProvider;
-  tts: TtsConfig;
+  /** Which provider generates audio, with the voice, rates and format (default: tts.config.ts). */
+  tts?: TtsConfig;
+  /**
+   * Credentials, network and clock for the provider that `tts` selects. The default is the real
+   * environment; tests stub the network here so the whole build runs against a fake service.
+   */
+  providerDeps?: ProviderDeps;
+  /** A ready-made provider used instead of the one `tts` selects (store tests, silent audio). */
+  provider?: TtsProvider;
   /**
    * Explicit opt-in (tests, pull-request CI, local work): audio missing from the store is replaced by
    * silent placeholder audio from this provider, kept in its own store that is never committed.
@@ -64,8 +72,10 @@ interface Planned {
 const AUDIO_FILE = /^[0-9a-f]{32}\.[a-z0-9]+$/;
 
 export async function resolveAudio(sources: SourceList[], options: AudioOptions): Promise<ResolvedAudio> {
-  const { provider, tts, placeholder } = options;
+  const { placeholder } = options;
   const log = options.log ?? (() => {});
+  const tts = options.tts ?? defaultTtsConfig;
+  const provider = options.provider ?? createProvider(tts, { log, ...options.providerDeps });
 
   // Plan every rendition of every item. `wanted` is keyed by file name so a prompt shared by several
   // items (or a repeated rendition) is only ever requested once.

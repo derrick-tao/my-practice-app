@@ -1,7 +1,7 @@
 // Validation of list files. Every problem names the file, the item (when relevant) and the rule.
 import { parse as parseYaml } from 'yaml';
 import * as OpenCC from 'opencc-js';
-import type { PracticeTypeId, Script } from '../src/content/types.ts';
+import { PRACTICE_TYPE_IDS, type PracticeTypeId, type Script } from '../src/content/types.ts';
 
 export interface SourceItem {
   target: string;
@@ -40,7 +40,7 @@ export function formatIssue(issue: Issue): string {
 }
 
 const SCRIPTS: readonly string[] = ['simplified', 'traditional'];
-const PRACTICE_TYPES: readonly string[] = ['dictation'];
+const PRACTICE_TYPES: readonly string[] = PRACTICE_TYPE_IDS;
 const LIST_KEYS = ['id', 'title', 'subject', 'practiceTypes', 'script', 'testDates', 'items'];
 const ITEM_KEYS = ['target', 'clue', 'pinyin', 'lesson', 'say'];
 const HAN = /^\p{Script=Han}+$/u;

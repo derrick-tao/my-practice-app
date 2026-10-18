@@ -5,9 +5,7 @@
 //  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
 //    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
 import { expect, test as base, type Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
-
-export type Rendition = 'normal' | 'slow';
+import type { ListData, Rendition } from '../../src/content/types.ts';
 
 export interface PlayedAudio {
   /** Path relative to the content root, e.g. `audio/<hash>.mp3`. */

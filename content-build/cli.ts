@@ -13,7 +13,6 @@ import { ttsConfig } from '../tts.config.ts';
 import { MissingAudioError } from './audio.ts';
 import { ContentBuildError, buildContent, generateAudio, loadAndValidate } from './build.ts';
 import { createFakeProvider } from './tts/fake-provider.ts';
-import { createProvider } from './tts/provider-factory.ts';
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -50,7 +49,7 @@ async function main(): Promise<void> {
   const common = {
     contentDir,
     audioStoreDir: path.resolve(values['audio-store']),
-    provider: createProvider(ttsConfig, { log }),
+    tts: ttsConfig,
     prune: values.prune,
     log,
   };

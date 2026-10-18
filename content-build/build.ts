@@ -2,28 +2,16 @@ import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { ttsConfig as defaultTtsConfig } from '../tts.config.ts';
-import type { ItemData, ListData, ListSummary, Manifest } from '../src/content/types.ts';
+import type { ItemData, ListData, ListSummary, Manifest, PracticeTypeId } from '../src/content/types.ts';
 import { formatIssue, validateAcrossFiles, validateListFile, type Issue, type SourceList } from './validate.ts';
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
-import type { TtsConfig } from './tts/config.ts';
-import type { TtsProvider } from './tts/types.ts';
 
-export interface BuildOptions {
+export interface BuildOptions extends AudioOptions {
   /** Folder of list files, grouped by subject: `<contentDir>/<subject>/<list-id>.yaml`. */
   contentDir: string;
   /** Output folder (becomes `<site>/content/`): manifest.json, lists/<id>.json, audio/<hash>.<ext>. */
   outDir: string;
-  /** Content-addressed audio store. Real audio is committed here. */
-  audioStoreDir: string;
-  provider: TtsProvider;
-  tts?: TtsConfig;
-  /** Opt-in silent placeholder audio for anything missing from the store (see AudioOptions). */
-  placeholder?: AudioOptions['placeholder'];
-  /** Remove store audio that no item references. */
-  prune?: boolean;
-  log?: (line: string) => void;
 }
 
 export interface BuildResult {
@@ -32,26 +20,15 @@ export interface BuildResult {
   audio: AudioStats;
 }
 
-function audioOptions(options: Omit<BuildOptions, 'outDir'>): AudioOptions {
-  return {
-    audioStoreDir: options.audioStoreDir,
-    provider: options.provider,
-    tts: options.tts ?? defaultTtsConfig,
-    ...(options.placeholder && { placeholder: options.placeholder }),
-    ...(options.prune !== undefined && { prune: options.prune }),
-    ...(options.log && { log: options.log }),
-  };
-}
-
 /** Validate the lists, then make sure every item has its audio in the store (generating what is missing). */
 export async function generateAudio(options: Omit<BuildOptions, 'outDir'>): Promise<AudioStats> {
   const { sources } = await loadAndValidate(options.contentDir);
-  return (await resolveAudio(sources, audioOptions(options))).stats;
+  return (await resolveAudio(sources, options)).stats;
 }
 
 export async function buildContent(options: BuildOptions): Promise<BuildResult> {
   const { sources, warnings } = await loadAndValidate(options.contentDir);
-  const resolved = await resolveAudio(sources, audioOptions(options));
+  const resolved = await resolveAudio(sources, options);
   const audioFiles = new Map<string, string>();
 
   const lists: ListData[] = [];
@@ -121,7 +98,7 @@ function buildManifest(lists: ListData[], contentVersion: string): Manifest {
         id,
         practiceTypes: [...types.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([typeId, summaries]) => ({ id: typeId as 'dictation', lists: summaries })),
+          .map(([typeId, summaries]) => ({ id: typeId as PracticeTypeId, lists: summaries })),
       })),
   };
 }
