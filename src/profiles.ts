@@ -2,7 +2,7 @@
 // avatars live only in the on-device app record (and backup files): nothing here touches the network.
 import { DEFAULT_PROFILE_ID } from './practice/session.ts';
 import { getStorage } from './storage/index.ts';
-import type { AppRecord, Profile, StorageAdapter } from './storage/types.ts';
+import type { AppRecord, Profile, ProfileSettings, StorageAdapter } from './storage/types.ts';
 import { DEFAULT_SETTINGS } from './storage/types.ts';
 
 /** Emoji a grown-up can pick as a learner's avatar. */
@@ -43,6 +43,14 @@ export function setListAssigned(app: AppRecord, profileId: string, listId: strin
       const rest = p.assignedListIds.filter((id) => id !== listId);
       return { ...p, assignedListIds: assigned ? [...rest, listId] : rest };
     }),
+  };
+}
+
+/** Pure: change some of one profile's settings. */
+export function setSettings(app: AppRecord, profileId: string, change: Partial<ProfileSettings>): AppRecord {
+  return {
+    ...app,
+    profiles: app.profiles.map((p) => (p.id === profileId ? { ...p, settings: { ...p.settings, ...change } } : p)),
   };
 }
 

@@ -100,3 +100,17 @@ export async function setUpLearner(page: Page, options: LearnerOptions = {}): Pr
 
   await expect(page.getByRole('heading', { name: `Hi ${avatar} ${name}!` })).toBeVisible();
 }
+
+/** Home -> gear -> gate -> Settings (the active learner's shuffle, break and sound settings). */
+export async function openSettings(page: Page): Promise<void> {
+  await openParentArea(page);
+  await openParentSection(page, 'Settings');
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+}
+
+/** Home -> gear -> gate -> Profiles (add, edit, delete and switch learners). */
+export async function openProfiles(page: Page): Promise<void> {
+  await openParentArea(page);
+  await openParentSection(page, 'Profiles');
+  await expect(page.getByRole('heading', { name: 'Profiles', exact: true })).toBeVisible();
+}

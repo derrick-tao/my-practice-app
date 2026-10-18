@@ -3,10 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { PracticeScreen } from './practice-driver.ts';
-import { setUpLearner } from './parent-driver.ts';
-import { seedSavedData } from './saved-data.ts';
-
-const PROFILE_ID = '5b0f1f3e-9d0a-4c52-8f5e-2a6d1b7c9e41';
+import { openSettings, setUpLearner } from './parent-driver.ts';
 
 interface Fixtures {
   page: Page;
@@ -16,51 +13,25 @@ interface Fixtures {
 
 /**
  * The one place these specs get from a fresh browser to a list's first practice screen: the real first run
- * (`setUpLearner`). Only a spec that needs a non-default break cadence seeds a profile instead, because
- * the settings screen that sets it arrives with ticket 08.
+ * (`setUpLearner`), plus the Settings screen when a spec needs a non-default break cadence.
  */
 async function start(
   { page, audio, loadList }: Fixtures,
   listId: string,
   breakEvery?: 0 | 5 | 10 | 15,
 ): Promise<{ practice: PracticeScreen; list: ListData }> {
-  if (breakEvery === undefined) {
-    await setUpLearner(page);
-  } else {
-    await page.goto('./');
-    await seedProfileWithBreakEvery(page, breakEvery, listId);
-    await page.goto('./'); // a fresh load of the seeded device: no first run, home shows the assigned list
+  await setUpLearner(page);
+  if (breakEvery !== undefined) {
+    await openSettings(page);
+    const choice = page.getByRole('radio', { name: breakEvery === 0 ? 'Off' : String(breakEvery), exact: true });
+    await choice.click();
+    await expect(choice).toBeChecked(); // shows the saved value
+    await page.getByRole('link', { name: 'Home' }).click();
   }
   const list = await loadList(listId);
   const practice = new PracticeScreen(page, audio, list);
   await practice.open();
   return { practice, list };
-}
-
-/**
- * What a device looks like after first run plus a settings change (the settings screen arrives with ticket 08):
- * one profile (a UUID id, as first run creates) with `breakEvery` in its settings and `listId` assigned.
- * Replace with real screens once 08 lands.
- */
-async function seedProfileWithBreakEvery(page: Page, breakEvery: 0 | 5 | 10 | 15, listId: string): Promise<void> {
-  await seedSavedData(page, {
-    app: {
-      schemaVersion: 1,
-      profiles: [
-        {
-          id: PROFILE_ID,
-          name: 'Mia',
-          avatar: '🐼',
-          createdAt: '2026-10-01T09:00:00.000Z',
-          settings: { shuffle: true, breakEvery, sounds: true },
-          assignedListIds: [listId],
-        },
-      ],
-      activeProfileId: PROFILE_ID,
-      parent: {},
-    },
-    sessions: [],
-  });
 }
 
 test.describe('undo', () => {
