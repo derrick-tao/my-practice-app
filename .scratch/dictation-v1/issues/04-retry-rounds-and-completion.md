@@ -6,10 +6,14 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: a 5-item fixture list with 2 misses → the summary shows ✅ 3 ❌ 2 → the retry round contains exactly those 2 items
 - [ ] One miss in round 2 → round 3 with that 1 item → all ✅ → the completion screen shows "3 of 5 on the first try!" and "Rounds: 3"
 - [ ] Retry rounds are reordered relative to the previous round (seeded random source)
 - [ ] A round with zero misses goes straight to completion (no summary retry button)
 - [ ] The round badge appears from round 2 onward
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on integration branch `dictation-v1`; all acceptance criteria covered by Seam 1 tests (WebKit, iPhone + iPad, portrait + landscape).

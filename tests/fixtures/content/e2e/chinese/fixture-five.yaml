@@ -1,0 +1,17 @@
+# Seam 1 fixture: no test dates, pinyin auto-generated, one say override.
+id: fixture-five
+title: Fixture Five
+subject: chinese
+practiceTypes: [dictation]
+script: simplified
+items:
+  - target: 猫
+    clue: 小猫
+  - target: 狗
+    clue: 小狗
+  - target: 鸟
+    clue: 小鸟
+  - target: 年
+    clue: 今年
+  - target: 只
+    say: 一只鸟的只

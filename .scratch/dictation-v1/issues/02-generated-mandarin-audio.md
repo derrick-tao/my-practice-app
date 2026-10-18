@@ -8,7 +8,7 @@ The `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets are set (confirmed
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Audio files are content-addressed (hash of provider + voice + rate + SSML). A second build with unchanged content makes zero provider requests; changing one clue makes exactly two (normal + slow) for that item (Seam 2, fake provider)
 - [ ] Seam 2 asserts the spoken prompt for each case (say override, clue template, target only), phoneme markup for standalone targets, and the configured normal/slow rates
@@ -18,3 +18,7 @@ The `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets are set (confirmed
 - [ ] The `main` workflow run succeeds against Azure with the phoneme markup for 什 (shén), 么 (me), 只 (zhī), 分 (fēn), confirmed from the workflow log, with no key printed. If Azure rejects the markup, those items in the Fall 2026 list get explicit `say` overrides instead, and the finding is noted in the spec. Whether the readings sound right is checked by ear in ticket 17
 - [ ] Every one of the 37 Fall 2026 items has normal and slow audio reachable on the live site
 - [ ] Switching the config flag to the edge provider generates audio without an Azure key
+
+## Comments
+
+- 2026-10-18 (coordinator): Implemented on `dictation-v1` (75854d8, plus review fixes 9b47ef2/a91eb76). Seam 2 covers content addressing, zero/two-request rebuilds, prompts, `sapi` phoneme markup (neutral tone = 5), rates, prune, missing-credentials failure, and an edge build with no key. Finding: edge-tts can't take phoneme markup, so with the edge provider, polyphones need `say` overrides. Left `claimed` until the first `main` run shows Azure returning 200 for 什/么/只/分 with no key in the log, the `[skip ci]` audio commit landing, and all 74 files live. Until then local `npm run check` needs `FAKE_AUDIO=1`.

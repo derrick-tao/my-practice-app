@@ -1,0 +1,39 @@
+name: CI
+
+# Pull requests: validate lists, typecheck, run both test seams, and build.
+# No secrets, no audio generation, no deploy: this workflow does not reference any repository secret, so
+# pull-request code can never read the Azure key. Audio comes from the committed audio/ folder; anything a PR
+# adds that has no committed audio yet gets silent placeholder audio (FAKE_AUDIO below), which is never
+# committed or deployed.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install WebKit for Playwright (Seam 1)
+        run: npx playwright install --with-deps webkit
+
+      # validate -> typecheck -> test:content (Seam 2) -> build -> test:e2e (Seam 1)
+      - name: Check
+        env:
+          FAKE_AUDIO: '1' # explicit opt-in to placeholder audio for new items (see content-build/cli.ts)
+        run: npm run check

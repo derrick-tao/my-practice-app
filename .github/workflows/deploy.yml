@@ -1,0 +1,97 @@
+name: Deploy
+
+# Pushes to main: validate -> generate audio -> commit new audio back ([skip ci]) -> typecheck -> Seam 2 -> build
+# -> Seam 1 -> deploy to Pages, all in this one run.
+# Live site: https://derrick-tao.github.io/my-practice-app/
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One run at a time (generate, commit and deploy never overlap). Never cancel a run that is already
+# working; later pushes queue and collapse to the latest.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The free Azure tier allows 20 requests per 60 s, so a full 37-item generation takes about 4 minutes.
+    timeout-minutes: 45
+    permissions:
+      contents: write # commit generated audio back to main
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Tip of main, not the commit that triggered this run: a queued run must see audio that an
+          # earlier run already committed, otherwise it would generate (and pay for) it again.
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate lists
+        run: npm run validate
+
+      # The Azure secrets are referenced ONLY here (never at workflow or job level, never in ci.yml, which
+      # runs pull requests). The key is read from the environment by the TTS provider; it is not a CLI
+      # argument and is never printed. The log shows one line per request: item, rendition, phoneme=yes|no,
+      # HTTP status, bytes. --prune removes audio that no item references any more.
+      - name: Generate audio for new or changed items
+        env:
+          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION: ${{ secrets.AZURE_SPEECH_REGION }}
+        run: npm run audio:generate -- --prune
+
+      # Pushes made with GITHUB_TOKEN do not start another run; [skip ci] is the belt to that braces. The
+      # build, tests and deploy below continue in this same run and see the new audio.
+      - name: Commit new audio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -d audio ]; then git add -A -- audio; fi
+          if git diff --cached --quiet; then
+            echo "No audio changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(audio): update generated audio [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - run: npm run typecheck
+
+      - name: Content pipeline tests (Seam 2)
+        run: npm run test:content
+
+      - name: Build site
+        run: npm run build
+
+      - name: Install WebKit for Playwright (Seam 1)
+        run: npx playwright install --with-deps webkit
+
+      - name: App tests in WebKit (Seam 1)
+        run: npm run test:e2e
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

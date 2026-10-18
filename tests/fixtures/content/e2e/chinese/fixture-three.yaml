@@ -1,0 +1,17 @@
+# Seam 1 fixture: small list with test dates and explicit pinyin.
+id: fixture-three
+title: Fixture Three
+subject: chinese
+practiceTypes: [dictation]
+script: simplified
+testDates: 2026-11-02 to 2026-11-06
+items:
+  - target: 找
+    clue: 找东西
+    pinyin: zhǎo
+  - target: 点
+    clue: 几点
+    pinyin: diǎn
+  - target: 分
+    clue: 一分钟
+    pinyin: fēn

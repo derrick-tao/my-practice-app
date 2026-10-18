@@ -8,7 +8,7 @@ Round 1 is shuffled by default (the setting to turn this off comes in 08). Shuff
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: tapping a card opens practice, and the first item's normal audio is requested automatically
 - [ ] Check is hidden until audio for the current item has been requested (via auto-play, Listen, or Slow), then appears
@@ -19,3 +19,7 @@ Round 1 is shuffled by default (the setting to turn this off comes in 08). Shuff
 - [ ] With the seeded random source, round 1 order is shuffled and deterministic in tests
 - [ ] Home returns to the home screen
 - [ ] Layout works on iPhone and iPad in portrait and landscape
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on integration branch `dictation-v1`; all acceptance criteria covered by Seam 1 tests (WebKit, iPhone + iPad, portrait + landscape).
