@@ -3,7 +3,7 @@ import type { ListData, PracticeTypeId } from '../content/types.ts';
 import type { StorageAdapter } from '../storage/types.ts';
 import { createSession, DEFAULT_PROFILE_ID, skipUnknownItems, type PracticeEnv, type Session } from './session.ts';
 
-/** The active profile's id, or the implicit default profile until profiles exist (ticket 07). */
+/** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
 export async function currentProfileId(storage: StorageAdapter): Promise<string> {
   return (await storage.loadApp()).activeProfileId ?? DEFAULT_PROFILE_ID;
 }

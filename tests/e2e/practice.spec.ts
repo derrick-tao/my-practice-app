@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { allowAudioPlayback, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
+import { setUpLearner } from './parent-driver.ts';
 
 interface Fixtures {
   page: Page;
@@ -13,7 +14,7 @@ async function start(
   { page, audio, loadList }: Fixtures,
   listId: string,
 ): Promise<{ practice: PracticeScreen; list: ListData }> {
-  await page.goto('./');
+  await setUpLearner(page);
   const list = await loadList(listId);
   const practice = new PracticeScreen(page, audio, list);
   await practice.open();

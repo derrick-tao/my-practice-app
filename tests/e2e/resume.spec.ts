@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { allowAudioPlayback, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
+import { setUpLearner } from './parent-driver.ts';
 import { savedDataFixture, savedPersistence, seedSavedData, stubPersistentStorage } from './saved-data.ts';
 
 interface Fixtures {
@@ -16,7 +17,7 @@ async function start(
   { page, audio, loadList }: Fixtures,
   listId: string,
 ): Promise<{ practice: PracticeScreen; list: ListData }> {
-  await page.goto('./');
+  await setUpLearner(page);
   const list = await loadList(listId);
   const practice = new PracticeScreen(page, audio, list);
   await practice.open();
@@ -324,7 +325,7 @@ test.describe('saving: persist before the screen moves on', () => {
     audio,
     loadList,
   }) => {
-    await page.goto('./');
+    await setUpLearner(page);
     const list = await loadList('fixture-three');
     const practice = new PracticeScreen(page, audio, list);
     await expect(practice.listCard()).toBeVisible();
@@ -351,7 +352,7 @@ test.describe('saved data', () => {
   }) => {
     await page.goto('./');
     await seedSavedData(page, savedDataFixture('schema-v1') as Parameters<typeof seedSavedData>[1]);
-    await page.reload();
+    await setUpLearner(page); // the first profile takes over the practice saved before profiles existed
     const list = await loadList('fixture-three');
     const practice = new PracticeScreen(page, audio, list);
 
@@ -395,7 +396,7 @@ test.describe('saved data', () => {
     await seedSavedData(page, savedDataFixture('schema-v1') as Parameters<typeof seedSavedData>[1]);
     await forgetAppRecord(page);
     expect(await savedAppRecord(page)).toBeUndefined();
-    await page.reload();
+    await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
 
     await expect(practice.keepGoing).toContainText('Fixture Three');
@@ -425,7 +426,7 @@ test.describe('saved data', () => {
       page,
       savedRound1({ ...round1, itemIds: ['点', '没有了', '分', '找'], position: 1, marks: { 点: 'correct' } }),
     );
-    await page.reload();
+    await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
 
     await practice.keepGoing.click();
@@ -446,7 +447,7 @@ test.describe('saved data', () => {
       page,
       savedRound1({ ...round1, itemIds: ['点', '分', '没有了'], position: 2, marks: { 点: 'correct', 分: 'wrong' } }),
     );
-    await page.reload();
+    await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
 
     await practice.keepGoing.click();
@@ -466,7 +467,9 @@ test.describe('saved data', () => {
 
     await expect(page.getByRole('alert')).toContainText('newer version');
     await expect(page.getByRole('link', { name: /Keep going/ })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    // Not mistaken for a new device: no set-up that would overwrite what is saved.
+    await expect(page.getByRole('button', { name: /grown-up/i })).toHaveCount(0);
+    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 99 }));
   });
 });
 
@@ -477,6 +480,7 @@ test.describe('persistent storage', () => {
     await expect.poll(() => page.evaluate(() => window.__persistRequests)).toBe(1);
     await expect.poll(() => savedPersistence(page)).toEqual(expect.objectContaining({ granted: true }));
 
+    await setUpLearner(page);
     await page.reload();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     await page.waitForTimeout(300);
@@ -488,6 +492,7 @@ test.describe('persistent storage', () => {
     await page.goto('./');
     await expect.poll(() => savedPersistence(page)).toEqual(expect.objectContaining({ granted: false }));
 
+    await setUpLearner(page);
     await page.reload();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     await page.waitForTimeout(300);
