@@ -5,5 +5,7 @@ export default defineConfig({
   test: {
     include: ['tests/content/**/*.test.ts'],
     environment: 'node',
+    // CLI tests spawn `npx tsx` processes; give them room when the whole suite runs in parallel.
+    testTimeout: 30_000,
   },
 });

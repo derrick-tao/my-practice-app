@@ -2,7 +2,7 @@
 import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildContent, type BuildResult } from '../../content-build/build.ts';
+import { buildContent, type BuildOptions, type BuildResult } from '../../content-build/build.ts';
 import { createFakeProvider, type FakeProvider } from '../../content-build/tts/fake-provider.ts';
 import type { ListData, Manifest } from '../../src/content/types.ts';
 
@@ -13,7 +13,10 @@ export interface Workspace {
   provider: FakeProvider;
   /** Write (or overwrite) list files relative to the content dir, e.g. `chinese/my-list.yaml`. */
   writeLists(files: Record<string, string>): Promise<void>;
-  build(): Promise<BuildResult>;
+  /** Build with the workspace's fake provider; pass overrides to swap provider, prune, etc. */
+  build(overrides?: Partial<BuildOptions>): Promise<BuildResult>;
+  /** File names in the audio store (the committed `audio/` folder in real life). */
+  storedAudio(): Promise<string[]>;
   manifest(): Promise<Manifest>;
   list(id: string): Promise<ListData>;
   /** File names in the output audio folder. */
@@ -43,7 +46,14 @@ export async function createWorkspace(files: Record<string, string> = {}): Promi
     audioStoreDir,
     provider,
     writeLists,
-    build: () => buildContent({ contentDir, outDir, audioStoreDir, provider }),
+    build: (overrides) => buildContent({ contentDir, outDir, audioStoreDir, provider, ...overrides }),
+    storedAudio: async () => {
+      try {
+        return (await readdir(audioStoreDir)).sort();
+      } catch {
+        return [];
+      }
+    },
     manifest: async () =>
       JSON.parse(await readFile(path.join(outDir, 'manifest.json'), 'utf8')) as Manifest,
     list: async (id) =>

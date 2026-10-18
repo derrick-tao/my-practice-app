@@ -16,12 +16,18 @@ export function silentMp3(): Uint8Array {
   return bytes;
 }
 
-/** Records requests and returns silent placeholder audio. Never touches the network. */
+/**
+ * Records requests and returns silent placeholder audio. Never touches the network.
+ * Used only by tests and pull-request CI (opt-in via `--fake-audio` / FAKE_AUDIO=1); its output is never
+ * committed.
+ */
 export function createFakeProvider(): FakeProvider {
   const requests: TtsRequest[] = [];
   return {
     id: 'fake',
     extension: 'mp3',
+    // Behaves like Azure so Seam 2 can assert on the phoneme markup of the requests.
+    supportsPhonemes: true,
     requests,
     async synthesize(request) {
       requests.push(request);

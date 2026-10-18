@@ -45,7 +45,7 @@ describe('content build: TTS provider seam (fake provider)', () => {
     expect(requests.map((r) => r.voice)).toEqual(['zh-CN-XiaoxiaoNeural', 'zh-CN-XiaoxiaoNeural']);
     expect(requests[0]!.ssml).toContain('rate="0%"');
     expect(requests[1]!.ssml).toContain('rate="-30%"');
-    expect(requests[1]!.ssml).toContain('点，几点的点');
+    expect(requests[1]!.text).toBe('点，几点的点');
   });
 
   it('escapes XML-significant characters in the SSML', async () => {
