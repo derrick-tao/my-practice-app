@@ -28,7 +28,7 @@ export interface Round {
   completedAt?: string;
 }
 
-/** Ticket 06 fills this in. */
+/** The last mark, kept so one tap can take it back (one level only). */
 export interface UndoEntry {
   roundIndex: number;
   itemId: string;
@@ -47,9 +47,9 @@ export interface Session {
   startedAt: string;
   completedAt?: string;
   rounds: Round[];
-  /** Ticket 06. */
+  /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
-  /** Ticket 06. */
+  /** Marks since the last break prompt was answered (or the last retry round started). */
   marksSinceBreak: number;
 }
 
@@ -157,8 +157,9 @@ export function reveal(session: Session): Session {
 
 /** Record the learner's mark for the revealed item and move to the next one (or finish the round). */
 export function mark(session: Session, result: Mark, env: PracticeEnv): Session {
+  const before = currentRound(session);
+  const itemId = currentItemId(before);
   const marked = withCurrentRound(session, (round) => {
-    const itemId = currentItemId(round);
     if (itemId === undefined || round.phase !== 'revealed') return round;
     const position = round.position + 1;
     return {
@@ -170,14 +171,72 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
       ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
     };
   });
-  return finishIfClean(marked, env);
+  if (marked === session || itemId === undefined) return marked;
+  const entry: UndoEntry = { roundIndex: before.index, itemId, position: before.position };
+  const previousMark = before.marks[itemId];
+  if (previousMark) entry.previousMark = previousMark;
+  return finishIfClean({ ...marked, undo: entry, marksSinceBreak: marked.marksSinceBreak + 1 }, env);
+}
+
+/** The last mark can be taken back: it is in the current round, and nothing has been marked since. */
+export function canUndo(session: Session): boolean {
+  const entry = session.undo;
+  if (session.status !== 'active' || !entry) return false;
+  const round = currentRound(session);
+  return (
+    round.index === entry.roundIndex &&
+    entry.position < round.position &&
+    round.itemIds[entry.position] === entry.itemId
+  );
+}
+
+/**
+ * Take back the last mark: its item is shown again in the revealed phase with the mark removed (or
+ * put back to what it was). From a round summary this reopens the round. Undo is used up by this.
+ */
+export function undo(session: Session): Session {
+  if (!canUndo(session)) return session;
+  const entry = session.undo!;
+  const { completedAt: _reopened, ...round } = currentRound(session);
+  const { [entry.itemId]: _removed, ...marks } = round.marks;
+  const reopened: Round = {
+    ...round,
+    position: entry.position,
+    phase: 'revealed',
+    heardCurrent: true,
+    marks: entry.previousMark ? { ...marks, [entry.itemId]: entry.previousMark } : marks,
+  };
+  return {
+    ...session,
+    rounds: [...session.rounds.slice(0, -1), reopened],
+    undo: null,
+    marksSinceBreak: Math.max(0, session.marksSinceBreak - 1),
+  };
+}
+
+/**
+ * A break prompt is due: `breakEvery` marks (0 is off) since the last one, and the round is not over
+ * (a round end has its own summary, so the prompt never lands there).
+ */
+export function breakDue(session: Session, breakEvery: number): boolean {
+  return (
+    session.status === 'active' &&
+    breakEvery > 0 &&
+    session.marksSinceBreak >= breakEvery &&
+    !isRoundOver(currentRound(session))
+  );
+}
+
+/** Keep going / Break: the prompt is answered, so counting starts again. */
+export function resetBreakCount(session: Session): Session {
+  return session.marksSinceBreak === 0 ? session : { ...session, marksSinceBreak: 0 };
 }
 
 /** A round that ends with no misses completes the session (no summary / retry step). */
 function finishIfClean(session: Session, env: PracticeEnv): Session {
   const round = currentRound(session);
   if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round).length > 0) return session;
-  return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now() };
+  return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now(), undo: null };
 }
 
 /**
@@ -224,7 +283,7 @@ export function startRetryRound(session: Session, env: PracticeEnv): Session {
     marks: {},
     startedAt: env.now(),
   };
-  return { ...session, rounds: [...session.rounds, round], undo: null };
+  return { ...session, rounds: [...session.rounds, round], undo: null, marksSinceBreak: 0 };
 }
 
 export interface SessionResult {

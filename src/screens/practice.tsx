@@ -3,10 +3,12 @@ import { fetchList, fetchManifest } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { createRandomSource } from '../practice/random.ts';
-import { openSession } from '../practice/resume.ts';
+import { currentSettings, openSession } from '../practice/resume.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
 import {
+  breakDue,
   canRetry,
+  canUndo,
   currentItemId,
   currentRound,
   isRoundOver,
@@ -14,10 +16,12 @@ import {
   markCounts,
   markHeard,
   placeOf,
+  resetBreakCount,
   reveal,
   sessionResult,
   skipUnknownItems,
   startRetryRound,
+  undo,
   type Mark,
   type PracticeEnv,
   type Place,
@@ -114,11 +118,23 @@ function OpenPractice({
   const [openTries, setOpenTries] = useState(0);
   const opened = useLoad(
     // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
-    () => openSession(getStorage(), list, { practiceType, contentVersion, shuffle: true }, env),
+    async () => {
+      const storage = getStorage();
+      const { breakEvery } = await currentSettings(storage);
+      return { ...(await openSession(storage, list, { practiceType, contentVersion, shuffle: true }, env)), breakEvery };
+    },
     [openTries],
   );
   if (opened.status === 'ready') {
-    return <PracticeRun list={list} env={env} initial={opened.value.session} resumed={opened.value.resumed} />;
+    return (
+      <PracticeRun
+        list={list}
+        env={env}
+        initial={opened.value.session}
+        resumed={opened.value.resumed}
+        breakEvery={opened.value.breakEvery}
+      />
+    );
   }
   return (
     <main class="screen">
@@ -137,12 +153,15 @@ function PracticeRun({
   env,
   initial,
   resumed,
+  breakEvery,
 }: {
   list: ListData;
   env: PracticeEnv;
   initial: Session;
   /** Continuing saved progress: audio must wait for the child's tap (iOS gesture rules). */
   resumed: boolean;
+  /** Offer a break every this many marks; 0 is off (the profile's setting). */
+  breakEvery: number;
 }) {
   const player = useMemo(createAudioPlayer, []);
   const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
@@ -227,6 +246,21 @@ function PracticeRun({
     autoplayCurrent(after);
   };
 
+  const onUndo = (): void => {
+    if (advance(undo)) setBlockedAt(null);
+  };
+
+  const onKeepGoing = (): void => void advance(resetBreakCount);
+
+  /** Break: the prompt is answered and saved, and only then does the child go home. */
+  const [leaving, setLeaving] = useState(false);
+  const onBreak = (): void => {
+    if (advance(resetBreakCount)) setLeaving(true);
+  };
+  useEffect(() => {
+    if (leaving && !saveFailed && session.marksSinceBreak === 0) location.hash = HOME_HREF;
+  }, [leaving, saveFailed, session.marksSinceBreak]);
+
   if (session.status === 'completed') {
     return (
       <main class="screen practice">
@@ -239,16 +273,24 @@ function PracticeRun({
   const place = placeOf(session);
   const pulse = blockedAt?.roundIndex === place.roundIndex && blockedAt.position === place.position;
 
+  const onBreakPrompt = breakDue(session, breakEvery);
+
   return (
     <main class="screen practice">
       <header class="practice__top">
         <HomeButton />
+        {canUndo(session) && !onBreakPrompt && (
+          <button type="button" class="btn btn--chip" onClick={onUndo}>
+            <span aria-hidden="true">↩️ </span>Undo
+          </button>
+        )}
         <RoundBadge index={round.index} />
         <StarBar done={round.position} total={round.itemIds.length} />
       </header>
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{list.title}</h1>
-      {item && !isRoundOver(round) && (
+      {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
+      {!onBreakPrompt && item && !isRoundOver(round) && (
         <section class="practice__body">
           <div class="practice__stage">
             {round.phase === 'revealed' ? (
@@ -300,6 +342,24 @@ function PracticeRun({
         <RoundSummary {...markCounts(round)} onRetry={canRetry(session) ? onRetry : undefined} />
       )}
     </main>
+  );
+}
+
+function BreakPrompt({ onKeepGoing, onBreak }: { onKeepGoing: () => void; onBreak: () => void }) {
+  return (
+    <section class="break-prompt" data-testid="break-prompt">
+      <p class="break-prompt__title">
+        <span aria-hidden="true">🌟 </span>Great job! Take a break?
+      </p>
+      <div class="row row--primary">
+        <button type="button" class="btn btn--primary" onClick={onKeepGoing}>
+          <span aria-hidden="true">▶️ </span>Keep going
+        </button>
+        <button type="button" class="btn" onClick={onBreak}>
+          <span aria-hidden="true">🏠 </span>Break
+        </button>
+      </div>
+    </section>
   );
 }
 

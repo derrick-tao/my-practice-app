@@ -1,11 +1,18 @@
 // Finding and (re)opening the learner's session through the StorageAdapter.
 import type { ListData, PracticeTypeId } from '../content/types.ts';
-import type { StorageAdapter } from '../storage/types.ts';
+import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
 import { createSession, DEFAULT_PROFILE_ID, skipUnknownItems, type PracticeEnv, type Session } from './session.ts';
 
 /** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
 export async function currentProfileId(storage: StorageAdapter): Promise<string> {
   return (await storage.loadApp()).activeProfileId ?? DEFAULT_PROFILE_ID;
+}
+
+/** The active profile's settings (the defaults until a profile exists, ticket 07). */
+export async function currentSettings(storage: StorageAdapter): Promise<ProfileSettings> {
+  const app = await storage.loadApp();
+  const profile = app.profiles.find((p) => p.id === app.activeProfileId);
+  return { ...DEFAULT_SETTINGS, ...profile?.settings };
 }
 
 /** The profile's active session. There is at most one; if data ever holds several, the newest wins. */

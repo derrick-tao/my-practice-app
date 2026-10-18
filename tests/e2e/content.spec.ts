@@ -8,7 +8,7 @@ test.describe('published content as the app sees it', () => {
     const manifest = await (await page.request.get('content/manifest.json')).json();
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
     const ids = manifest.subjects[0].practiceTypes[0].lists.map((l: { id: string }) => l.id);
-    expect(ids).toEqual(['fixture-five', 'fixture-three']);
+    expect(ids).toEqual(['fixture-five', 'fixture-three', 'fixture-twelve']);
 
     const list = await loadList('fixture-three');
     expect(list.items.map((i) => i.pinyin)).toEqual(['zhǎo', 'diǎn', 'fēn']);

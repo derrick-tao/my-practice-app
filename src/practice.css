@@ -296,3 +296,32 @@
 .save-failed .btn {
   width: 100%;
 }
+
+/* "↩️ Undo" chip beside Home (ticket 06): small and calm, but still a 64px touch target. */
+.btn--chip {
+  padding: 0 14px;
+  border-radius: 24px;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+/* "Great job! Take a break?" (ticket 06) */
+.break-prompt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.break-prompt__title {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+
+.break-prompt .row {
+  width: min(100%, 520px);
+}
