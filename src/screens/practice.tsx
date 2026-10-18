@@ -4,6 +4,7 @@ import type { ItemData, ListData } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { createRandomSource } from '../practice/random.ts';
 import {
+  canRetry,
   createSession,
   currentItemId,
   currentRound,
@@ -13,6 +14,8 @@ import {
   markHeard,
   placeOf,
   reveal,
+  sessionResult,
+  startRetryRound,
   type Mark,
   type PracticeEnv,
   type Place,
@@ -162,6 +165,27 @@ function PracticeRun({
     if (next) requestAudio(next, 'normal', true);
   };
 
+  const onRetry = (): void => {
+    const before = latest.current;
+    const after = startRetryRound(before, env);
+    if (after === before) return;
+    setSession(after);
+    setBlockedAt(null);
+    // Like a mark, the first item of the new round auto-plays from inside the tap handler.
+    const first = currentItemId(currentRound(after));
+    const firstItem = first === undefined ? undefined : itemsById.get(first);
+    if (firstItem) requestAudio(firstItem, 'normal', true);
+  };
+
+  if (session.status === 'completed') {
+    return (
+      <main class="screen practice">
+        <h1 class="sr-only">{list.title}</h1>
+        <Completion {...sessionResult(session)} />
+      </main>
+    );
+  }
+
   const place = placeOf(session);
   const pulse = blockedAt?.roundIndex === place.roundIndex && blockedAt.position === place.position;
 
@@ -169,6 +193,11 @@ function PracticeRun({
     <main class="screen practice">
       <header class="practice__top">
         <HomeButton />
+        {round.index > 1 && (
+          <span class="round-badge" data-testid="round-badge" role="img" aria-label={`Round ${round.index}`}>
+            <span aria-hidden="true">🔁 {round.index}</span>
+          </span>
+        )}
         <StarBar done={round.position} total={round.itemIds.length} />
       </header>
       <h1 class="sr-only">{list.title}</h1>
@@ -216,12 +245,22 @@ function PracticeRun({
           </div>
         </section>
       )}
-      {isRoundOver(round) && <RoundSummary {...markCounts(round)} />}
+      {isRoundOver(round) && (
+        <RoundSummary {...markCounts(round)} onRetry={canRetry(session) ? onRetry : undefined} />
+      )}
     </main>
   );
 }
 
-function RoundSummary({ correct, wrong }: { correct: number; wrong: number }) {
+function RoundSummary({
+  correct,
+  wrong,
+  onRetry,
+}: {
+  correct: number;
+  wrong: number;
+  onRetry?: () => void;
+}) {
   return (
     <section class="summary" data-testid="round-summary">
       <div class="summary__counts">
@@ -234,6 +273,29 @@ function RoundSummary({ correct, wrong }: { correct: number; wrong: number }) {
           <span data-testid="wrong-count">{wrong}</span>
         </span>
       </div>
+      {wrong > 0 && onRetry && (
+        <>
+          <p class="summary__more">Let's practice {wrong} more!</p>
+          <button type="button" class="btn btn--primary btn--retry" onClick={onRetry}>
+            <span aria-hidden="true">🔁 </span>Practice the ❌ words
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: number; total: number; rounds: number }) {
+  return (
+    <section class="summary completion" data-testid="completion">
+      <p class="completion__title">
+        <span aria-hidden="true">🎉 </span>You did it!
+      </p>
+      <p class="completion__line">
+        {firstTryCorrect} of {total} on the first try!
+      </p>
+      <p class="completion__line">Rounds: {rounds}</p>
+      <HomeButton />
     </section>
   );
 }

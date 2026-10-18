@@ -46,6 +46,9 @@ export class PracticeScreen {
   readonly target: Locator;
   readonly progress: Locator;
   readonly summary: Locator;
+  readonly retry: Locator;
+  readonly roundBadge: Locator;
+  readonly completion: Locator;
 
   constructor(
     readonly page: Page,
@@ -61,6 +64,9 @@ export class PracticeScreen {
     this.target = page.getByTestId('target');
     this.progress = page.getByRole('progressbar');
     this.summary = page.getByTestId('round-summary');
+    this.retry = page.getByRole('button', { name: /Practice the .* words/ });
+    this.roundBadge = page.getByTestId('round-badge');
+    this.completion = page.getByTestId('completion');
   }
 
   /** Home screen -> tap the list's card. */
@@ -89,16 +95,23 @@ export class PracticeScreen {
 
   /**
    * Play the current round to its end. `isCorrect(target, indexInRound)` decides each mark.
-   * Returns the targets in the order the round presented them.
+   * Returns the targets in the order the round presented them. Stops at the round summary, or at
+   * the completion screen when the round had no misses.
    */
   async playRound(isCorrect: (target: string, index: number) => boolean): Promise<string[]> {
     const order: string[] = [];
     for (;;) {
-      await expect(this.check.or(this.summary)).toBeVisible();
-      if (await this.summary.isVisible()) return order;
+      await expect(this.check.or(this.summary).or(this.completion)).toBeVisible();
+      if (!(await this.check.isVisible())) return order;
       const target = await this.reveal();
       order.push(target);
       await (isCorrect(target, order.length - 1) ? this.gotIt : this.notYet).click();
     }
+  }
+
+  /** On the round summary: tap "Practice the ❌ words" and play that round. */
+  async playRetryRound(isCorrect: (target: string, index: number) => boolean): Promise<string[]> {
+    await this.retry.click();
+    return this.playRound(isCorrect);
   }
 }

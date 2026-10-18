@@ -220,7 +220,7 @@ test.describe('practice: reveal and marking', () => {
     await expect(homeCard).toBeVisible();
 
     await homeCard.click();
-    await practice.playRound(() => true);
+    await practice.playRound((_, i) => i !== 0);
     await expect(practice.summary).toBeVisible();
     await practice.home.click();
     await expect(homeCard).toBeVisible();
@@ -330,5 +330,155 @@ test.describe('practice: layout', () => {
     const { practice } = await start({ page, audio, loadList }, 'fixture-three');
     await practice.playRound((_, i) => i !== 0);
     await expectOnScreen(page, practice.home, practice.summary);
+  });
+});
+
+test.describe('practice: retry rounds and completion', () => {
+  const missed = new Set(['狗', '年']);
+
+  test('a round with misses offers to practice exactly the missed words, and the retry round holds exactly those', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-five');
+
+    await practice.playRound((target) => !missed.has(target));
+    await expect(page.getByTestId('correct-count')).toHaveText('3');
+    await expect(page.getByTestId('wrong-count')).toHaveText('2');
+    await expect(practice.summary).toContainText("Let's practice 2 more!");
+    await expect(practice.retry).toBeVisible();
+    await expect(practice.completion).toBeHidden();
+    await audio.clear();
+
+    await practice.retry.click();
+    await expect(practice.summary).toBeHidden();
+    await expect(practice.progressText()).toHaveText('0 / 2');
+    // The first item of the new round is requested straight away (from the tap).
+    const first = (await audio.played(list))[0];
+    expect(first?.rendition).toBe('normal');
+    expect(missed.has(first!.target!)).toBe(true);
+
+    const order = await practice.playRound(() => true);
+    expect([...order].sort()).toEqual([...missed].sort());
+  });
+
+  test('one miss in round 2 leads to round 3 with that item, then completion with first-try score and rounds', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    await practice.playRound((target) => !missed.has(target));
+
+    const round2 = await practice.playRetryRound((_, i) => i !== 0);
+    expect([...round2].sort()).toEqual([...missed].sort());
+    await expect(practice.summary).toContainText("Let's practice 1 more!");
+    await expect(page.getByTestId('wrong-count')).toHaveText('1');
+
+    const round3 = await practice.playRetryRound(() => true);
+    expect(round3).toEqual([round2[0]]);
+
+    await expect(practice.completion).toBeVisible();
+    await expect(practice.completion).toContainText('You did it!');
+    await expect(practice.completion).toContainText('3 of 5 on the first try!');
+    await expect(practice.completion).toContainText('Rounds: 3');
+    await expect(practice.retry).toBeHidden();
+    await expect(practice.summary).toBeHidden();
+
+    await practice.home.click();
+    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+  });
+
+  test('a round with no misses goes straight to completion with no retry button', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-three');
+
+    await practice.playRound(() => true);
+
+    await expect(practice.completion).toContainText('You did it!');
+    await expect(practice.completion).toContainText('3 of 3 on the first try!');
+    await expect(practice.completion).toContainText('Rounds: 1');
+    await expect(practice.summary).toBeHidden();
+    await expect(practice.retry).toBeHidden();
+    await expect(practice.roundBadge).toBeHidden();
+  });
+
+  test('the round badge appears from round 2 onward and not in round 1', async ({ page, audio, loadList }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    await expect(practice.check).toBeVisible();
+    await expect(practice.roundBadge).toBeHidden();
+    await practice.playRound((target) => !missed.has(target));
+    await expect(practice.roundBadge).toBeHidden();
+
+    await practice.retry.click();
+    await expect(practice.roundBadge).toBeVisible();
+    await expect(practice.roundBadge).toContainText('2');
+    await practice.reveal();
+    await expect(practice.roundBadge).toContainText('2');
+    await practice.notYet.click();
+    await practice.playRound(() => true);
+
+    await practice.retry.click();
+    await expect(practice.roundBadge).toContainText('3');
+  });
+
+  test('a first-round miss on every item retries all of them', async ({ page, audio, loadList }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
+    await practice.playRound(() => false);
+    await expect(practice.summary).toContainText("Let's practice 3 more!");
+    const order = await practice.playRetryRound(() => true);
+    expect([...order].sort()).toEqual(list.items.map((x) => x.target).sort());
+    await expect(practice.completion).toContainText('0 of 3 on the first try!');
+    await expect(practice.completion).toContainText('Rounds: 2');
+  });
+
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    test(`retry rounds are reordered relative to the previous round (seed ${seed})`, async ({
+      page,
+      audio,
+      loadList,
+    }) => {
+      await seedRandom(page, seed);
+      const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+
+      // Miss two items: the hardest case for "reordered" (a plain shuffle repeats the order half the time).
+      const round1 = await practice.playRound((target) => !missed.has(target));
+      const missedInRound1 = round1.filter((t) => missed.has(t));
+      const round2 = await practice.playRetryRound(() => false);
+      expect(round2).toHaveLength(2);
+      expect(round2).not.toEqual(missedInRound1);
+
+      // And again for the next retry round.
+      const round3 = await practice.playRetryRound(() => true);
+      expect(round3).not.toEqual(round2);
+    });
+  }
+
+  test('the retry button and the completion screen fit on screen and are finger-sized', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-three');
+    await practice.playRound((_, i) => i !== 0);
+    const viewport = page.viewportSize()!;
+    const retryBox = (await practice.retry.boundingBox())!;
+    expect(retryBox.height).toBeGreaterThanOrEqual(96 - 1);
+    expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(viewport.height);
+    expect(retryBox.x + retryBox.width).toBeLessThanOrEqual(viewport.width);
+
+    await practice.playRetryRound(() => true);
+    await expect(practice.completion).toBeVisible();
+    for (const control of [practice.home, practice.completion]) {
+      const box = (await control.boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    }
+    const homeBox = (await practice.home.boundingBox())!;
+    expect(homeBox.height).toBeGreaterThanOrEqual(64 - 1);
   });
 });

@@ -101,6 +101,15 @@ export const isRoundOver = (round: Round): boolean => round.position >= round.it
 /** The item being practiced, or undefined when the round is over. */
 export const currentItemId = (round: Round): string | undefined => round.itemIds[round.position];
 
+/** Ids marked wrong in a round, in the order the round presented them. */
+export const wrongItemIds = (round: Round): string[] => round.itemIds.filter((id) => round.marks[id] === 'wrong');
+
+/** The finished round has misses to practice again (the session is still active). */
+export const canRetry = (session: Session): boolean => {
+  const round = currentRound(session);
+  return session.status === 'active' && isRoundOver(round) && wrongItemIds(round).length > 0;
+};
+
 export function markCounts(round: Round): { correct: number; wrong: number } {
   const marks = Object.values(round.marks);
   return {
@@ -147,7 +156,7 @@ export function reveal(session: Session): Session {
 
 /** Record the learner's mark for the revealed item and move to the next one (or finish the round). */
 export function mark(session: Session, result: Mark, env: PracticeEnv): Session {
-  return withCurrentRound(session, (round) => {
+  const marked = withCurrentRound(session, (round) => {
     const itemId = currentItemId(round);
     if (itemId === undefined || round.phase !== 'revealed') return round;
     const position = round.position + 1;
@@ -160,4 +169,54 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
       ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
     };
   });
+  return finishIfClean(marked, env);
+}
+
+/** A round that ends with no misses completes the session (no summary / retry step). */
+function finishIfClean(session: Session, env: PracticeEnv): Session {
+  const round = currentRound(session);
+  if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round).length > 0) return session;
+  return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now() };
+}
+
+/**
+ * Start the next round from exactly the items marked wrong in the finished round, always shuffled.
+ * The new order differs from the order those items had in the previous round (when there are
+ * at least two), so the child never sees the same sequence again.
+ */
+export function startRetryRound(session: Session, env: PracticeEnv): Session {
+  if (!canRetry(session)) return session;
+  const previous = currentRound(session);
+  const missed = wrongItemIds(previous);
+  let itemIds = shuffled(missed, env.random);
+  if (missed.length > 1 && itemIds.every((id, i) => id === missed[i])) {
+    itemIds = [...itemIds.slice(1), itemIds[0]!];
+  }
+  const round: Round = {
+    index: previous.index + 1,
+    itemIds,
+    position: 0,
+    phase: 'listening',
+    heardCurrent: false,
+    marks: {},
+    startedAt: env.now(),
+  };
+  return { ...session, rounds: [...session.rounds, round], undo: null };
+}
+
+export interface SessionResult {
+  /** Round 1 items marked correct. */
+  firstTryCorrect: number;
+  /** Round 1 item count. */
+  total: number;
+  rounds: number;
+}
+
+export function sessionResult(session: Session): SessionResult {
+  const first = session.rounds[0]!;
+  return {
+    firstTryCorrect: markCounts(first).correct,
+    total: first.itemIds.length,
+    rounds: session.rounds.length,
+  };
 }
