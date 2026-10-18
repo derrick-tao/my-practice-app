@@ -5,6 +5,7 @@ import { findActiveSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf } from '../profiles.ts';
+import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { listHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
@@ -57,6 +58,7 @@ export function HomeScreen() {
   const profile = activeProfileOf(app)!;
   const published = usePublishedLists();
   const resume = useLoad(loadResume, []);
+  const updateReady = useUpdateReady();
   const session = resume.status === 'ready' ? resume.value : undefined;
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedListIds);
@@ -73,6 +75,11 @@ export function HomeScreen() {
           <span aria-hidden="true">⚙️</span>
         </a>
       </header>
+      {updateReady && (
+        <button type="button" class="update-banner" onClick={applyUpdate}>
+          New words are ready! <span aria-hidden="true">🔄</span>
+        </button>
+      )}
       {published.status === 'loading' && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
       {session && resumeList && <KeepGoingCard session={session} list={resumeList} />}
