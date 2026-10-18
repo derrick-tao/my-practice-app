@@ -1,0 +1,120 @@
+# Fall 2026 Assessment (Chinese dictation).
+# To publish a new list, add another file next to this one. The file name must equal the id.
+id: fall-2026-assessment
+title: Fall 2026 Assessment
+subject: chinese
+practiceTypes: [dictation]
+script: simplified
+testDates: 2026-10-26 to 2026-10-30
+items:
+  - target: 找
+    clue: 找东西
+    pinyin: zhǎo
+  - target: 点
+    clue: 几点
+    pinyin: diǎn
+  - target: 分
+    clue: 一分钟
+    pinyin: fēn
+  - target: 作
+    clue: 作业
+    pinyin: zuò
+  - target: 业
+    clue: 作业
+    pinyin: yè
+  - target: 半
+    clue: 一半
+    pinyin: bàn
+  - target: 玩
+    clue: 好玩
+    pinyin: wán
+  - target: 做
+    clue: 做饭
+    pinyin: zuò
+  - target: 车
+    clue: 汽车
+    pinyin: chē
+  - target: 可
+    clue: 可以
+    pinyin: kě
+  - target: 以
+    clue: 可以
+    pinyin: yǐ
+  - target: 买
+    clue: 买东西
+    pinyin: mǎi
+  - target: 东
+    clue: 东西
+    pinyin: dōng
+  - target: 西
+    clue: 东西
+    pinyin: xī
+  - target: 后
+    clue: 以后
+    pinyin: hòu
+  - target: 午
+    clue: 下午
+    pinyin: wǔ
+  - target: 晚
+    clue: 晚上
+    pinyin: wǎn
+  - target: 安
+    clue: 晚安
+    pinyin: ān
+  - target: 家
+    clue: 回家
+    pinyin: jiā
+  - target: 看
+    clue: 看书
+    pinyin: kàn
+  - target: 书
+    clue: 看书
+    pinyin: shū
+  - target: 洗
+    clue: 洗手
+    pinyin: xǐ
+  - target: 想
+    clue: 想要
+    pinyin: xiǎng
+  - target: 吃
+    clue: 吃饭
+    pinyin: chī
+  - target: 米
+    clue: 米饭
+    pinyin: mǐ
+  - target: 饭
+    clue: 米饭
+    pinyin: fàn
+  - target: 面
+    clue: 面条
+    pinyin: miàn
+  - target: 喝
+    clue: 喝水
+    pinyin: hē
+  - target: 什
+    clue: 什么
+    pinyin: shén
+  - target: 么
+    clue: 什么
+    pinyin: me
+  - target: 猫
+    clue: 小猫
+    pinyin: māo
+  - target: 狗
+    clue: 小狗
+    pinyin: gǒu
+  - target: 今
+    clue: 今天
+    pinyin: jīn
+  - target: 年
+    clue: 今年
+    pinyin: nián
+  - target: 养
+    clue: 养狗
+    pinyin: yǎng
+  - target: 只
+    clue: 一只鸟
+    pinyin: zhī
+  - target: 鸟
+    clue: 小鸟
+    pinyin: niǎo
