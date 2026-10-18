@@ -5,9 +5,23 @@ export function generatePinyin(target: string): string {
   return pinyin(target, { type: 'array', toneType: 'symbol' }).join(' ');
 }
 
-/** The pinyin of an item: the authored value, else generated from the target. */
-export function itemPinyin(item: { target: string; pinyin?: string }): string {
-  return item.pinyin ?? generatePinyin(item.target);
+const syllables = (text: string): string[] => pinyin(text, { type: 'array', toneType: 'symbol' });
+
+/**
+ * The pinyin of an item: the authored value, else generated. When the clue contains the target, the
+ * target's syllables are taken from the clue's reading, because the same character reads differently
+ * by context (长 in 校长 is "zhǎng", alone it is "cháng"). Otherwise it is read from the target alone.
+ */
+export function itemPinyin(item: { target: string; clue?: string; pinyin?: string }): string {
+  if (item.pinyin !== undefined) return item.pinyin;
+  const at = item.clue?.indexOf(item.target) ?? -1;
+  if (item.clue && at >= 0) {
+    // pinyin-pro yields one entry per code point, so slice by code points, not UTF-16 units.
+    const start = [...item.clue.slice(0, at)].length;
+    const inContext = syllables(item.clue).slice(start, start + [...item.target].length);
+    if (inContext.length === [...item.target].length) return inContext.join(' ');
+  }
+  return generatePinyin(item.target);
 }
 
 const TONE_MARKS: Record<string, [base: string, tone: number]> = {
