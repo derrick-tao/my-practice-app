@@ -23,6 +23,39 @@ async function start(
   return { practice, list };
 }
 
+/** What the app has recorded as its app record (version stamp, profiles), read straight from the device. */
+const savedAppRecord = (page: Page): Promise<{ schemaVersion?: number } | undefined> =>
+  page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('my-practice-app', 1);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const get = db.transaction('meta', 'readonly').objectStore('meta').get('app');
+          get.onsuccess = () => (db.close(), resolve(get.result));
+          get.onerror = () => reject(get.error);
+        };
+      }),
+  );
+
+/** Simulates a device that saved sessions before the app stamped a schema version on the device. */
+const forgetAppRecord = (page: Page): Promise<void> =>
+  page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('my-practice-app', 1);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction('meta', 'readwrite');
+          tx.objectStore('meta').delete('app');
+          tx.oncomplete = () => (db.close(), resolve());
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+  );
+
 const failWrites = (page: Page, fail: boolean): Promise<void> =>
   page.evaluate((value) => void (window.__failStorageWrites = value), fail);
 
@@ -310,6 +343,39 @@ test.describe('saved data', () => {
     await expect(practice.completion).toBeVisible();
     await expect(page.getByText('Rounds: 2')).toBeVisible();
     await expect(page.getByText('1 of 3 on the first try!')).toBeVisible();
+  });
+
+  test('a brand-new device stamps its schema version as soon as it saves practice, and reloading carries on', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-three');
+    await practice.reveal();
+    await practice.gotIt.click();
+    await expect(practice.progressText()).toHaveText('1 / 3');
+
+    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 1 }));
+    await practice.reopenViaKeepGoing();
+    await expect(practice.progressText()).toHaveText('1 / 3');
+  });
+
+  test('sessions saved by a device that never stamped a version still resume, and get stamped', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    await page.goto('./');
+    await seedSavedData(page, savedDataFixture('schema-v1') as Parameters<typeof seedSavedData>[1]);
+    await forgetAppRecord(page);
+    expect(await savedAppRecord(page)).toBeUndefined();
+    await page.reload();
+    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+
+    await expect(practice.keepGoing).toContainText('Fixture Three');
+    await practice.keepGoing.click();
+    await expect(practice.progressText()).toHaveText('1 / 2');
+    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 1 }));
   });
 
   test('saved progress from a newer version of the app is not touched, and home says so', async ({ page }) => {

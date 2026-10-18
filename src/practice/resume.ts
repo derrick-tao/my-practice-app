@@ -10,7 +10,10 @@ export async function currentProfileId(storage: StorageAdapter): Promise<string>
 
 /** The profile's active session. There is at most one; if data ever holds several, the newest wins. */
 export async function findActiveSession(storage: StorageAdapter): Promise<Session | undefined> {
-  const profileId = await currentProfileId(storage);
+  return activeSessionOf(storage, await currentProfileId(storage));
+}
+
+async function activeSessionOf(storage: StorageAdapter, profileId: string): Promise<Session | undefined> {
   return (await storage.listSessions(profileId, { status: 'active' })).at(-1);
 }
 
@@ -32,12 +35,13 @@ export async function openSession(
   options: { practiceType: string; contentVersion: string; shuffle: boolean },
   env: PracticeEnv,
 ): Promise<OpenedSession> {
-  const active = await findActiveSession(storage);
+  const profileId = await currentProfileId(storage);
+  const active = await activeSessionOf(storage, profileId);
   if (active && active.listId === list.id && active.practiceType === options.practiceType) {
     return { session: active, resumed: true };
   }
   if (active) await storage.putSession({ ...active, status: 'stopped' });
-  const session = createSession(list, { ...options, profileId: await currentProfileId(storage) }, env);
+  const session = createSession(list, { ...options, profileId }, env);
   await storage.putSession(session);
   return { session, resumed: false };
 }

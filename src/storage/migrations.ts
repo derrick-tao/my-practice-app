@@ -13,19 +13,15 @@ export interface Migration {
 export const MIGRATIONS: readonly Migration[] = [];
 
 /**
- * Bring stored data up to `target`. Returns the same object when it is already current. Refuses data
+ * Bring stored data up to SCHEMA_VERSION. Returns the same object when it is already current. Refuses data
  * from a newer schema (NewerSchemaError) and data from an older schema that has no migration path.
  */
-export function migrate(
-  data: StoredData,
-  migrations: readonly Migration[] = MIGRATIONS,
-  target: number = SCHEMA_VERSION,
-): StoredData {
+export function migrate(data: StoredData): StoredData {
   let current = data;
-  if (current.app.schemaVersion > target) throw new NewerSchemaError(current.app.schemaVersion);
-  while (current.app.schemaVersion < target) {
+  if (current.app.schemaVersion > SCHEMA_VERSION) throw new NewerSchemaError(current.app.schemaVersion);
+  while (current.app.schemaVersion < SCHEMA_VERSION) {
     const version = current.app.schemaVersion;
-    const step = migrations.find((m) => m.from === version);
+    const step = MIGRATIONS.find((m) => m.from === version);
     if (!step) throw new Error(`No migration from schema version ${version}.`);
     current = step.up(current);
     if (current.app.schemaVersion !== version + 1) {

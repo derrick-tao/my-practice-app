@@ -6,6 +6,7 @@ import type { Session } from '../practice/session.ts';
 import { migrate } from './migrations.ts';
 import {
   defaultAppRecord,
+  SCHEMA_VERSION,
   type AppRecord,
   type PersistenceStatus,
   type SessionFilter,
@@ -33,9 +34,9 @@ const finished = (tx: IDBTransaction): Promise<void> =>
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
   });
 
-function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
+function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const open = factory.open(DB_NAME, DB_VERSION);
+    const open = indexedDB.open(DB_NAME, DB_VERSION);
     open.onupgradeneeded = () => {
       const db = open.result;
       db.createObjectStore(META);
@@ -47,19 +48,39 @@ function openDatabase(factory: IDBFactory): Promise<IDBDatabase> {
   });
 }
 
-export function createIdbStorage(factory: IDBFactory = indexedDB): StorageAdapter {
+/**
+ * Data saved before the app stamped a version has no app record. It was written by the first schema,
+ * so it is migrated from there rather than assumed to be current.
+ */
+const UNSTAMPED_SCHEMA_VERSION = 1;
+
+export function createIdbStorage(): StorageAdapter {
   let opened: Promise<IDBDatabase> | undefined;
-  const database = (): Promise<IDBDatabase> => {
-    // A failed open is not cached, so the next call (a retry) tries again.
-    opened ??= openDatabase(factory).catch((error: unknown) => {
+  let prepared: Promise<IDBDatabase> | undefined;
+  // A failed open is not cached, so the next call (a retry) tries again.
+  const rawDatabase = (): Promise<IDBDatabase> => {
+    opened ??= openDatabase().catch((error: unknown) => {
       opened = undefined;
       throw error;
     });
     return opened;
   };
+  /**
+   * The database once it is up to date: the app record exists (so the schema version is always on the
+   * device) and stored data is migrated. The check runs once per adapter; every operation but
+   * importAll goes through here, so none can see unmigrated data or write over data from a newer app.
+   */
+  const database = (): Promise<IDBDatabase> => {
+    prepared ??= rawDatabase()
+      .then(async (db) => (await prepare(db), db))
+      .catch((error: unknown) => {
+        prepared = undefined;
+        throw error;
+      });
+    return prepared;
+  };
 
-  async function readAll(): Promise<{ app: AppRecord | undefined; sessions: Session[] }> {
-    const db = await database();
+  async function readAll(db: IDBDatabase): Promise<{ app: AppRecord | undefined; sessions: Session[] }> {
     const tx = db.transaction([META, SESSIONS], 'readonly');
     const [app, sessions] = await Promise.all([
       request<AppRecord | undefined>(tx.objectStore(META).get(APP_KEY)),
@@ -68,8 +89,7 @@ export function createIdbStorage(factory: IDBFactory = indexedDB): StorageAdapte
     return { app, sessions };
   }
 
-  async function replaceAll(data: StoredData): Promise<void> {
-    const db = await database();
+  async function replaceAll(db: IDBDatabase, data: StoredData): Promise<void> {
     const tx = db.transaction([META, SESSIONS], 'readwrite');
     const done = finished(tx);
     tx.objectStore(META).put(data.app, APP_KEY);
@@ -79,18 +99,20 @@ export function createIdbStorage(factory: IDBFactory = indexedDB): StorageAdapte
     await done;
   }
 
-  async function loadStored(): Promise<StoredData> {
-    const { app, sessions } = await readAll();
-    if (!app) return { app: defaultAppRecord(), sessions };
-    const data = { app, sessions };
-    const migrated = migrate(data);
-    if (migrated !== data) await replaceAll(migrated);
-    return migrated;
+  async function prepare(db: IDBDatabase): Promise<void> {
+    const { app, sessions } = await readAll(db);
+    const stored: StoredData = {
+      app: app ?? { ...defaultAppRecord(), schemaVersion: sessions.length > 0 ? UNSTAMPED_SCHEMA_VERSION : SCHEMA_VERSION },
+      sessions,
+    };
+    const migrated = migrate(stored);
+    if (!app || migrated !== stored) await replaceAll(db, migrated);
   }
 
   return {
     async loadApp() {
-      return (await loadStored()).app;
+      const db = await database();
+      return (await request<AppRecord | undefined>(db.transaction(META, 'readonly').objectStore(META).get(APP_KEY)))!;
     },
 
     async saveApp(app) {
@@ -138,10 +160,13 @@ export function createIdbStorage(factory: IDBFactory = indexedDB): StorageAdapte
       await done;
     },
 
-    exportAll: loadStored,
+    async exportAll() {
+      const { app, sessions } = await readAll(await database());
+      return { app: app!, sessions };
+    },
 
     async importAll(data) {
-      await replaceAll(migrate(data));
+      await replaceAll(await rawDatabase(), migrate(data));
     },
 
     async getPersistence() {
