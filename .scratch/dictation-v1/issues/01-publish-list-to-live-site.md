@@ -8,7 +8,7 @@ Sets up the stack (Vite + TypeScript strict + Preact), hash routing under the re
 
 **Blocked by:** None (can start immediately)
 
-**Status:** claimed
+**Status:** resolved
 
 - [ ] Pushing to `main` deploys to https://derrick-tao.github.io/my-practice-app/ via GitHub Actions; pull requests run validate, typecheck, tests, and build without deploying or using secrets
 - [ ] The live home screen shows a card for "Fall 2026 Assessment" with "Test: 2026-10-26 to 2026-10-30" and 37 characters, on iPhone and iPad in portrait and landscape
@@ -22,3 +22,4 @@ Sets up the stack (Vite + TypeScript strict + Preact), hash routing under the re
 ## Comments
 
 - 2026-10-18 (coordinator): Implemented on integration branch `dictation-v1` (bec799e, c8fceec, 67e9412; review fixes d36815b..510ab52). Verified locally: every validation rule, pinyin auto-fill, manifest/per-list data, content version, both seams, Fall 2026 card on iPhone/iPad in both orientations. Left `claimed` until the first push to `main` confirms the live deploy, PR CI behaviour, and that an invalid list blocks deploy.
+- 2026-10-18 (coordinator): Verified live after PR #1. PR CI passed with no secrets. Deploy run 39143096214 succeeded with one Pages deploy. Live home in WebKit (iPhone 15, iPad Pro 11 landscape) shows "Fall 2026 Assessment", "2026-10-26 to 2026-10-30" and 37 characters, with no cross-origin requests. Not exercised live: an invalid list blocking deploy (covered locally by the validate step's failure).

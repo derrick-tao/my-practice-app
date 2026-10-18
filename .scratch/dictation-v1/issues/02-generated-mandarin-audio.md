@@ -8,7 +8,7 @@ The `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets are set (confirmed
 
 **Blocked by:** 01
 
-**Status:** claimed
+**Status:** resolved
 
 - [ ] Audio files are content-addressed (hash of provider + voice + rate + SSML). A second build with unchanged content makes zero provider requests; changing one clue makes exactly two (normal + slow) for that item (Seam 2, fake provider)
 - [ ] Seam 2 asserts the spoken prompt for each case (say override, clue template, target only), phoneme markup for standalone targets, and the configured normal/slow rates
@@ -24,3 +24,4 @@ The `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets are set (confirmed
 
 - 2026-10-18 (coordinator): Implemented on `dictation-v1` (75854d8, plus review fixes 9b47ef2/a91eb76). Seam 2 covers content addressing, zero/two-request rebuilds, prompts, `sapi` phoneme markup (neutral tone = 5), rates, prune, missing-credentials failure, and an edge build with no key. Finding: edge-tts can't take phoneme markup, so with the edge provider, polyphones need `say` overrides. Left `claimed` until the first `main` run shows Azure returning 200 for 什/么/只/分 with no key in the log, the `[skip ci]` audio commit landing, and all 74 files live. Until then local `npm run check` needs `FAKE_AUDIO=1`.
 - 2026-10-18 (owner decision): Local key handling changed from "no local key" / Keychain to an optional git-ignored `.env`. The `audio` CLI command loads `.env` (or `--env-file path`) via `process.loadEnvFile`, and environment variables take precedence. Added `.env.example`, a `!.env.example` gitignore exception, a Seam 2 CLI test, and README setup steps. CI is unchanged (repo secrets).
+- 2026-10-18 (coordinator): Verified on deploy run 39143096214. Azure returned 74/74 `status=200` with `phoneme=yes` for 什/么/只/分 (normal and slow), and the key appears only masked. Audio was committed back as da2a427 `[skip ci]`, and all 74 files are served from /content/audio/. `npm run check` passes on main without FAKE_AUDIO. The edge provider is covered only by Seam 2 with a stubbed transport, not a real run. Listening checks are in ticket 17.
