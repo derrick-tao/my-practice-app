@@ -27,6 +27,10 @@
     "test:content": "vitest run",
     "content:build": "tsx content-build/cli.ts build",
     "test:e2e": "playwright test",
-    "dev": "npm run content:build && vite"
+    "dev": "npm run content:build && vite",
+    "build": "npm run content:build && vite build",
+    "preview": "vite preview",
+    "build:e2e": "tsx content-build/cli.ts build --content tests/fixtures/content/e2e --out .generated/e2e/content --audio-store .generated/e2e/audio && CONTENT_OUT=.generated/e2e/content vite build --mode e2e --outDir dist-e2e",
+    "check": "npm run validate && npm run typecheck && npm run test:content && npm run build && npm run test:e2e"
   }
 }

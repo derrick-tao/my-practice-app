@@ -1,0 +1,74 @@
+// Seam 1 harness shared by all e2e specs.
+//
+//  - The app under test is the real build served under /my-practice-app/ with fixture content
+//    (tests/fixtures/content/e2e). See playwright.config.ts.
+//  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
+//    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
+import { expect, test as base, type Page } from '@playwright/test';
+import type { ListData } from '../../src/content/types.ts';
+
+export type Rendition = 'normal' | 'slow';
+
+export interface PlayedAudio {
+  /** Path relative to the content root, e.g. `audio/<hash>.mp3`. */
+  ref: string;
+  /** Resolved against the list data: which item and rendition it is, when known. */
+  target?: string;
+  rendition?: Rendition;
+}
+
+export interface AudioProbe {
+  /** Every play() request so far, oldest first, resolved against `list` when given. */
+  played(list?: ListData): Promise<PlayedAudio[]>;
+  clear(): Promise<void>;
+}
+
+declare global {
+  interface Window {
+    __audioPlays: string[];
+  }
+}
+
+function installAudioStub(): void {
+  window.__audioPlays = [];
+  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement): Promise<void> {
+    window.__audioPlays.push(this.currentSrc || this.src);
+    return Promise.resolve();
+  };
+  HTMLMediaElement.prototype.pause = function pause(): void {};
+}
+
+function audioProbe(page: Page): AudioProbe {
+  return {
+    async played(list) {
+      const urls = await page.evaluate(() => window.__audioPlays);
+      return urls.map((url) => {
+        const ref = url.slice(url.indexOf('/content/') + '/content/'.length);
+        const hit = list?.items
+          .flatMap((item) => [
+            { item, rendition: 'normal' as const, audioRef: item.audio.normal },
+            { item, rendition: 'slow' as const, audioRef: item.audio.slow },
+          ])
+          .find((entry) => entry.audioRef === ref);
+        return hit ? { ref, target: hit.item.target, rendition: hit.rendition } : { ref };
+      });
+    },
+    clear: () => page.evaluate(() => void (window.__audioPlays.length = 0)),
+  };
+}
+
+export const test = base.extend<{ audio: AudioProbe; loadList: (id: string) => Promise<ListData> }>({
+  audio: async ({ page }, use) => {
+    await page.addInitScript(installAudioStub);
+    await use(audioProbe(page));
+  },
+  loadList: async ({ page }, use) => {
+    await use(async (id) => {
+      const response = await page.request.get(`content/lists/${id}.json`);
+      expect(response.ok(), `list ${id} should be served`).toBe(true);
+      return (await response.json()) as ListData;
+    });
+  },
+});
+
+export { expect };
