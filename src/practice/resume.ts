@@ -1,7 +1,7 @@
 // Finding and (re)opening the learner's session through the StorageAdapter.
 import type { ListData, PracticeTypeId } from '../content/types.ts';
 import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
-import { createSession, DEFAULT_PROFILE_ID, skipUnknownItems, type PracticeEnv, type Session } from './session.ts';
+import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
 
 /** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
 export async function currentProfileId(storage: StorageAdapter): Promise<string> {
@@ -45,8 +45,8 @@ export async function openSession(
   const profileId = await currentProfileId(storage);
   const active = await activeSessionOf(storage, profileId);
   if (active && active.listId === list.id && active.practiceType === options.practiceType) {
-    // A list edited since the session was saved may have dropped the item it was on.
-    const settled = skipUnknownItems(active, new Set(list.items.map((item) => item.target)), env);
+    // Reconcile with the list as it is now (the parent may have edited it since the session was saved).
+    const settled = reconcileWithList(active, new Set(list.items.map((item) => item.target)), env);
     if (settled !== active) await storage.putSession(settled);
     return { session: settled, resumed: true };
   }

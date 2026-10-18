@@ -16,12 +16,13 @@ import {
   markCounts,
   markHeard,
   placeOf,
+  reconcileWithList,
   resetBreakCount,
   reveal,
   sessionResult,
-  skipUnknownItems,
   startRetryRound,
   undo,
+  wrongItemIds,
   type Mark,
   type PracticeEnv,
   type Place,
@@ -219,7 +220,7 @@ function PracticeRun({
   const advance = (step: (from: Session) => Session): Session | undefined => {
     if (sync.busy()) return undefined;
     const before = sync.state().session;
-    const after = skipUnknownItems(step(before), listedIds, env);
+    const after = reconcileWithList(step(before), listedIds, env);
     if (after === before) return undefined;
     sync.dispatch((s) => (s === before ? after : s));
     return after;
@@ -240,7 +241,7 @@ function PracticeRun({
   };
 
   const onRetry = (): void => {
-    const after = advance((s) => startRetryRound(s, env));
+    const after = advance((s) => startRetryRound(s, env, listedIds));
     if (!after) return;
     setBlockedAt(null);
     autoplayCurrent(after);
@@ -260,6 +261,20 @@ function PracticeRun({
   useEffect(() => {
     if (leaving && !saveFailed && session.marksSinceBreak === 0) location.hash = HOME_HREF;
   }, [leaving, saveFailed, session.marksSinceBreak]);
+
+  if (session.status === 'stopped') {
+    // Reconciling with the edited list found none of the session's words left: the session is saved as
+    // stopped, and the child starts fresh by picking a list.
+    return (
+      <main class="screen practice">
+        <HomeButton />
+        <h1 class="sr-only">{list.title}</h1>
+        <p class="notice" data-testid="list-changed">
+          <span aria-hidden="true">🌟 </span>This list changed — pick a list
+        </p>
+      </main>
+    );
+  }
 
   if (session.status === 'completed') {
     return (
@@ -339,7 +354,11 @@ function PracticeRun({
         </section>
       )}
       {isRoundOver(round) && (
-        <RoundSummary {...markCounts(round)} onRetry={canRetry(session) ? onRetry : undefined} />
+        <RoundSummary
+          {...markCounts(round)}
+          retryCount={canRetry(session, listedIds) ? wrongItemIds(round, listedIds).length : 0}
+          onRetry={onRetry}
+        />
       )}
     </main>
   );
@@ -366,11 +385,14 @@ function BreakPrompt({ onKeepGoing, onBreak }: { onKeepGoing: () => void; onBrea
 function RoundSummary({
   correct,
   wrong,
+  retryCount,
   onRetry,
 }: {
   correct: number;
   wrong: number;
-  onRetry?: () => void;
+  /** Missed words that can be practiced again (a miss on a since-removed word cannot). */
+  retryCount: number;
+  onRetry: () => void;
 }) {
   return (
     <section class="summary" data-testid="round-summary">
@@ -384,9 +406,9 @@ function RoundSummary({
           <span data-testid="wrong-count">{wrong}</span>
         </span>
       </div>
-      {wrong > 0 && onRetry && (
+      {retryCount > 0 && (
         <>
-          <p class="summary__more">Let's practice {wrong} more!</p>
+          <p class="summary__more">Let's practice {retryCount} more!</p>
           <button type="button" class="btn btn--primary btn--retry" onClick={onRetry}>
             <span aria-hidden="true">🔁 </span>Practice the ❌ words
           </button>

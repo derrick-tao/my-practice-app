@@ -416,7 +416,7 @@ test.describe('saved data', () => {
   }
   const round1 = { index: 1, phase: 'listening', heardCurrent: true, startedAt: '2026-10-01T09:00:00.000Z' };
 
-  test('a saved item the list no longer has is skipped, so the child is never stuck on it', async ({
+  test('a saved item the list no longer has drops out of the round, so the child is never stuck on it', async ({
     page,
     audio,
     loadList,
@@ -431,7 +431,7 @@ test.describe('saved data', () => {
 
     await practice.keepGoing.click();
 
-    await expect(practice.progressText()).toHaveText('2 / 4');
+    await expect(practice.progressText()).toHaveText('1 / 3');
     await practice.listen.click(); // resuming never auto-plays
     expect(await practice.playRound(() => true)).toEqual(['分', '找']);
     await expect(practice.completion).toBeVisible();

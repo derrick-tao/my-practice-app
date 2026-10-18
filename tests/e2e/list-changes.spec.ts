@@ -1,0 +1,252 @@
+// Seam 1: a list edited while a session is active (ticket 10). The parent publishes a change between two
+// loads of the app (see list-edits.ts); opening the session again follows the spec's reconciliation rules.
+import type { Page } from '@playwright/test';
+import type { ListData } from '../../src/content/types.ts';
+import { expect, test, type AudioProbe } from './harness.ts';
+import { publishListEdit } from './list-edits.ts';
+import { PracticeScreen } from './practice-driver.ts';
+
+interface Fixtures {
+  page: Page;
+  audio: AudioProbe;
+  loadList: (id: string) => Promise<ListData>;
+}
+
+/** Start practicing a fixture list from the home screen. The one place this file reaches home. */
+async function start(
+  { page, audio, loadList }: Fixtures,
+  listId: string,
+): Promise<{ practice: PracticeScreen; list: ListData }> {
+  await page.goto('./');
+  const list = await loadList(listId);
+  const practice = new PracticeScreen(page, audio, list);
+  await practice.open();
+  return { practice, list };
+}
+
+const without = (...targets: string[]) => (list: ListData): ListData => ({
+  ...list,
+  items: list.items.filter((item) => !targets.includes(item.target)),
+});
+
+/** Item 1's target (heard on arrival), once the screen is ready for Check. */
+async function currentTarget(practice: PracticeScreen): Promise<string> {
+  await expect(practice.check).toBeVisible();
+  return (await practice.lastHeardTarget())!;
+}
+
+test.describe('a list edited during practice', () => {
+  test('an edited clue and pinyin show on the current item\'s reveal after reopening', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-three');
+    await currentTarget(practice);
+    await publishListEdit(page, 'fixture-three', (list) => ({
+      ...list,
+      items: list.items.map((item) => ({ ...item, clue: `新${item.clue}`, pinyin: 'xīn' })),
+    }));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.progressText()).toHaveText('0 / 3');
+    const revealed = await practice.reveal();
+    expect(revealed).toBeTruthy();
+    await expect(page.getByText(/^新/)).toBeVisible();
+    await expect(page.getByText('xīn', { exact: true })).toBeVisible();
+  });
+
+  test('an edited audio file plays on the current item after reopening', async ({ page, audio, loadList }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
+    const current = await currentTarget(practice);
+    const other = list.items.find((item) => item.target !== current)!;
+    await publishListEdit(page, 'fixture-three', (l) => ({
+      ...l,
+      items: l.items.map((item) =>
+        item.target === current ? { ...item, audio: { normal: other.audio.normal, slow: other.audio.slow } } : item,
+      ),
+    }));
+
+    await practice.reopenViaKeepGoing();
+    await audio.clear();
+    await practice.listen.click();
+
+    expect(await audio.played(list)).toEqual([expect.objectContaining({ target: other.target, rendition: 'normal' })]);
+  });
+
+  test('removing the current item: resuming lands on the next remaining item', async ({ page, audio, loadList }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-five');
+    const removed = await currentTarget(practice);
+    await publishListEdit(page, 'fixture-five', without(removed));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.progressText()).toHaveText('0 / 4');
+    await expect(practice.check).toHaveCount(0); // a different item: its audio has not been heard yet
+    await practice.listen.click();
+    const next = await practice.lastHeardTarget();
+    expect(next).not.toBe(removed);
+    expect(list.items.map((item) => item.target)).toContain(next);
+    expect(await practice.reveal()).toBe(next);
+    await practice.gotIt.click();
+    const rest = await practice.playRound(() => true);
+    expect([next, ...rest].sort()).toEqual(
+      list.items
+        .map((item) => item.target)
+        .filter((t) => t !== removed)
+        .sort(),
+    );
+    await expect(practice.completion).toBeVisible();
+  });
+
+  test('removing future items: they never appear in this session', async ({ page, audio, loadList }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-five');
+    const current = await currentTarget(practice);
+    const removed = list.items
+      .map((item) => item.target)
+      .filter((t) => t !== current)
+      .slice(0, 2);
+    await publishListEdit(page, 'fixture-five', without(...removed));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.progressText()).toHaveText('0 / 3');
+    const order = await practice.playRound(() => true);
+    expect(order).toHaveLength(3);
+    expect(order[0]).toBe(current);
+    for (const target of removed) expect(order).not.toContain(target);
+    await expect(practice.completion).toBeVisible();
+  });
+
+  test('removing the last remaining items of the round shows the round summary with the counts so far', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-five');
+    const marked: string[] = [];
+    marked.push(await practice.reveal());
+    await practice.gotIt.click();
+    await expect(practice.check).toBeVisible();
+    marked.push(await practice.reveal());
+    await practice.notYet.click();
+    await expect(practice.check).toBeVisible();
+    marked.push(await practice.reveal());
+    await practice.gotIt.click();
+    await expect(practice.check).toBeVisible();
+    const remaining = list.items.map((item) => item.target).filter((t) => !marked.includes(t));
+    expect(remaining).toHaveLength(2);
+    await publishListEdit(page, 'fixture-five', without(...remaining));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.summary).toBeVisible();
+    await expect(page.getByTestId('correct-count')).toHaveText('2');
+    await expect(page.getByTestId('wrong-count')).toHaveText('1');
+    await expect(practice.progressText()).toHaveText('3 / 3');
+    const order = await practice.playRetryRound(() => true);
+    expect(order).toEqual([marked[1]]);
+    await expect(practice.completion).toBeVisible();
+  });
+
+  test('a missed word that was removed is not offered in the next round, and the round ends if nothing is left', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    const missed = new Set(['狗', '年']);
+    await practice.playRound((target) => !missed.has(target));
+    await expect(practice.summary).toBeVisible();
+    await publishListEdit(page, 'fixture-five', without('狗'));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.summary).toBeVisible();
+    await expect(page.getByText("Let's practice 1 more!")).toBeVisible();
+    expect(await practice.playRetryRound(() => true)).toEqual(['年']);
+    await expect(practice.completion).toBeVisible();
+  });
+
+  test('when every missed word was removed, there is nothing to retry and the session is complete', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    await practice.playRound((target) => target !== '狗');
+    await expect(practice.summary).toBeVisible();
+    await publishListEdit(page, 'fixture-five', without('狗'));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.completion).toBeVisible();
+  });
+
+  test('marks for removed items in finished rounds are kept: the first-try score still counts them', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-five');
+    const round1 = await practice.playRound((_, index) => index !== 0); // the first one presented is missed
+    const missed = round1[0]!;
+    await expect(practice.summary).toBeVisible();
+    await practice.retry.click();
+    await expect(practice.roundBadge).toHaveAttribute('aria-label', 'Round 2');
+    const removed = round1[1]!;
+    await publishListEdit(page, 'fixture-five', without(removed));
+
+    await practice.reopenViaKeepGoing();
+
+    expect(await practice.playRound(() => true)).toEqual([missed]);
+    await expect(practice.completion).toBeVisible();
+    await expect(page.getByText('4 of 5 on the first try!')).toBeVisible();
+  });
+
+  test('an added item is not in the active session, but is in the next one', async ({ page, audio, loadList }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
+    await currentTarget(practice);
+    const added = { ...list.items[0]!, target: '新', clue: undefined, pinyin: 'xīn' };
+    await publishListEdit(page, 'fixture-three', (l) => ({ ...l, items: [...l.items, added] }));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(practice.progressText()).toHaveText('0 / 3');
+    const order = await practice.playRound(() => true);
+    expect(order).toHaveLength(3);
+    expect(order).not.toContain('新');
+    await expect(practice.completion).toBeVisible();
+
+    await practice.completion.getByRole('link', { name: 'Home' }).click();
+    await expect(page.getByText('4 characters')).toBeVisible();
+    await practice.listCard().click();
+    await expect(practice.progressText()).toHaveText('0 / 4');
+    expect(await practice.playRound(() => true)).toContain('新');
+  });
+
+  test('removing every item stops the session with a friendly message; the child can pick a list again', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice, list } = await start({ page, audio, loadList }, 'fixture-three');
+    await currentTarget(practice);
+    await publishListEdit(page, 'fixture-three', (l) => ({
+      ...l,
+      items: l.items.map((item, i) => ({ ...item, target: `换${i}` })),
+    }));
+
+    await practice.reopenViaKeepGoing();
+
+    await expect(page.getByText('This list changed — pick a list')).toBeVisible();
+    await expect(practice.listen).toHaveCount(0);
+    await practice.home.click();
+    await expect(practice.keepGoing).toHaveCount(0); // the old session is stopped, not waiting to resume
+    await practice.listCard().click();
+    await expect(practice.progressText()).toHaveText(`0 / ${list.items.length}`);
+    const order = await practice.playRound(() => true);
+    expect(order.sort()).toEqual(['换0', '换1', '换2']);
+  });
+});
