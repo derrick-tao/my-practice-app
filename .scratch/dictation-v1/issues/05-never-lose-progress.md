@@ -8,7 +8,7 @@ All storage goes through a single StorageAdapter interface (IndexedDB implementa
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: reloading during listening, during revealed, and on a round summary each shows Keep going, which restores the exact state (same item, round, phase; Check still visible if audio was already heard)
 - [ ] Reload mid-retry-round resumes in that retry round with the correct remaining items
@@ -17,3 +17,7 @@ All storage goes through a single StorageAdapter interface (IndexedDB implementa
 - [ ] A saved-data fixture at the current schema version loads; the migration runner is in place for future versions
 - [ ] Persistent storage is requested on first run, and the result is retained for display later (13)
 - [ ] The UI and practice flow access storage only through the StorageAdapter
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (6e4f8ad, review fix d36815b). Decisions to carry forward: (1) the next item's audio starts inside the mark tap, before the save completes (an iOS gesture rule). If the save fails, the child hears item N+1 while item N stays revealed under "Couldn't save". (2) Starting a different list stops the active session without the gate until 07/09 add it. (3) `tests/e2e/saved-data.ts` seeds and reads IndexedDB directly, which breaks the Testing Decisions rule. Rework it through backup import in ticket 13.

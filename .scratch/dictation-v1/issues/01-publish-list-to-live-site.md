@@ -8,7 +8,7 @@ Sets up the stack (Vite + TypeScript strict + Preact), hash routing under the re
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Pushing to `main` deploys to https://derrick-tao.github.io/my-practice-app/ via GitHub Actions; pull requests run validate, typecheck, tests, and build without deploying or using secrets
 - [ ] The live home screen shows a card for "Fall 2026 Assessment" with "Test: 2026-10-26 to 2026-10-30" and 37 characters, on iPhone and iPad in portrait and landscape
@@ -18,3 +18,7 @@ Sets up the stack (Vite + TypeScript strict + Preact), hash routing under the re
 - [ ] Seam 1 harness: Playwright (WebKit, iPhone + iPad profiles) runs against the built app with fixture content and stubbed audio playback, and asserts the list card renders
 - [ ] Seam 2 harness: the content build runs end-to-end on fixture lists with the fake TTS provider, and its outputs or errors are asserted
 - [ ] Concurrency allows one Pages deploy at a time
+
+## Comments
+
+- 2026-10-18 (coordinator): Implemented on integration branch `dictation-v1` (bec799e, c8fceec, 67e9412; review fixes d36815b..510ab52). Verified locally: every validation rule, pinyin auto-fill, manifest/per-list data, content version, both seams, Fall 2026 card on iPhone/iPad in both orientations. Left `claimed` until the first push to `main` confirms the live deploy, PR CI behaviour, and that an invalid list blocks deploy.
