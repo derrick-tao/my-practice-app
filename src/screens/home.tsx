@@ -3,6 +3,7 @@ import type { ListSummary, PracticeTypeId } from '../content/types.ts';
 import { findActiveSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { listHref } from '../router.ts';
 import { getStorage, NewerSchemaError } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
@@ -59,6 +60,7 @@ async function loadResume(): Promise<Resume> {
 export function HomeScreen() {
   const manifest = useLoad(fetchManifest, []);
   const resume = useLoad(loadResume, []);
+  const updateReady = useUpdateReady();
   const saved: Resume = resume.status === 'ready' ? resume.value : {};
   const session = saved.session;
   const lists =
@@ -69,6 +71,11 @@ export function HomeScreen() {
   return (
     <main class="screen">
       <h1 class="screen__title">My Practice</h1>
+      {updateReady && (
+        <button type="button" class="update-banner" onClick={applyUpdate}>
+          New words are ready! <span aria-hidden="true">🔄</span>
+        </button>
+      )}
       {manifest.status === 'loading' && <p class="notice">Loading…</p>}
       {manifest.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
       {saved.newerData && (
