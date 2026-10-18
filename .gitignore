@@ -5,6 +5,8 @@ playwright-report/
 test-results/
 .DS_Store
 .env*
+# The template is committed; the real .env with the Azure key never is
+!.env.example
 
 # Generated at build time
 public/content/

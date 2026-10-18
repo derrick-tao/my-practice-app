@@ -1,12 +1,14 @@
 // CLI used by npm scripts and CI.
 //   tsx content-build/cli.ts validate [--content dir]
 //   tsx content-build/cli.ts build [--content dir] [--out dir] [--audio-store dir] [--fake-audio] [--prune]
-//   tsx content-build/cli.ts audio [--content dir] [--audio-store dir] [--prune]
+//   tsx content-build/cli.ts audio [--content dir] [--audio-store dir] [--env-file path] [--prune]
 //
 // `audio` generates any missing real audio into the committed audio/ folder (the main deploy workflow runs
-// it with the Azure secrets). `build` never needs credentials when audio/ is complete; if audio is missing
-// it fails, unless --fake-audio (or FAKE_AUDIO=1) explicitly asks for silent placeholder audio, which is
-// only for tests and pull-request CI and is never written to audio/.
+// it with the Azure secrets; locally it reads them from the git-ignored .env, see .env.example). `build`
+// never needs credentials when audio/ is complete; if audio is missing it fails, unless --fake-audio (or
+// FAKE_AUDIO=1) explicitly asks for silent placeholder audio, which is only for tests and pull-request CI
+// and is never written to audio/.
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { ttsConfig } from '../tts.config.ts';
@@ -22,6 +24,7 @@ const { positionals, values } = parseArgs({
     'audio-store': { type: 'string', default: 'audio' },
     'fake-audio-store': { type: 'string', default: '.generated/fake-audio' },
     'fake-audio': { type: 'boolean', default: false },
+    'env-file': { type: 'string', default: '.env' },
     prune: { type: 'boolean', default: false },
   },
 });
@@ -32,6 +35,15 @@ function report(warnings: string[]): void {
 
 function fakeAudioRequested(): boolean {
   return values['fake-audio'] || ['1', 'true'].includes(process.env.FAKE_AUDIO ?? '');
+}
+
+// Only the audio command reads the env file, so the key never reaches validate, build or the app bundle.
+// Variables already set in the environment (CI secrets, the shell) win over the file. Values are never logged.
+function loadLocalEnv(): void {
+  const file = path.resolve(values['env-file']);
+  if (!existsSync(file)) return;
+  process.loadEnvFile(file);
+  console.log(`Read credentials from ${values['env-file']}.`);
 }
 
 async function main(): Promise<void> {
@@ -58,6 +70,7 @@ async function main(): Promise<void> {
     if (fakeAudioRequested()) {
       throw new Error('The audio command generates real audio and is never combined with --fake-audio / FAKE_AUDIO.');
     }
+    loadLocalEnv();
     const stats = await generateAudio(common);
     console.log(
       `Audio: ${stats.needed} file(s) needed, ${stats.requested} generated, ${stats.pruned.length} pruned.`,
@@ -78,7 +91,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  throw new Error('usage: cli.ts <validate|build|audio> [--content dir] [--out dir] [--audio-store dir] [--fake-audio] [--prune]');
+  throw new Error('usage: cli.ts <validate|build|audio> [--content dir] [--out dir] [--audio-store dir] [--env-file path] [--fake-audio] [--prune]');
 }
 
 main().catch((error: unknown) => {

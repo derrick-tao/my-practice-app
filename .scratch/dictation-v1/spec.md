@@ -198,7 +198,7 @@ Progress is saved to on-device storage after every step. Closing the browser, fo
 - **Polyphone handling:** standalone occurrences of the target in the spoken prompt are wrapped in an SSML phoneme tag derived from the item's pinyin, so isolated characters with several readings (什 shén, 么 me, 只 zhī, 分 fēn) are read as intended. If Azure's zh-CN phoneme support turns out to be insufficient, those items get an explicit `say` override instead.
 - **Audio storage:**
   - Audio files are **content-addressed**: the file name is a hash of provider + voice + rate + SSML. Generation is skipped if the file exists.
-  - Generated MP3s are **committed back to the repo** by the deploy workflow, so a re-deploy makes zero cloud calls, and local development works without a key.
+  - Generated MP3s are **committed back to the repo** by the deploy workflow, so a re-deploy makes zero cloud calls, and local development works without a key. Audio generated locally from `.env` uses the same file names, so committing it or letting CI regenerate it gives the same result.
   - A prune option removes unreferenced audio.
 - The build fails if any item lacks audio and no provider credentials are available. Audio is never silently missing.
 - **Build output:**
@@ -208,7 +208,7 @@ Progress is saved to on-device storage after every step. Closing the browser, fo
 - A **Kai-style handwriting font** subset (an open-source font such as LXGW WenKai, OFL-licensed) containing only the characters in the content is generated at build time, for revealed characters.
 - **CI:**
   - Pull requests run validation, typecheck, tests, and build, without secrets or audio generation.
-  - Pushes to main run validation → audio generation (using the Azure key and region secrets) → commit new audio (skip-ci) → build → tests → deploy to Pages.
+  - Pushes to main run validation → audio generation (using the Azure key and region secrets; locally the same command reads them from `.env`) → commit new audio (skip-ci) → build → tests → deploy to Pages.
   - Concurrency is limited to one Pages deploy at a time.
   - The Azure key is never logged.
 
@@ -348,7 +348,7 @@ Progress is saved to on-device storage after every step. Closing the browser, fo
 - The repo contains only code, lists, and generated audio.
 - The repo ignores backup files (gitignore).
 - An optional check/pre-commit hook scans committed content against a local-only, gitignored denylist (e.g. the child's name).
-- The TTS key exists only as a GitHub Actions secret (and in the owner's local Keychain for local generation). It's never printed, and it's never given to pull-request builds.
+- The TTS key exists only as a GitHub Actions secret and, optionally, in the owner's local git-ignored `.env` (not the Keychain). Only the audio-generation command reads `.env`, and variables already in the environment take precedence. The app, its build, and the tests never read it, and the names never carry Vite's `VITE_` prefix, so the key can't reach the client bundle. A committed `.env.example` holds placeholder values only. The key is never printed, never committed, and never given to pull-request builds.
 
 ### Extensibility (shape only, nothing built in v1)
 
@@ -450,7 +450,7 @@ The content build is exercised as a whole: fixture list files go in, and the out
   - Re-authenticate the GitHub CLI for github.com with the personal account. It's currently invalid; the corporate hosts must not be used.
   - Create the public `my-practice-app` repo with Pages set to deploy from GitHub Actions.
   - Create an Azure Speech resource (Free F0 tier, eastus) under a personal Azure account.
-  - Store the key in the local Keychain, and add `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` as repository secrets. Step-by-step instructions for a setup agent were already given to the owner.
+  - Add `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` as repository secrets (done 2026-10-18). For local generation, also copy `.env.example` to the git-ignored `.env` and paste the key there (optional; the owner chose `.env` over the macOS Keychain). Step-by-step instructions for a setup agent were already given to the owner.
 - **Storage durability on iOS:** Chrome on iOS uses WebKit, so Safari-style eviction of script-writable storage can apply to sites that aren't installed. Adding the app to the home screen and making regular backups are the protections. This is why the install tip and backup nudge exist.
 - **Polyphone reading** needs to be checked against Azure early. The `say` override is the fallback.
 - **Assumptions:**
