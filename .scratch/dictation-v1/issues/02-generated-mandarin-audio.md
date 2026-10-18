@@ -4,7 +4,7 @@
 
 **What to build:** On every push to `main`, real Mainland Mandarin audio (Azure Neural TTS, `zh-CN-XiaoxiaoNeural`) is generated for each new or changed item, at normal and slow (about −30%) rates. It's committed back to the repo and deployed, so every item on the live site has playable audio. The spoken prompt follows the spec: the `say` override, else "target，clue的target", else the target alone. Standalone targets carry phoneme markup from their pinyin, so 什/么/只/分 are read as intended. The unofficial `edge-tts` provider is available behind a config flag as a fallback. Provider, voice, rates, and output format live in one TTS config.
 
-Needs the `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets (owner sets these via the Azure setup instructions) to verify the live criteria.
+The `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` repo secrets are set (confirmed 2026-10-18). For local generation on the owner's Mac, the same values are in the macOS login Keychain as generic passwords for account `$USER`, under services `my-practice-app-azure-speech-key` and `my-practice-app-azure-speech-region`. Local runs should read them from there, or from env vars of the same names as the secrets, and never write them to disk.
 
 **Blocked by:** 01
 
