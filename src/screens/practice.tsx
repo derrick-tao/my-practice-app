@@ -516,13 +516,25 @@ function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: numbe
   );
 }
 
-/** The phrase to say aloud: in the handwriting font, as large as fits on one line (see .phrase in practice.css). */
+/** An item's target in the handwriting font. `fit`: as large as fits on one line (phrases, see .phrase in practice.css) rather than shrunk by its length. */
+function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testId: string }) {
+  return (
+    <div
+      class={fit ? 'reveal__target phrase' : 'reveal__target'}
+      data-testid={testId}
+      lang="zh-CN"
+      style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
+    >
+      {item.target}
+    </div>
+  );
+}
+
+/** The phrase to say aloud. */
 function PhrasePrompt({ item }: { item: ItemData }) {
   return (
     <div class="reveal">
-      <div class="reveal__target phrase" data-testid="prompt-phrase" lang="zh-CN" style={{ '--chars': [...item.target].length }}>
-        {item.target}
-      </div>
+      <TargetText item={item} fit testId="prompt-phrase" />
     </div>
   );
 }
@@ -530,14 +542,7 @@ function PhrasePrompt({ item }: { item: ItemData }) {
 function Reveal({ item, fit }: { item: ItemData; /** Fit the target on one line (phrases) rather than shrinking it by its length. */ fit: boolean }) {
   return (
     <div class="reveal">
-      <div
-        class={fit ? 'reveal__target phrase' : 'reveal__target'}
-        data-testid="target"
-        lang="zh-CN"
-        style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
-      >
-        {item.target}
-      </div>
+      <TargetText item={item} fit={fit} testId="target" />
       <div class="reveal__pinyin">{item.pinyin}</div>
       {item.clue && <div class="reveal__clue">{item.clue}</div>}
     </div>
