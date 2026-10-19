@@ -35,7 +35,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Validate lists
+      - name: Validate lessons
         run: npm run validate
 
       # The Azure secrets are referenced ONLY here (never at workflow or job level, never in ci.yml, which

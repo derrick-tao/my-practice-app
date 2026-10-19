@@ -2,9 +2,8 @@
 id: fixture-five
 title: Fixture Five
 subject: chinese
-practiceTypes: [dictation]
 script: simplified
-items:
+dictation:
   - target: 猫
     clue: 小猫
   - target: 狗

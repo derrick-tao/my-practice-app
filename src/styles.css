@@ -35,7 +35,7 @@ body {
   gap: 16px;
 }
 
-.list-card {
+.lesson-card {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -50,12 +50,12 @@ body {
   box-shadow: 0 4px 0 var(--accent);
 }
 
-.list-card__title {
+.lesson-card__title {
   font-size: 1.6rem;
   font-weight: 700;
 }
 
-.list-card__meta {
+.lesson-card__meta {
   font-size: 1.1rem;
 }
 
@@ -155,7 +155,7 @@ body {
   box-shadow: 0 3px 0 var(--accent);
 }
 
-/* On/off switch per list */
+/* On/off switch per lesson */
 .switches {
   list-style: none;
   margin: 0;

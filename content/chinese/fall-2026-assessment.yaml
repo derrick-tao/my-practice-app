@@ -1,12 +1,11 @@
 # Fall 2026 Assessment (Chinese dictation).
-# To publish a new list, add another file next to this one. The file name must equal the id.
+# To publish a new lesson, add another file next to this one. The file name must equal the id.
 id: fall-2026-assessment
 title: Fall 2026 Assessment
 subject: chinese
-practiceTypes: [dictation]
 script: simplified
 testDates: 2026-10-26 to 2026-10-30
-items:
+dictation:
   - target: 找
     clue: 找东西
     pinyin: zhǎo

@@ -18,7 +18,7 @@ function round(index: number, itemIds: string[], marked: Marked, startedAt: stri
     index,
     itemIds,
     position: marked.length,
-    phase: 'listening',
+    phase: 'prompt',
     heardCurrent: false,
     marks: Object.fromEntries(marked),
     startedAt,
@@ -28,7 +28,7 @@ function round(index: number, itemIds: string[], marked: Marked, startedAt: stri
 
 function attempt(
   id: string,
-  listId: string,
+  lessonId: string,
   status: 'completed' | 'stopped' | 'active',
   startedAt: string,
   rounds: ReturnType<typeof round>[],
@@ -38,18 +38,19 @@ function attempt(
     profileId: 'replaced-on-restore',
     subject: 'chinese',
     practiceType: 'dictation',
-    listId,
+    lessonId,
     contentVersion: 'saved-before',
     status,
     startedAt,
     ...(status === 'completed' ? { completedAt: startedAt } : {}),
+    updatedAt: startedAt,
     rounds,
     undo: null,
     marksSinceBreak: 0,
   };
 }
 
-// fixture-five is 猫 狗 鸟 年 只 (in that order in the list). Three attempts, oldest first:
+// fixture-five is 猫 狗 鸟 年 只 (in that order in the lesson). Three attempts, oldest first:
 //  Oct 1 completed in 3 rounds: first try 2 of 5 (猫 and 只 right).
 //  Oct 3 stopped: round 1 done with 4 of 5 (a better score than either completed attempt), round 2 not started.
 //  Oct 8 completed in 2 rounds: first try 3 of 5.
@@ -70,7 +71,7 @@ const SCRIPTED: SessionJson[] = [
   ]),
 ];
 
-/** Home -> gear -> gate -> Progress -> the list's page. */
+/** Home -> gear -> gate -> Progress -> the lesson's page. */
 async function openProgress(page: Page, listTitle: RegExp): Promise<void> {
   await openParentArea(page);
   await openParentSection(page, 'Progress');
@@ -85,7 +86,7 @@ async function scriptedFive(page: Page): Promise<void> {
 }
 
 test.describe('parent progress page', () => {
-  test('lists every attempt newest first with its status, first-try score and rounds to complete', async ({ page }) => {
+  test('lessons every attempt newest first with its status, first-try score and rounds to complete', async ({ page }) => {
     await scriptedFive(page);
 
     const attempts = page.getByTestId('attempt');
@@ -134,10 +135,10 @@ test.describe('parent progress page', () => {
   test('an attempt opens to each round\'s counts and missed characters; tapping one requests its audio', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     await scriptedFive(page);
-    const list = await loadList(FIVE);
+    const lesson = await loadLesson(FIVE);
 
     await page.getByTestId('attempt').nth(2).click();
 
@@ -157,10 +158,10 @@ test.describe('parent progress page', () => {
     await expect(rounds.nth(2)).toContainText('❌ 0');
     await expect(rounds.nth(2).getByRole('button')).toHaveCount(0);
 
-    expect(await audio.played(list)).toEqual([]);
+    expect(await audio.played(lesson)).toEqual([]);
     await rounds.nth(0).getByRole('button', { name: 'Hear 鸟' }).click();
     await rounds.nth(1).getByRole('button', { name: 'Hear 狗' }).click();
-    const played = await audio.played(list);
+    const played = await audio.played(lesson);
     expect(played.map(({ target, rendition }) => [target, rendition])).toEqual([
       ['鸟', 'normal'],
       ['狗', 'normal'],
@@ -170,13 +171,13 @@ test.describe('parent progress page', () => {
   test('trickiest characters ranks by total wrong marks across all attempts, and tapping one requests its audio', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     await scriptedFive(page);
-    const list = await loadList(FIVE);
+    const lesson = await loadLesson(FIVE);
 
     // 狗 3 (Oct 1 rounds 1 and 2, Oct 8 round 1); 年 3 (Oct 1, Oct 3 stopped, Oct 8); 鸟 1.
-    // 猫 and 只 were never missed. Equal counts keep the list's order (狗 before 年).
+    // 猫 and 只 were never missed. Equal counts keep the lesson's order (狗 before 年).
     const rows = page.getByTestId('tricky');
     await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText('狗');
@@ -187,7 +188,7 @@ test.describe('parent progress page', () => {
     await expect(rows.nth(2)).toContainText('❌ 1');
 
     await rows.nth(2).getByRole('button', { name: 'Hear 鸟' }).click();
-    expect((await audio.played(list)).map(({ target, rendition }) => [target, rendition])).toEqual([['鸟', 'normal']]);
+    expect((await audio.played(lesson)).map(({ target, rendition }) => [target, rendition])).toEqual([['鸟', 'normal']]);
   });
 
   test('an in-progress attempt shows as in progress, with its rounds so far', async ({ page }) => {
@@ -219,10 +220,10 @@ test.describe('parent progress page', () => {
 
   test('trickiest characters stops at ten and breaks ties in list order, whatever order they were presented in', async ({
     page,
-    loadList,
+    loadLesson,
   }) => {
     await setUpLearner(page);
-    const targets = (await loadList('fixture-twelve')).items.map((item) => item.target);
+    const targets = (await loadLesson('fixture-twelve')).lists.dictation!.map((item) => item.target);
     expect(targets).toHaveLength(12);
     const presented = [...targets].reverse();
     await restoreSessions(page, [
@@ -279,7 +280,7 @@ test.describe('parent progress page', () => {
     await expect(rows.nth(1)).toContainText('❌ 1');
   });
 
-  test('a character the list no longer has is labeled (removed) and has no audio to play', async ({ page }) => {
+  test('a character the lesson no longer has is labeled (removed) and has no audio to play', async ({ page }) => {
     await setUpLearner(page);
     await restoreSessions(page, [
       attempt('rm-1', 'fixture-three', 'completed', '2026-10-01T12:00:00.000Z', [
@@ -305,7 +306,7 @@ test.describe('parent progress page', () => {
     await expect(missed).not.toContainText('分 (removed)');
   });
 
-  test('a list with no attempts says so, and another learner\'s attempts are not shown', async ({ page }) => {
+  test('a lesson with no attempts says so, and another learner\'s attempts are not shown', async ({ page }) => {
     await setUpLearner(page);
     await addOtherLearner(page); // Leo has a completed fixture-three attempt; Mia stays the active learner.
     await openProgress(page, /Fixture Three/);
@@ -316,10 +317,10 @@ test.describe('parent progress page', () => {
     await expect(page.getByText(/Progress for.*Mia/)).toBeVisible();
   });
 
-  test('an unknown list or attempt says it could not be found', async ({ page }) => {
+  test('an unknown lesson or attempt says it could not be found', async ({ page }) => {
     await scriptedFive(page);
     await page.goto('./#/parent/progress/no-such-list');
-    await expect(page.getByText("We couldn't find this list.")).toBeVisible();
+    await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
     await page.goto('./#/parent/progress/fixture-five/no-such-attempt');
     await expect(page.getByText("We couldn't find this attempt.")).toBeVisible();
   });

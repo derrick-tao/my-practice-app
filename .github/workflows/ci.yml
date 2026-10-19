@@ -1,6 +1,6 @@
 name: CI
 
-# Pull requests: validate lists, typecheck, run both test seams, and build. Seam 1 is sharded across three runners.
+# Pull requests: validate lessons, typecheck, run both test seams, and build. Seam 1 is sharded across three runners.
 # No secrets, no audio generation, no deploy: this workflow does not reference any repository secret, so
 # pull-request code can never read the Azure key. Audio comes from the committed audio/ folder; anything a PR
 # adds that has no committed audio yet gets silent placeholder audio (FAKE_AUDIO below), which is never

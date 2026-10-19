@@ -3,7 +3,7 @@
 // made and no test waits.
 import { describe, expect, it } from 'vitest';
 import { silentMp3 } from '../../content-build/tts/fake-provider.ts';
-import { createWorkspace, listYaml, type Workspace } from './harness.ts';
+import { createWorkspace, lessonYaml, type Workspace } from './harness.ts';
 
 const KEY = 'sk-test-0123456789abcdef-SECRET';
 const ENV = { AZURE_SPEECH_KEY: KEY, AZURE_SPEECH_REGION: 'eastus' };
@@ -41,7 +41,7 @@ function network(replies: Reply[]) {
 
 const ok: Reply = () => new Response(silentMp3().buffer as ArrayBuffer, { status: 200 });
 
-const ONE_ITEM = listYaml('t', '\n  - target: 什\n    clue: 什么\n    pinyin: shén\n');
+const ONE_ITEM = lessonYaml('t', '\n  - target: 什\n    clue: 什么\n    pinyin: shén\n');
 
 async function workspace(items = ONE_ITEM): Promise<Workspace> {
   return createWorkspace({ 'chinese/t.yaml': items });
@@ -129,7 +129,7 @@ describe('azure provider: credentials', () => {
 describe('azure provider: free-tier throttle and retries', () => {
   it('spaces request starts at least 3.1 s apart (20 requests per 60 s)', async () => {
     const items = '\n  - target: 找\n    pinyin: zhǎo\n  - target: 点\n    pinyin: diǎn\n  - target: 分\n    pinyin: fēn\n';
-    const { calls } = await azureBuild(await workspace(listYaml('t', items)), [ok]);
+    const { calls } = await azureBuild(await workspace(lessonYaml('t', items)), [ok]);
     expect(calls).toHaveLength(6);
     const gaps = calls.slice(1).map((c, i) => c.at - calls[i]!.at);
     expect(gaps.every((gap) => gap >= 3100)).toBe(true);

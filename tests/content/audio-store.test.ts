@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { generateAudio } from '../../content-build/build.ts';
 import { createFakeProvider } from '../../content-build/tts/fake-provider.ts';
 import type { TtsProvider } from '../../content-build/tts/types.ts';
-import { buildError, createWorkspace, listYaml } from './harness.ts';
+import { buildError, createWorkspace, lessonYaml } from './harness.ts';
 
 const TWO_ITEMS = `
   - target: 找
@@ -35,14 +35,14 @@ function credentialLessProvider(): TtsProvider & { calls: number } {
 // Seam 2 scenario 6.
 describe('content build: content-addressed audio', () => {
   it('changing one clue requests exactly two renditions (normal + slow) for that item', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
     expect(ws.provider.requests).toHaveLength(4);
 
     await ws.build();
     expect(ws.provider.requests).toHaveLength(4);
 
-    await ws.writeLists({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS.replace('几点', '多少点')) });
+    await ws.writeLessons({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS.replace('几点', '多少点')) });
     await ws.build();
     const fresh = ws.provider.requests.slice(4);
     expect(fresh.map((r) => [r.text, r.rate])).toEqual([
@@ -52,10 +52,10 @@ describe('content build: content-addressed audio', () => {
   });
 
   it('adding an item requests only the new item', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
-    await ws.writeLists({
-      'chinese/t.yaml': listYaml('t', `${TWO_ITEMS}  - target: 车\n    clue: 汽车\n    pinyin: chē\n`),
+    await ws.writeLessons({
+      'chinese/t.yaml': lessonYaml('t', `${TWO_ITEMS}  - target: 车\n    clue: 汽车\n    pinyin: chē\n`),
     });
     await ws.build();
     expect(ws.provider.requests.slice(4).map((r) => r.text)).toEqual(['车，汽车的车', '车，汽车的车']);
@@ -63,15 +63,15 @@ describe('content build: content-addressed audio', () => {
 
   it('asks once for a prompt that several items share', async () => {
     const ws = await createWorkspace({
-      'chinese/a.yaml': listYaml('a', TWO_ITEMS),
-      'chinese/b.yaml': listYaml('b', TWO_ITEMS),
+      'chinese/a.yaml': lessonYaml('a', TWO_ITEMS),
+      'chinese/b.yaml': lessonYaml('b', TWO_ITEMS),
     });
     await ws.build();
     expect(ws.provider.requests).toHaveLength(4);
   });
 
   it('keeps audio from a different provider separate (the provider is part of the file name)', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
     const other: TtsProvider = { ...createFakeProvider(), id: 'other' };
     await ws.build({ provider: other });
@@ -82,14 +82,14 @@ describe('content build: content-addressed audio', () => {
 // Seam 2 scenario 7.
 describe('content build: prune', () => {
   it('removes audio that no item references and keeps audio that is referenced', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
     const before = await ws.storedAudio();
     expect(before).toHaveLength(4);
 
     // Replace the second item: its old two files become unreferenced.
-    await ws.writeLists({
-      'chinese/t.yaml': listYaml('t', TWO_ITEMS.replace('几点', '多少点')),
+    await ws.writeLessons({
+      'chinese/t.yaml': lessonYaml('t', TWO_ITEMS.replace('几点', '多少点')),
     });
     await ws.build({ prune: true });
 
@@ -101,15 +101,15 @@ describe('content build: prune', () => {
   });
 
   it('does not remove anything unless asked to', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
-    await ws.writeLists({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS.replace('几点', '多少点')) });
+    await ws.writeLessons({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS.replace('几点', '多少点')) });
     await ws.build();
     expect(await ws.storedAudio()).toHaveLength(6);
   });
 
   it('only ever deletes audio files, never other files in the store', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     await ws.build();
     await writeFile(path.join(ws.audioStoreDir, 'README.md'), 'keep me');
     await ws.build({ prune: true });
@@ -117,7 +117,7 @@ describe('content build: prune', () => {
   });
 
   it('generateAudio with prune fills the store and prunes without writing site output', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const stats = await generateAudio({
       contentDir: ws.contentDir,
       audioStoreDir: ws.audioStoreDir,
@@ -133,7 +133,7 @@ describe('content build: prune', () => {
 // Seam 2 scenario 8.
 describe('content build: audio that cannot be generated', () => {
   it('fails with a clear message, before writing anything, when audio is missing and there are no credentials', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const provider = credentialLessProvider();
     const message = await buildError({ ...ws, build: () => ws.build({ provider }) });
     expect(message).toContain('4 audio file(s) are missing');
@@ -144,7 +144,7 @@ describe('content build: audio that cannot be generated', () => {
   });
 
   it('needs no credentials when every file is already in the store', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const real: TtsProvider = { ...createFakeProvider(), id: 'azure' };
     await ws.build({ provider: real });
     const provider = { ...credentialLessProvider(), id: 'azure' };
@@ -154,7 +154,7 @@ describe('content build: audio that cannot be generated', () => {
   });
 
   it('uses silent placeholder audio only when explicitly opted in, and never writes it to the audio store', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const placeholderDir = await mkdtemp(path.join(tmpdir(), 'placeholder-'));
     const placeholder = createFakeProvider();
     await ws.build({
@@ -164,17 +164,17 @@ describe('content build: audio that cannot be generated', () => {
     expect(await ws.storedAudio()).toEqual([]);
     expect(await readdir(placeholderDir)).toHaveLength(4);
     expect(await ws.outputAudio()).toHaveLength(4);
-    const list = await ws.list('t');
-    expect(list.items[0]!.audio.normal).toMatch(/^audio\/[0-9a-f]{32}\.mp3$/);
+    const lesson = await ws.lesson('t');
+    expect(lesson.lists.dictation![0]!.audio.normal).toMatch(/^audio\/[0-9a-f]{32}\.mp3$/);
   });
 
   it('prefers real audio from the store over placeholders for items that have it', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const real: TtsProvider = { ...createFakeProvider(), id: 'azure' };
     await ws.build({ provider: real });
     const stored = await ws.storedAudio();
 
-    await ws.writeLists({ 'chinese/t.yaml': listYaml('t', `${TWO_ITEMS}  - target: 车\n    pinyin: chē\n`) });
+    await ws.writeLessons({ 'chinese/t.yaml': lessonYaml('t', `${TWO_ITEMS}  - target: 车\n    pinyin: chē\n`) });
     const placeholderDir = await mkdtemp(path.join(tmpdir(), 'placeholder-'));
     const placeholder = createFakeProvider();
     await ws.build({
@@ -187,7 +187,7 @@ describe('content build: audio that cannot be generated', () => {
   });
 
   it('pruning while using placeholders never deletes real audio that is still referenced', async () => {
-    const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', TWO_ITEMS) });
+    const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', TWO_ITEMS) });
     const real: TtsProvider = { ...createFakeProvider(), id: 'azure' };
     await ws.build({ provider: real });
     const stored = await ws.storedAudio();

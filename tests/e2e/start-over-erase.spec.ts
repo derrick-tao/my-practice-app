@@ -1,8 +1,8 @@
-// Seam 1: starting over, switching lists, and erasing (ticket 09). Everything a child or grown-up does
+// Seam 1: starting over, switching lessons, and erasing (ticket 09). Everything a child or grown-up does
 // goes through the screens; the saved history is read through a backup export on a second tab, because
 // the progress page (ticket 11) does not exist yet (see saved-sessions.ts).
 import type { Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
+import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { failGate, openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
@@ -11,17 +11,17 @@ import { addOtherLearner, savedApp, savedSessions } from './saved-sessions.ts';
 interface Fixtures {
   page: Page;
   audio: AudioProbe;
-  loadList: (id: string) => Promise<ListData>;
+  loadLesson: (id: string) => Promise<LessonData>;
 }
 
-/** Set up Mia, start `listId`, mark `marks` items, and return to the home screen. */
+/** Set up Mia, start `lessonId`, mark `marks` items, and return to the home screen. */
 async function practiceThenHome(
-  { page, audio, loadList }: Fixtures,
-  listId: string,
+  { page, audio, loadLesson }: Fixtures,
+  lessonId: string,
   marks: number,
 ): Promise<PracticeScreen> {
   await setUpLearner(page);
-  const practice = new PracticeScreen(page, audio, await loadList(listId));
+  const practice = new PracticeScreen(page, audio, await loadLesson(lessonId));
   await practice.open();
   await practice.markMany(marks);
   await expect(practice.check).toBeVisible(); // the last mark is saved once the next item is ready
@@ -35,9 +35,9 @@ const yes = (page: Page) => page.getByRole('button', { name: 'Yes', exact: true 
 const no = (page: Page) => page.getByRole('button', { name: 'No', exact: true });
 
 test.describe('start over', () => {
-  test('asks first; No keeps the session exactly where it was', async ({ page, audio, loadList }) => {
+  test('asks first; No keeps the session exactly where it was', async ({ page, audio, loadLesson }) => {
 
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await startOverButton(page).click();
     await expect(page.getByText('Start again from the beginning?')).toBeVisible();
@@ -49,9 +49,9 @@ test.describe('start over', () => {
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
 
-  test('is not done by a single tap', async ({ page, audio, loadList }) => {
+  test('is not done by a single tap', async ({ page, audio, loadLesson }) => {
 
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
 
     await startOverButton(page).click();
 
@@ -59,9 +59,9 @@ test.describe('start over', () => {
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
 
-  test('Yes starts a fresh session at item 1 of round 1; the old one is kept as stopped', async ({ page, audio, loadList }) => {
+  test('Yes starts a fresh session at item 1 of round 1; the old one is kept as stopped', async ({ page, audio, loadLesson }) => {
 
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 0);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 0);
     // Get to round 2 with one item done, so "fresh" is easy to tell from "resumed".
     await practice.keepGoing.click();
     await practice.playRound(() => false);
@@ -86,9 +86,9 @@ test.describe('start over', () => {
     expect(sessions[1]!.rounds[0]!.position).toBe(0);
   });
 
-  test('after starting over, Keep going shows the new session', async ({ page, audio, loadList }) => {
+  test('after starting over, Keep going shows the new session', async ({ page, audio, loadLesson }) => {
 
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await startOverButton(page).click();
     await yes(page).click();
@@ -101,16 +101,16 @@ test.describe('start over', () => {
   });
 });
 
-test.describe('switching lists', () => {
+test.describe('switching lessons', () => {
   const fiveCard = (page: Page) =>
     page.getByRole('link', { name: /Fixture Five/ }).filter({ hasNotText: 'Keep going' });
 
   test('asks before stopping and needs the gate; the old session is kept as stopped', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await fiveCard(page).click();
     await expect(page.getByText('Stop your current practice?')).toBeVisible();
@@ -118,16 +118,16 @@ test.describe('switching lists', () => {
     await yes(page).click();
     await passGate(page);
 
-    const five = new PracticeScreen(page, audio, await loadList('fixture-five'));
+    const five = new PracticeScreen(page, audio, await loadLesson('fixture-five'));
     await expect(five.progressText()).toHaveText('0 / 5');
-    expect((await savedSessions(page)).map((s) => [s.listId, s.status])).toEqual([
+    expect((await savedSessions(page)).map((s) => [s.lessonId, s.status])).toEqual([
       ['fixture-three', 'stopped'],
       ['fixture-five', 'active'],
     ]);
   });
 
-  test('a wrong gate answer gives a new question and stops nothing', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+  test('a wrong gate answer gives a new question and stops nothing', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await fiveCard(page).click();
     await yes(page).click();
@@ -137,8 +137,8 @@ test.describe('switching lists', () => {
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
 
-  test('No, or leaving at the gate, keeps the current session', async ({ page, audio, loadList }) => {
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+  test('No, or leaving at the gate, keeps the current session', async ({ page, audio, loadLesson }) => {
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await fiveCard(page).click();
     await no(page).click();
@@ -154,8 +154,8 @@ test.describe('switching lists', () => {
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
 
-  test('typing another list address while practicing asks the same question', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+  test('typing another lesson address while practicing asks the same question', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
 
     await page.goto('./#/chinese/dictation/fixture-five');
 
@@ -163,8 +163,8 @@ test.describe('switching lists', () => {
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
 
-  test('passing the gate here does not unlock the parent area', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+  test('passing the gate here does not unlock the parent area', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
     await fiveCard(page).click();
     await yes(page).click();
     await passGate(page);
@@ -176,7 +176,7 @@ test.describe('switching lists', () => {
     await expect(page.getByTestId('gate-question')).toBeVisible();
   });
 
-  test('with no practice in progress, a list card opens straight away', async ({ page }) => {
+  test('with no practice in progress, a lesson card opens straight away', async ({ page }) => {
     await setUpLearner(page);
     await page.getByRole('link', { name: /Fixture Five/ }).click();
     await expect(page.getByText('Stop your current practice?')).toHaveCount(0);
@@ -198,9 +198,9 @@ test.describe('danger zone', () => {
   test('erasing one learner takes two confirmations, deletes only their sessions, and keeps the profile', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
     const otherId = await addOtherLearner(page);
     expect(await savedSessions(page)).toHaveLength(2);
 
@@ -220,11 +220,11 @@ test.describe('danger zone', () => {
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
     await expect(practice.keepGoing).toHaveCount(0);
-    await expect(practice.listCard()).toBeVisible();
+    await expect(practice.lessonCard()).toBeVisible();
   });
 
-  test('Cancel at either step erases nothing', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+  test('Cancel at either step erases nothing', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
 
     await openDangerZone(page);
     await eraseOne(page).click();
@@ -241,9 +241,9 @@ test.describe('danger zone', () => {
   test('erase everything needs two confirmations and typing ERASE, then returns to first run', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
-    const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
+    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
     await addOtherLearner(page);
 
     await openDangerZone(page);
@@ -265,11 +265,11 @@ test.describe('danger zone', () => {
     expect(await savedSessions(page)).toEqual([]);
     expect((await savedApp(page)).profiles).toHaveLength(1);
     await expect(practice.keepGoing).toHaveCount(0);
-    await expect(practice.listCard()).toBeVisible();
+    await expect(practice.lessonCard()).toBeVisible();
   });
 
-  test('a failed erase says so, changes nothing, and works when tried again', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+  test('a failed erase says so, changes nothing, and works when tried again', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
     await openDangerZone(page);
     await eraseOne(page).click();
     await yesContinue(page).click();
@@ -285,8 +285,8 @@ test.describe('danger zone', () => {
     expect(await savedSessions(page)).toEqual([]);
   });
 
-  test('Cancel in the erase-everything steps erases nothing', async ({ page, audio, loadList }) => {
-    await practiceThenHome({ page, audio, loadList }, 'fixture-three', 1);
+  test('Cancel in the erase-everything steps erases nothing', async ({ page, audio, loadLesson }) => {
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
 
     await openDangerZone(page);
     await eraseEverything(page).click();

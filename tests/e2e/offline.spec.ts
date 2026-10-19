@@ -2,10 +2,10 @@
 // These specs opt in to the service worker (the rest of Seam 1 runs with it blocked, see playwright.config.ts)
 // and run against pwa-site.ts, a server that can publish a new version while the app is open.
 import type { Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
+import type { LessonData } from '../../src/content/types.ts';
 import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
-import { listPath } from './harness.ts';
+import { lessonPath } from './harness.ts';
 import { expect, NEW_TITLE, test } from './pwa-site.ts';
 
 /** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
@@ -33,19 +33,19 @@ test.describe('offline', () => {
     request,
   }) => {
     await startAtHome(page);
-    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
+    const lesson = (await (await request.get(await lessonPath(request, 'fixture-three'))).json()) as LessonData;
 
     await context.setOffline(true);
     await page.reload();
 
-    const practice = new PracticeScreen(page, audio, list);
+    const practice = new PracticeScreen(page, audio, lesson);
     await practice.open();
     const order = await practice.playRound(() => true);
-    expect(order.sort()).toEqual(list.items.map((i) => i.target).sort());
+    expect(order.sort()).toEqual(lesson.lists.dictation!.map((i) => i.target).sort());
     await expect(practice.completion).toBeVisible();
 
     // Every audio file the round asked for is served from the cache, with the range support iOS needs.
-    const played = await audio.played(list);
+    const played = await audio.played(lesson);
     expect(played.length).toBeGreaterThan(0);
     for (const { ref } of played) {
       const result = await page.evaluate(async (url) => {
@@ -69,12 +69,12 @@ test.describe('offline', () => {
     request,
   }) => {
     await startAtHome(page);
-    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
+    const lesson = (await (await request.get(await lessonPath(request, 'fixture-three'))).json()) as LessonData;
 
     await context.setOffline(true);
     await page.reload();
 
-    const practice = new PracticeScreen(page, audio, list);
+    const practice = new PracticeScreen(page, audio, lesson);
     await practice.open();
     const target = await practice.reveal();
     await expect
@@ -87,7 +87,7 @@ test.describe('offline', () => {
       .toEqual({ statuses: ['loaded'], covers: true });
   });
 
-  test('every list, its audio and the content manifest are available offline, including after a restart', async ({
+  test('every lesson, its audio and the content manifest are available offline, including after a restart', async ({
     page,
     context,
     request,
@@ -96,11 +96,11 @@ test.describe('offline', () => {
     await context.setOffline(true);
     await page.goto('./');
     // Control: the network really is off, so a file that was never precached cannot be fetched.
-    expect(await page.evaluate(() => fetch('content/lists/never-published.json').then(() => 'served', () => 'failed'))).toBe('failed');
+    expect(await page.evaluate(() => fetch('content/lessons/never-published.json').then(() => 'served', () => 'failed'))).toBe('failed');
     for (const id of ['fixture-three', 'fixture-five']) {
-      const path = await listPath(request, id);
-      const list = (await (await request.get(path)).json()) as ListData;
-      const refs = list.items.flatMap((item) => [item.audio.normal, item.audio.slow]);
+      const path = await lessonPath(request, id);
+      const lesson = (await (await request.get(path)).json()) as LessonData;
+      const refs = lesson.lists.dictation!.flatMap((item) => [item.audio.normal, item.audio.slow]);
       const statuses = await page.evaluate(
         async (urls) => Promise.all(urls.map(async (url) => (await fetch(url)).status)),
         [path, ...refs.map((ref) => `content/${ref}`)],
@@ -119,12 +119,12 @@ test.describe('updates', () => {
     request,
   }) => {
     await startAtHome(page);
-    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
+    const lesson = (await (await request.get(await lessonPath(request, 'fixture-three'))).json()) as LessonData;
     const banner = page.getByRole('button', { name: /New words are ready/ });
     await expect(banner).toHaveCount(0);
 
     // Mid-practice, a new version is published and the browser picks it up.
-    const practice = new PracticeScreen(page, audio, list);
+    const practice = new PracticeScreen(page, audio, lesson);
     await practice.open();
     await expect(practice.listen).toBeVisible();
     await page.evaluate(() => void ((window as unknown as { __stillHere: boolean }).__stillHere = true));
@@ -132,7 +132,7 @@ test.describe('updates', () => {
     await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
     await expect.poll(() => swState(page)).toMatchObject({ waiting: true });
 
-    // The practice screen is untouched: no banner, no reload, same list.
+    // The practice screen is untouched: no banner, no reload, same lesson.
     await expect(banner).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Fixture Three', exact: true })).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere)).toBe(true);
@@ -152,22 +152,22 @@ test.describe('updates', () => {
     // The new content now comes from the new cache, so it also works offline.
     const served = await page.evaluate(async () => {
       const manifest = (await (await fetch('content/manifest.json')).json()) as {
-        subjects: Array<{ practiceTypes: Array<{ lists: Array<{ id: string; file: string }> }> }>;
+        subjects: Array<{ lessons: Array<{ id: string; file: string }> }>;
       };
-      const entry = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists)).find((l) => l.id === 'fixture-three')!;
+      const entry = manifest.subjects.flatMap((s) => s.lessons).find((l) => l.id === 'fixture-three')!;
       return ((await (await fetch(`content/${entry.file}`)).json()) as { title: string }).title;
     });
     expect(served).toBe(NEW_TITLE);
   });
 
-  test('after a deploy but before the update is applied, a list opens with the data its manifest names', async ({
+  test('after a deploy but before the update is applied, a lesson opens with the data its manifest names', async ({
     page,
     site,
   }) => {
     await startAtHome(page);
     await site.deployNewVersion();
 
-    // The manifest is network-first, so a reload sees the new title; list data must agree with it.
+    // The manifest is network-first, so a reload sees the new title; lesson data must agree with it.
     await page.reload();
     await page.getByRole('link', { name: new RegExp(NEW_TITLE) }).click();
 

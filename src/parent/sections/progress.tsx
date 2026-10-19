@@ -1,22 +1,22 @@
-// Parent area section: how practice is going, per list, for the active learner.
-//   #/parent/progress                      the lists
-//   #/parent/progress/<listId>             header, attempts (newest first), trickiest characters, first-try trend
-//   #/parent/progress/<listId>/<sessionId> one attempt: every round, its counts and the missed characters
+// Parent area section: how practice is going, per lesson, for the active learner.
+//   #/parent/progress                      the lessons
+//   #/parent/progress/<lessonId>             header, attempts (newest first), trickiest characters, first-try trend
+//   #/parent/progress/<lessonId>/<sessionId> one attempt: every round, its counts and the missed characters
 // The numbers come from src/practice/progress.ts. Missed and tricky characters are buttons that play the
-// character's normal audio; a character the list no longer has is labeled "(removed)" and has no audio.
+// character's normal audio; a character the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
-import { fetchList } from '../../content/client.ts';
-import type { ItemData, ListData } from '../../content/types.ts';
+import { fetchLesson } from '../../content/client.ts';
+import type { ItemData, LessonData } from '../../content/types.ts';
 import { formatDate } from '../../format-date.ts';
-import { usePublishedLists } from '../../content/use-lists.ts';
+import { itemCountOf, usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import {
-  listProgress,
+  lessonProgress,
   type AttemptSummary,
-  type ListProgress,
+  type LessonProgress,
   type RoundSummary,
   type Score,
 } from '../../practice/progress.ts';
@@ -39,29 +39,31 @@ const characters = (count: number): string => `${count} ${count === 1 ? 'charact
 
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
-interface ListView {
-  list: ListData;
+interface LessonView {
+  lesson: LessonData;
+  /** The lesson's dictation list (the only practice type so far). */
+  items: ItemData[];
   sessions: Session[];
-  progress: ListProgress;
+  progress: LessonProgress;
 }
 
-/** The list, the active learner's saved attempts at it, and the numbers worked out from them. */
-function useListView(listId: string): Loadable<ListView | 'unknown'> {
+/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them. */
+function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
   const { app } = useAppRecord();
   const profileId = activeProfileOf(app)?.id;
-  const published = usePublishedLists();
-  const known = published.status === 'ready' && published.value.some((p) => p.list.id === listId);
+  const published = usePublishedLessons();
+  const known = published.status === 'ready' && published.value.some((p) => p.lesson.id === lessonId);
   const loaded = useLoad(
-    async (): Promise<ListView | 'unknown'> => {
+    async (): Promise<LessonView | 'unknown'> => {
       if (!known || profileId === undefined) return 'unknown';
-      const [list, sessions] = await Promise.all([
-        fetchList(listId),
-        getStorage().listSessions(profileId, { listId }),
+      const [lesson, sessions] = await Promise.all([
+        fetchLesson(lessonId),
+        getStorage().listSessions(profileId, { lessonId, practiceType: 'dictation' }),
       ]);
-      const ids = list.items.map((item) => item.target);
-      return { list, sessions, progress: listProgress(sessions, ids) };
+      const items = lesson.lists.dictation ?? [];
+      return { lesson, items, sessions, progress: lessonProgress(sessions, items.map((item) => item.target)) };
     },
-    [listId, known, profileId],
+    [lessonId, known, profileId],
   );
   if (published.status !== 'ready') return published;
   return loaded;
@@ -110,19 +112,25 @@ function Who() {
   ) : null;
 }
 
-function Page({ view, children }: { view: Loadable<ListView | 'unknown'>; children: (v: ListView) => ComponentChildren }) {
+function Page({
+  view,
+  children,
+}: {
+  view: Loadable<LessonView | 'unknown'>;
+  children: (v: LessonView) => ComponentChildren;
+}) {
   if (view.status === 'loading') return <p class="notice">Loading…</p>;
   if (view.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
-  if (view.value === 'unknown') return <p class="notice">We couldn't find this list.</p>;
+  if (view.value === 'unknown') return <p class="notice">We couldn't find this lesson.</p>;
   return <>{children(view.value)}</>;
 }
 
-function AttemptRow({ listId, attempt }: { listId: string; attempt: AttemptSummary }) {
+function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptSummary }) {
   const status = STATUS[attempt.status];
   const done = attempt.status === 'completed';
   return (
     <li>
-      <a class="progress-attempt" data-testid="attempt" href={parentHref('progress', listId, attempt.id)}>
+      <a class="progress-attempt" data-testid="attempt" href={parentHref('progress', lessonId, attempt.id)}>
         <span class="progress-attempt__date">{formatDate(attempt.startedAt)}</span>
         <span class="progress-attempt__status">
           <span aria-hidden="true">{status.icon} </span>
@@ -137,25 +145,25 @@ function AttemptRow({ listId, attempt }: { listId: string; attempt: AttemptSumma
   );
 }
 
-function ListProgressPage({ listId }: { listId: string }) {
-  const view = useListView(listId);
+function LessonProgressPage({ lessonId }: { lessonId: string }) {
+  const view = useLessonView(lessonId);
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ list, progress }) => {
-        const items = new Map(list.items.map((item) => [item.target, item]));
+      {({ lesson, items: listed, progress }) => {
+        const items = new Map(listed.map((item) => [item.target, item]));
         return (
           <>
             <Who />
             <div class="progress-header" data-testid="progress-header">
-              <h2 class="progress-header__title">{list.title}</h2>
+              <h2 class="progress-header__title">{lesson.title}</h2>
               <div class="progress-header__facts">
-                {list.testDates && (
+                {lesson.testDates && (
                   <span>
-                    <span aria-hidden="true">📅 </span>Test: {list.testDates}
+                    <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
                   </span>
                 )}
-                <span>{characters(list.items.length)}</span>
+                <span>{characters(listed.length)}</span>
                 <span>Attempts: {progress.attemptCount}</span>
                 <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
               </div>
@@ -172,7 +180,7 @@ function ListProgressPage({ listId }: { listId: string }) {
             ) : (
               <ul class="progress-list">
                 {progress.attempts.map((attempt) => (
-                  <AttemptRow key={attempt.id} listId={listId} attempt={attempt} />
+                  <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
                 ))}
               </ul>
             )}
@@ -221,23 +229,23 @@ function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<
   );
 }
 
-function AttemptPage({ listId, attemptId }: { listId: string; attemptId: string }) {
-  const view = useListView(listId);
+function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: string }) {
+  const view = useLessonView(lessonId);
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ list, sessions, progress }) => {
+      {({ lesson, items: listed, sessions, progress }) => {
         const attempt = progress.attempts.find((a) => a.id === attemptId);
         if (!attempt || !sessions.some((s) => s.id === attemptId)) {
           return <p class="notice">We couldn't find this attempt.</p>;
         }
-        const items = new Map(list.items.map((item) => [item.target, item]));
+        const items = new Map(listed.map((item) => [item.target, item]));
         const status = STATUS[attempt.status];
         return (
           <>
-            <a class="parent__entry progress-back" href={parentHref('progress', listId)}>
+            <a class="parent__entry progress-back" href={parentHref('progress', lessonId)}>
               <span aria-hidden="true">⬅️ </span>
-              {list.title}
+              {lesson.title}
             </a>
             <h2 class="progress-header__title">
               {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
@@ -256,19 +264,19 @@ function AttemptPage({ listId, attemptId }: { listId: string; attemptId: string 
   );
 }
 
-function Lists() {
-  const lists = usePublishedLists();
-  if (lists.status === 'loading') return <p class="notice">Loading…</p>;
-  if (lists.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
+function Lessons() {
+  const lessons = usePublishedLessons();
+  if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
+  if (lessons.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
   return (
     <>
       <Who />
       <ul class="progress-list">
-        {lists.value.map(({ list }) => (
-          <li key={list.id}>
-            <a class="parent__entry" href={parentHref('progress', list.id)}>
-              {list.title}
-              <span> · {characters(list.itemCount)}</span>
+        {lessons.value.map(({ lesson }) => (
+          <li key={lesson.id}>
+            <a class="parent__entry" href={parentHref('progress', lesson.id)}>
+              {lesson.title}
+              <span> · {characters(itemCountOf(lesson, 'dictation'))}</span>
             </a>
           </li>
         ))}
@@ -278,10 +286,10 @@ function Lists() {
 }
 
 function ProgressSection({ path }: { path: string[] }) {
-  const [listId, attemptId] = path;
-  if (listId === undefined) return <Lists />;
-  if (attemptId === undefined) return <ListProgressPage listId={listId} />;
-  return <AttemptPage listId={listId} attemptId={attemptId} />;
+  const [lessonId, attemptId] = path;
+  if (lessonId === undefined) return <Lessons />;
+  if (attemptId === undefined) return <LessonProgressPage lessonId={lessonId} />;
+  return <AttemptPage lessonId={lessonId} attemptId={attemptId} />;
 }
 
 export const section: ParentSection = {

@@ -51,27 +51,28 @@ function profile(id: string, name: string, avatar: string): ProfileJson {
     avatar,
     createdAt: '2026-09-01T09:00:00.000Z',
     settings: { shuffle: true, breakEvery: 10, sounds: true },
-    assignedListIds: ['fixture-three', 'fixture-five'],
+    assignedLessonIds: ['fixture-three', 'fixture-five'],
   };
 }
 
-function session(id: string, profileId: string, listId: string, status: string, startedAt: string): SessionJson {
+function session(id: string, profileId: string, lessonId: string, status: string, startedAt: string): SessionJson {
   return {
     id,
     profileId,
     subject: 'chinese',
     practiceType: 'dictation',
-    listId,
+    lessonId,
     contentVersion: 'v',
     status,
     startedAt,
     completedAt: status === 'active' ? undefined : startedAt,
+    updatedAt: startedAt,
     rounds: [
       {
         index: 1,
         itemIds: ['点', '分'],
         position: 2,
-        phase: 'listening',
+        phase: 'prompt',
         heardCurrent: false,
         marks: { 点: 'correct', 分: 'wrong' },
         startedAt,
@@ -102,7 +103,7 @@ function withLearner(backup: BackupJson, change: Record<string, unknown>): strin
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
 const TWO_LEARNERS: SavedData = {
   app: {
-    schemaVersion: 1,
+    schemaVersion: 2,
     profiles: [profile('p-leo', 'Leo', '🦊'), profile('p-zoe', 'Zoe', '🦁')],
     activeProfileId: 'p-zoe',
     parent: {},
@@ -118,11 +119,11 @@ test.describe('export', () => {
   test('saves a JSON backup named with the export date, holding the app record and every session', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     await page.clock.install({ time: NOW });
     await setUpLearner(page, { name: 'Mia', avatar: '🐼' });
-    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await practice.open();
     await practice.reveal();
     await practice.gotIt.click();
@@ -137,13 +138,13 @@ test.describe('export', () => {
       expect.objectContaining({
         appId: 'my-practice-app',
         kind: 'backup',
-        schemaVersion: 1,
+        schemaVersion: 2,
         exportedAt: expect.stringMatching(/^2026-10-18T12:00:/),
       }),
     );
     expect(backup.data.app.profiles).toEqual([expect.objectContaining({ name: 'Mia', avatar: '🐼' })]);
     expect(backup.data.sessions).toEqual([
-      expect.objectContaining({ listId: 'fixture-three', status: 'active', profileId: backup.data.app.profiles[0]!.id }),
+      expect.objectContaining({ lessonId: 'fixture-three', status: 'active', profileId: backup.data.app.profiles[0]!.id }),
     ]);
     // Nothing about this device's storage travels with the learner's data.
     expect(Object.keys(backup.data).sort()).toEqual(['app', 'sessions']);
@@ -325,7 +326,7 @@ test.describe('import', () => {
       ['a bad export time', JSON.stringify({ ...good, exportedAt: 'yesterday' })],
       ['a learner without settings', withLearner(good, { settings: undefined })],
       ['a learner whose break setting is not one of the choices', withLearner(good, { settings: { shuffle: true, breakEvery: 7, sounds: true } })],
-      ['a learner without assigned lists', withLearner(good, { assignedListIds: undefined })],
+      ['a learner without assigned lessons', withLearner(good, { assignedLessonIds: undefined })],
       ['an attempt with no rounds', withAttempt(good, { rounds: [] })],
       ['an attempt with an unknown status', withAttempt(good, { status: 'paused' })],
       ['an attempt for an unknown practice type', withAttempt(good, { practiceType: 'karaoke' })],
@@ -351,8 +352,8 @@ test.describe('import', () => {
     const before = await savedNow(page);
     const newer = {
       ...backupFile(TWO_LEARNERS, '2026-10-12T08:00:00.000Z'),
-      schemaVersion: 2,
-      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 2, somethingNew: true } },
+      schemaVersion: 3,
+      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 3, somethingNew: true } },
     };
 
     await chooseBackupFile(page, JSON.stringify(newer));
@@ -384,11 +385,11 @@ test.describe('restoring on a device that was erased', () => {
   test('export, erase everything, set up as someone else, then import: the same home screen and progress come back', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     // Before: a learner part way through a retry round.
     await setUpLearner(page, { name: 'Mia', avatar: '🐼' });
-    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await practice.open();
     await practice.playRound((_, i) => i === 0); // two misses
     await practice.retry.click();
@@ -412,7 +413,7 @@ test.describe('restoring on a device that was erased', () => {
     await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // first run
 
     // The device now belongs to someone else.
-    await setUpLearner(page, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
+    await setUpLearner(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-five'] });
     expect(await page.locator('main').innerText()).not.toBe(homeBefore);
 
     await openBackupSection(page);

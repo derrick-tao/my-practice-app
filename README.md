@@ -18,9 +18,9 @@ Names, avatars and progress live only on the device and in backup files you expo
 
 With no `.privacy-denylist` (as in CI and on a fresh clone) the check passes silently and commits are unaffected.
 
-## Publish a word list
+## Publish a lesson
 
-Add `content/<subject>/<list-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. See `content/chinese/fall-2026-assessment.yaml` for the format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
+Add `content/<subject>/<lesson-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. A lesson holds one list per practice type (so far just `dictation:`); see `content/chinese/fall-2026-assessment.yaml` for the format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
 
 ## Audio
 

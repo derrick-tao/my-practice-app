@@ -1,11 +1,11 @@
 // Seam 1 helpers for the parent side: the gate, the parent area, and first-run setup.
 //
 // START HERE when a spec needs the child's home screen. The app has no usable home until a grown-up has
-// set it up (first run: gate -> create a profile -> assign lists), so every spec that used to begin with
+// set it up (first run: gate -> create a profile -> assign lessons), so every spec that used to begin with
 // `page.goto('./')` now begins with:
 //
-//     await setUpLearner(page);                                   // all fixture lists assigned, 🐼 Mia
-//     await setUpLearner(page, { lists: ['fixture-three'] });     // only some lists
+//     await setUpLearner(page);                                   // all fixture lessons assigned, 🐼 Mia
+//     await setUpLearner(page, { lessons: ['fixture-three'] });     // only some lessons
 //     await setUpLearner(page, { name: 'Leo', avatar: '🦊' });
 //
 // `setUpLearner` drives the real screens (public surface only) and leaves the page on the home screen.
@@ -17,8 +17,8 @@ import type { Manifest } from '../../src/content/types.ts';
 export const DEFAULT_LEARNER = { name: 'Mia', avatar: '🐼' } as const;
 
 export interface LearnerOptions {
-  /** Ids of the lists to assign (e.g. 'fixture-three'). Default: every published list. */
-  lists?: string[];
+  /** Ids of the lessons to assign (e.g. 'fixture-three'). Default: every published lesson. */
+  lessons?: string[];
   /** Default 'Mia'. */
   name?: string;
   /** One of the avatars offered on the profile form. Default '🐼'. */
@@ -52,36 +52,36 @@ export async function failGate(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'OK', exact: true }).click();
 }
 
-/** Home -> the gear -> gate -> the parent area (its section list). */
+/** Home -> the gear -> gate -> the parent area (its section lesson). */
 export async function openParentArea(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Parent area' }).click();
   await passGate(page);
   await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
 }
 
-/** Parent area -> one of its sections, by title (e.g. 'Assign lists'). */
+/** Parent area -> one of its sections, by title (e.g. 'Assign lessons'). */
 export async function openParentSection(page: Page, title: string | RegExp): Promise<void> {
   await page.getByRole('link', { name: title }).click();
 }
 
-/** Titles of the published lists, as the app shows them, keyed by list id (read from the served manifest). */
+/** Titles of the published lessons, as the app shows them, keyed by lesson id (read from the served manifest). */
 async function listTitles(page: Page): Promise<Map<string, string>> {
   const response = await page.request.get('content/manifest.json');
   expect(response.ok(), 'manifest should be served').toBe(true);
   const manifest = (await response.json()) as Manifest;
   return new Map(
-    manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists.map((l) => [l.id, l.title] as const))),
+    manifest.subjects.flatMap((s) => s.lessons.map((l) => [l.id, l.title] as const)),
   );
 }
 
 /**
  * First run through the real screens: "Ask a grown-up" -> gate -> profile (name + avatar) -> assign
- * lists -> Done. Leaves the page on the child's home screen, greeting visible.
+ * lessons -> Done. Leaves the page on the child's home screen, greeting visible.
  */
 export async function setUpLearner(page: Page, options: LearnerOptions = {}): Promise<void> {
   const { name = DEFAULT_LEARNER.name, avatar = DEFAULT_LEARNER.avatar } = options;
   const titles = await listTitles(page);
-  const wanted = options.lists ?? [...titles.keys()];
+  const wanted = options.lessons ?? [...titles.keys()];
 
   await page.goto('./');
   await page.getByRole('button', { name: /grown-up/i }).click();
@@ -93,7 +93,7 @@ export async function setUpLearner(page: Page, options: LearnerOptions = {}): Pr
 
   for (const id of wanted) {
     const title = titles.get(id);
-    if (title === undefined) throw new Error(`setUpLearner: no published list with id "${id}"`);
+    if (title === undefined) throw new Error(`setUpLearner: no published lesson with id "${id}"`);
     await page.getByRole('switch', { name: new RegExp(title) }).click();
   }
   await page.getByRole('button', { name: 'Done' }).click();
@@ -110,19 +110,19 @@ export async function openSettings(page: Page): Promise<void> {
 
 /**
  * On the Profiles section: add a learner through the form and wait for them to be listed. The active
- * learner does not change. `lists` are list ids (default: none assigned).
+ * learner does not change. `lessons` are lesson ids (default: none assigned).
  */
 export async function addLearner(
   page: Page,
-  { name, avatar, lists = [] }: { name: string; avatar: string; lists?: string[] },
+  { name, avatar, lessons = [] }: { name: string; avatar: string; lessons?: string[] },
 ): Promise<void> {
   const titles = await listTitles(page);
   await page.getByRole('button', { name: 'Add a learner' }).click();
   await page.getByRole('textbox', { name: 'Name' }).fill(name);
   await page.getByRole('button', { name: avatar, exact: true }).click();
-  for (const id of lists) {
+  for (const id of lessons) {
     const title = titles.get(id);
-    if (title === undefined) throw new Error(`addLearner: no published list with id "${id}"`);
+    if (title === undefined) throw new Error(`addLearner: no published lesson with id "${id}"`);
     await page.getByRole('switch', { name: new RegExp(title) }).click();
   }
   await page.getByRole('button', { name: 'Save' }).click();

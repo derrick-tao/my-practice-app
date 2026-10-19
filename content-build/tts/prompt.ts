@@ -25,10 +25,12 @@ export interface SsmlOptions {
 /**
  * Wrap a spoken prompt in SSML at the given rate.
  *
- * Standalone occurrences of the target (the first and last word of "target，clue的target", or the lone
- * target) are wrapped in a SAPI `<phoneme>` built from the item's pinyin, so 什/么/只/分 are read as
- * intended. The target inside the clue ("什么") is left alone, and a `say` override is spoken exactly as
- * written. The prompt is assembled from segments, never by searching the finished string.
+ * Standalone occurrences of a single-character target (the first and last word of "target，clue的target",
+ * or the lone target) are wrapped in a SAPI `<phoneme>` built from the item's pinyin, so 什/么/只/分 are
+ * read as intended: a lone character is ambiguous. The target inside the clue ("什么") is left alone, and a
+ * `say` override is spoken exactly as written. A multi-character target (鞋子) is sent as plain text: the
+ * voice reads whole words correctly in context, and a tag would force readings like "xié zǐ". The prompt
+ * is assembled from segments, never by searching the finished string.
  */
 export function buildSsml(
   item: PromptItem,
@@ -36,7 +38,7 @@ export function buildSsml(
   rate: string,
   options: SsmlOptions,
 ): string {
-  const standalone = options.phonemes
+  const standalone = options.phonemes && [...item.target].length === 1
     ? `<phoneme alphabet="sapi" ph="${toSapi(options.pinyin)}">${escapeXml(item.target)}</phoneme>`
     : escapeXml(item.target);
   let body: string;

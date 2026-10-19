@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createWorkspace, listYaml } from './harness.ts';
+import { createWorkspace, lessonYaml } from './harness.ts';
 
 describe('content build: pinyin', () => {
   it('fills in omitted pinyin and stores it explicitly in the build output', async () => {
     const ws = await createWorkspace({
-      'chinese/auto.yaml': listYaml(
+      'chinese/auto.yaml': lessonYaml(
         'auto',
         `
   - target: 找
@@ -17,13 +17,13 @@ describe('content build: pinyin', () => {
       ),
     });
     await ws.build();
-    const list = await ws.list('auto');
-    expect(list.items.map((item) => item.pinyin)).toEqual(['zhǎo', 'zuò yè', 'me']);
+    const lesson = await ws.lesson('auto');
+    expect(lesson.lists.dictation!.map((item) => item.pinyin)).toEqual(['zhǎo', 'zuò yè', 'me']);
   });
 
   it('reads an omitted pinyin in the context of the clue, so a polyphone gets the reading the clue uses', async () => {
     const ws = await createWorkspace({
-      'chinese/poly.yaml': listYaml(
+      'chinese/poly.yaml': lessonYaml(
         'poly',
         `
   - target: 长
@@ -38,19 +38,19 @@ describe('content build: pinyin', () => {
       ),
     });
     await ws.build();
-    const list = await ws.list('poly');
+    const lesson = await ws.lesson('poly');
     // Read alone, 长 is "cháng" and 行 is "xíng": only their clues make them "zhǎng" and "háng".
-    expect(list.items.map((item) => item.pinyin)).toEqual(['zhǎng', 'háng', 'zhī', 'diǎn']);
+    expect(lesson.lists.dictation!.map((item) => item.pinyin)).toEqual(['zhǎng', 'háng', 'zhī', 'diǎn']);
   });
 
   it('reads the target alone when there is no clue, and uses the same reading in the audio markup', async () => {
     const ws = await createWorkspace({
-      'chinese/with-clue.yaml': listYaml('with-clue', '\n  - target: 长\n    clue: 校长\n'),
-      'chinese/no-clue.yaml': listYaml('no-clue', '\n  - target: 长\n'),
+      'chinese/with-clue.yaml': lessonYaml('with-clue', '\n  - target: 长\n    clue: 校长\n'),
+      'chinese/no-clue.yaml': lessonYaml('no-clue', '\n  - target: 长\n'),
     });
     await ws.build();
-    expect((await ws.list('with-clue')).items[0]!.pinyin).toBe('zhǎng');
-    expect((await ws.list('no-clue')).items[0]!.pinyin).toBe('cháng');
+    expect((await ws.lesson('with-clue')).lists.dictation![0]!.pinyin).toBe('zhǎng');
+    expect((await ws.lesson('no-clue')).lists.dictation![0]!.pinyin).toBe('cháng');
     expect(ws.provider.requests.map((r) => r.ssml.match(/ph="([^"]+)"/)?.[1])).toEqual([
       'chang 2', 'chang 2', 'zhang 3', 'zhang 3',
     ]);
@@ -58,7 +58,7 @@ describe('content build: pinyin', () => {
 
   it('keeps provided pinyin even when the library would choose differently', async () => {
     const ws = await createWorkspace({
-      'chinese/kept.yaml': listYaml(
+      'chinese/kept.yaml': lessonYaml(
         'kept',
         `
   - target: 分
@@ -68,7 +68,7 @@ describe('content build: pinyin', () => {
       ),
     });
     await ws.build();
-    const list = await ws.list('kept');
-    expect(list.items[0]!.pinyin).toBe('fèn');
+    const lesson = await ws.lesson('kept');
+    expect(lesson.lists.dictation![0]!.pinyin).toBe('fèn');
   });
 });

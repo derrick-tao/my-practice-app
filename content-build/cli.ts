@@ -53,7 +53,7 @@ async function main(): Promise<void> {
   if (command === 'validate') {
     const { sources, warnings } = await loadAndValidate(contentDir);
     report(warnings);
-    console.log(`Validated ${sources.length} list(s).`);
+    console.log(`Validated ${sources.length} lesson(s).`);
     return;
   }
 

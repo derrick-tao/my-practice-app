@@ -2,7 +2,7 @@ import { expect, test } from './harness.ts';
 import { setUpLearner } from './parent-driver.ts';
 
 test.describe('home screen', () => {
-  test('shows a card for each published list with title, test dates and character count', async ({ page }) => {
+  test('shows a card for each published lesson with title, test dates and character count', async ({ page }) => {
     await setUpLearner(page);
 
     const card = page.getByRole('link', { name: /Fixture Three/ });
@@ -30,7 +30,7 @@ test.describe('home screen', () => {
     }
   });
 
-  test('tapping a card opens its list route under subject / practice type / list', async ({ page }) => {
+  test('tapping a card opens its lesson route under subject / practice type / lesson', async ({ page }) => {
     await setUpLearner(page);
     await page.getByRole('link', { name: /Fixture Three/ }).click();
 
@@ -39,24 +39,24 @@ test.describe('home screen', () => {
 
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/#\/$/);
-    // The practice just started is waiting under Keep going, next to the list's own card.
+    // The practice just started is waiting under Keep going, next to the lesson's own card.
     await expect(page.getByRole('link', { name: /Keep going/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Fixture Three/ }).filter({ hasNotText: 'Keep going' })).toBeVisible();
   });
 
-  test('opening a list route directly works', async ({ page }) => {
+  test('opening a lesson route directly works', async ({ page }) => {
     await setUpLearner(page);
     await page.goto('./#/chinese/dictation/fixture-five');
     await expect(page.getByRole('heading', { name: 'Fixture Five' })).toBeVisible();
   });
 
-  test('a route that is not a list falls back to home; an unknown list offers a way home', async ({ page }) => {
+  test('a route that is not a lesson falls back to home; an unknown lesson offers a way home', async ({ page }) => {
     await setUpLearner(page);
     await page.goto('./#/nowhere');
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
 
     await page.goto('./#/chinese/dictation/no-such-list');
-    await expect(page.getByText("We couldn't find this list.")).toBeVisible();
+    await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { fetchListWithVersion } from '../content/client.ts';
-import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
+import { fetchLessonWithVersion } from '../content/client.ts';
+import type { ItemData, LessonData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { Celebration } from '../practice/celebration.tsx';
 import { createEffects } from '../practice/effects.ts';
@@ -47,12 +47,12 @@ function HomeButton() {
   );
 }
 
-/** The address named no list we have (unknown list, or a subject / practice type it does not belong to). */
-export function ListNotFound() {
+/** The address named no lesson we have (unknown lesson, or a subject / practice type it does not belong to). */
+export function LessonNotFound() {
   return (
     <main class="screen">
       <HomeButton />
-      <p class="notice">We couldn't find this list.</p>
+      <p class="notice">We couldn't find this lesson.</p>
     </main>
   );
 }
@@ -60,27 +60,27 @@ export function ListNotFound() {
 export function PracticeScreen({
   subject,
   practiceType,
-  listId,
+  lessonId,
 }: {
   subject: string;
   practiceType: PracticeTypeId;
-  listId: string;
+  lessonId: string;
 }) {
-  const loaded = useLoad(() => fetchListWithVersion(listId), [listId]);
+  const loaded = useLoad(() => fetchLessonWithVersion(lessonId), [lessonId]);
   if (loaded.status === 'ready') {
-    const { list } = loaded.value;
+    const { lesson } = loaded.value;
     // Checked before anything is opened, so a wrong address can never stop the saved practice.
-    if (list.subject !== subject || !list.practiceTypes.includes(practiceType)) return <ListNotFound />;
+    if (lesson.subject !== subject || !lesson.lists[practiceType]) return <LessonNotFound />;
     return (
       <OpenPractice
-        key={listId}
-        list={list}
+        key={lessonId}
+        lesson={lesson}
         practiceType={practiceType}
         contentVersion={loaded.value.contentVersion}
       />
     );
   }
-  if (loaded.status === 'error') return <ListNotFound />;
+  if (loaded.status === 'error') return <LessonNotFound />;
   return (
     <main class="screen">
       <HomeButton />
@@ -108,26 +108,26 @@ const realEnv = (): PracticeEnv => ({
   newId: () => crypto.randomUUID(),
 });
 
-/** Continues the saved session for this list, or starts and saves a new one, before showing practice. */
+/** Continues the saved session for this lesson and practice type, or starts and saves a new one, before showing practice. */
 function OpenPractice({
-  list,
+  lesson,
   practiceType,
   contentVersion,
 }: {
-  list: ListData;
+  lesson: LessonData;
   practiceType: PracticeTypeId;
   contentVersion: string;
 }) {
   const env = useMemo(realEnv, []);
   const [openTries, setOpenTries] = useState(0);
-  // Another list's practice is active: the child confirms, then a grown-up passes the gate, before it is stopped.
+  // Another lesson's practice is active: the child confirms, then a grown-up passes the gate, before it is stopped.
   const [stopStep, setStopStep] = useState<'ask' | 'gate' | 'done'>('ask');
   const stopActive = stopStep === 'done';
   const opened = useLoad(
     async () => {
       const storage = getStorage();
       const { breakEvery, shuffle, sounds } = await currentSettings(storage);
-      const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
+      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle, stopActive }, env);
       return result.kind === 'blocked' ? result : { ...result, breakEvery, sounds };
     },
     [openTries, stopActive],
@@ -152,7 +152,7 @@ function OpenPractice({
   }
   if (result) {
     const { session, resumed, breakEvery, sounds } = result;
-    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
+    return <PracticeRun lesson={lesson} practiceType={practiceType} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (
     <main class="screen">
@@ -167,14 +167,16 @@ function OpenPractice({
 }
 
 function PracticeRun({
-  list,
+  lesson,
+  practiceType,
   env,
   initial,
   resumed,
   breakEvery,
   sounds,
 }: {
-  list: ListData;
+  lesson: LessonData;
+  practiceType: PracticeTypeId;
   env: PracticeEnv;
   initial: Session;
   /** Continuing saved progress: audio must wait for the child's tap (iOS gesture rules). */
@@ -186,7 +188,10 @@ function PracticeRun({
 }) {
   const player = useMemo(createAudioPlayer, []);
   const effects = useMemo(() => createEffects(sounds), []);
-  const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
+  const itemsById = useMemo(
+    () => new Map((lesson.lists[practiceType] ?? []).map((item) => [item.target, item])),
+    [lesson, practiceType],
+  );
   const listedIds = useMemo(() => new Set(itemsById.keys()), [itemsById]);
 
   // What is shown is always what is saved: every change goes through `sync`, which saves it first.
@@ -316,14 +321,14 @@ function PracticeRun({
   }, [leaving, saveFailed, session.marksSinceBreak]);
 
   if (session.status === 'stopped') {
-    // Reconciling with the edited list found none of the session's words left: the session is saved as
-    // stopped, and the child starts fresh by picking a list.
+    // Reconciling with the edited lesson found none of the session's words left: the session is saved as
+    // stopped, and the child starts fresh by picking a lesson.
     return (
       <main class="screen practice">
         <HomeButton />
-        <h1 class="sr-only">{list.title}</h1>
-        <p class="notice" data-testid="list-changed">
-          <span aria-hidden="true">🌟 </span>This list changed — pick a list
+        <h1 class="sr-only">{lesson.title}</h1>
+        <p class="notice" data-testid="lesson-changed">
+          <span aria-hidden="true">🌟 </span>This lesson changed — pick a lesson
         </p>
       </main>
     );
@@ -332,7 +337,7 @@ function PracticeRun({
   if (session.status === 'completed') {
     return (
       <main class="screen practice">
-        <h1 class="sr-only">{list.title}</h1>
+        <h1 class="sr-only">{lesson.title}</h1>
         <Completion {...sessionResult(session)} />
       </main>
     );
@@ -356,7 +361,7 @@ function PracticeRun({
         <StarBar done={round.position} total={round.itemIds.length} />
       </header>
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
-      <h1 class="sr-only">{list.title}</h1>
+      <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
       {!onBreakPrompt && item && !isRoundOver(round) && (
         <section class="practice__body">
@@ -394,7 +399,7 @@ function PracticeRun({
               </button>
             </div>
             <div class="row row--primary">
-              {round.phase === 'listening' && round.heardCurrent && (
+              {round.phase === 'prompt' && round.heardCurrent && (
                 <button type="button" class="btn btn--primary btn--check" onClick={onCheck}>
                   <span aria-hidden="true">👀 </span>Check
                 </button>

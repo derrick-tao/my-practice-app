@@ -1,5 +1,5 @@
 // Finding and (re)opening the learner's session through the StorageAdapter.
-import type { ListData, PracticeTypeId } from '../content/types.ts';
+import type { LessonData, PracticeTypeId } from '../content/types.ts';
 import { activeProfileOf } from '../profiles.ts';
 import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
 import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
@@ -37,31 +37,32 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
   await storage.putSession({ ...session, status: 'stopped' });
 }
 
-/** Another list's session is active and the learner has not yet been through the "stop it?" check. */
+/** Another lesson's (or practice type's) session is active and the learner has not yet been through the "stop it?" check. */
 export interface StopRequired {
   kind: 'blocked';
   blockedBy: Session;
 }
 
 /**
- * Open the list for practice: continue its active session, or start a new one. The new session is
- * saved before it is returned, so nothing is on screen that is not on disk. Starting a list while a
- * session on a different list is active replaces it (the old one is kept in history as stopped), but
+ * Open a lesson's list for one practice type: continue its active session, or start a new one. The new session is
+ * saved before it is returned, so nothing is on screen that is not on disk. Starting a lesson while a
+ * session on a different lesson is active replaces it (the old one is kept in history as stopped), but
  * only once the caller has been through the confirmation and the parent gate (`stopActive`); until then
  * nothing is changed and `StopRequired` comes back.
  */
 export async function openSession(
   storage: StorageAdapter,
-  list: Pick<ListData, 'id' | 'subject' | 'items'>,
+  lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
   options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; stopActive?: boolean },
   env: PracticeEnv,
 ): Promise<OpenedSession | StopRequired> {
   const { stopActive = false, ...sessionOptions } = options;
   const profileId = await currentProfileId(storage);
   const active = await activeSessionOf(storage, profileId);
-  if (active && active.listId === list.id && active.practiceType === options.practiceType) {
-    // Reconcile with the list as it is now (the parent may have edited it since the session was saved).
-    const settled = reconcileWithList(active, new Set(list.items.map((item) => item.target)), env);
+  if (active && active.lessonId === lesson.id && active.practiceType === options.practiceType) {
+    // Reconcile with the lesson as it is now (the parent may have edited it since the session was saved).
+    const items = lesson.lists[options.practiceType] ?? [];
+    const settled = reconcileWithList(active, new Set(items.map((item) => item.target)), env);
     if (settled !== active) await storage.putSession(settled);
     return { kind: 'opened', session: settled, resumed: true };
   }
@@ -69,7 +70,7 @@ export async function openSession(
     if (!stopActive) return { kind: 'blocked', blockedBy: active };
     await stopSession(storage, active);
   }
-  const session = createSession(list, { ...sessionOptions, profileId }, env);
+  const session = createSession(lesson, { ...sessionOptions, profileId }, env);
   await storage.putSession(session);
   return { kind: 'opened', session, resumed: false };
 }

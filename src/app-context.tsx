@@ -1,4 +1,4 @@
-// The app record (profiles, active profile, assigned lists) as the whole UI sees it. App loads it once
+// The app record (profiles, active profile, assigned lessons) as the whole UI sees it. App loads it once
 // and provides it; screens read it with `useAppRecord()` and change it with `update()`.
 import { createContext, type ComponentChildren } from 'preact';
 import { useCallback, useContext, useEffect, useState } from 'preact/hooks';

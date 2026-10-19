@@ -2,9 +2,8 @@
 id: fixture-twelve
 title: Fixture Twelve
 subject: chinese
-practiceTypes: [dictation]
 script: simplified
-items:
+dictation:
   - target: 一
   - target: 二
   - target: 三
