@@ -2,9 +2,9 @@
 // and provides it; screens read it with `useAppRecord()` and change it with `update()`.
 import { createContext, type ComponentChildren } from 'preact';
 import { useCallback, useContext, useEffect, useState } from 'preact/hooks';
-import { activeProfileOf, loadAppRecord, updateApp } from './profiles.ts';
+import { loadAppRecord, updateApp } from './profiles.ts';
 import { NewerSchemaError } from './storage/index.ts';
-import { DEFAULT_SETTINGS, type AppRecord, type ProfileSettings } from './storage/types.ts';
+import type { AppRecord } from './storage/types.ts';
 
 export type AppState =
   | { status: 'loading' }
@@ -51,15 +51,6 @@ export function useAppState(): { state: AppState; api: AppRecordApi | undefined 
 
 export function AppRecordProvider({ api, children }: { api: AppRecordApi; children: ComponentChildren }) {
   return <Context.Provider value={api}>{children}</Context.Provider>;
-}
-
-/**
- * The active learner's settings (defaults if there is no profile). This is how the sound-effects
- * player (ticket 15) learns whether `sounds` is on; character audio ignores it.
- */
-export function useActiveSettings(): ProfileSettings {
-  const { app } = useAppRecord();
-  return activeProfileOf(app)?.settings ?? DEFAULT_SETTINGS;
 }
 
 export function useAppRecord(): AppRecordApi {
