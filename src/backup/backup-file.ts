@@ -12,6 +12,7 @@
 // `data` is exactly what the StorageAdapter exports and imports, passed through untouched, so a field
 // added to the app record or a session in a later ticket travels in a backup with no change here.
 // Device-specific facts (the persistent-storage answer) are not part of the data.
+import { isPracticeTypeId } from '../content/types.ts';
 import { SCHEMA_VERSION, type StoredData } from '../storage/types.ts';
 
 export const BACKUP_APP_ID = 'my-practice-app';
@@ -58,6 +59,76 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const isString = (value: unknown): value is string => typeof value === 'string';
 const isDate = (value: unknown): value is string => isString(value) && !Number.isNaN(Date.parse(value));
 
+const isNonNegativeInteger = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
+const isMark = (value: unknown): boolean => value === 'correct' || value === 'wrong';
+const isOptionalDate = (value: unknown): boolean => value === undefined || isDate(value);
+
+// The shapes below are checked down to the fields the app reads without looking, so a restored file can
+// never leave the app holding a profile or attempt it would crash on (an attempt with no rounds, say).
+
+function isProfile(value: unknown): boolean {
+  if (!isObject(value) || !isString(value.id) || !isString(value.name) || !isString(value.avatar)) return false;
+  const { settings, assignedListIds } = value;
+  return (
+    isObject(settings) &&
+    typeof settings.shuffle === 'boolean' &&
+    typeof settings.sounds === 'boolean' &&
+    [0, 5, 10, 15].includes(settings.breakEvery as number) &&
+    Array.isArray(assignedListIds) &&
+    assignedListIds.every(isString)
+  );
+}
+
+function isRound(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  const { itemIds, marks } = value;
+  return (
+    isNonNegativeInteger(value.index) &&
+    Array.isArray(itemIds) &&
+    itemIds.every(isString) &&
+    isNonNegativeInteger(value.position) &&
+    value.position <= itemIds.length &&
+    (value.phase === 'listening' || value.phase === 'revealed') &&
+    typeof value.heardCurrent === 'boolean' &&
+    isObject(marks) &&
+    Object.values(marks).every(isMark) &&
+    isDate(value.startedAt) &&
+    isOptionalDate(value.completedAt)
+  );
+}
+
+function isUndoEntry(value: unknown): boolean {
+  return (
+    value === null ||
+    (isObject(value) &&
+      isNonNegativeInteger(value.roundIndex) &&
+      isString(value.itemId) &&
+      isNonNegativeInteger(value.position) &&
+      (value.previousMark === undefined || isMark(value.previousMark)))
+  );
+}
+
+function isSession(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  return (
+    isString(value.id) &&
+    isString(value.profileId) &&
+    isString(value.subject) &&
+    isString(value.listId) &&
+    isString(value.contentVersion) &&
+    isString(value.practiceType) &&
+    isPracticeTypeId(value.practiceType) &&
+    (value.status === 'active' || value.status === 'completed' || value.status === 'stopped') &&
+    isDate(value.startedAt) &&
+    isOptionalDate(value.completedAt) &&
+    Array.isArray(value.rounds) &&
+    value.rounds.length > 0 &&
+    value.rounds.every(isRound) &&
+    isUndoEntry(value.undo) &&
+    isNonNegativeInteger(value.marksSinceBreak)
+  );
+}
+
 /** Is `text` a backup this app can restore? Rejects anything else, naming the reason in plain words. */
 export function checkBackup(text: string): BackupCheck {
   let file: unknown;
@@ -78,17 +149,8 @@ export function checkBackup(text: string): BackupCheck {
   if (app.schemaVersion !== schemaVersion) return malformed();
   if (!Array.isArray(app.profiles) || !(app.activeProfileId === null || isString(app.activeProfileId))) return malformed();
   if (!isObject(app.parent)) return malformed();
-  if (!app.profiles.every((p) => isObject(p) && isString(p.id) && isString(p.name))) return malformed();
-  const sessionsOk = sessions.every(
-    (s) =>
-      isObject(s) &&
-      isString(s.id) &&
-      isString(s.profileId) &&
-      isString(s.listId) &&
-      isDate(s.startedAt) &&
-      Array.isArray(s.rounds),
-  );
-  if (!sessionsOk) return malformed();
+  if (!app.profiles.every(isProfile)) return malformed();
+  if (!sessions.every(isSession)) return malformed();
 
   return { ok: true, backup: file as unknown as BackupFile };
 }

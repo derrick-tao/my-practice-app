@@ -66,10 +66,37 @@ function session(id: string, profileId: string, listId: string, status: string, 
     status,
     startedAt,
     completedAt: status === 'active' ? undefined : startedAt,
-    rounds: [],
+    rounds: [
+      {
+        index: 1,
+        itemIds: ['点', '分'],
+        position: 2,
+        phase: 'listening',
+        heardCurrent: false,
+        marks: { 点: 'correct', 分: 'wrong' },
+        startedAt,
+      },
+    ],
     undo: null,
     marksSinceBreak: 0,
   };
+}
+
+/** `backup` as text, with the first session replaced by itself plus `change` (undefined removes a field). */
+function withAttempt(backup: BackupJson, change: Record<string, unknown>): string {
+  const [first, ...rest] = backup.data.sessions;
+  return JSON.stringify({ ...backup, data: { ...backup.data, sessions: [{ ...first, ...change }, ...rest] } });
+}
+
+function withRound(backup: BackupJson, change: Record<string, unknown>): string {
+  const [first] = backup.data.sessions;
+  const rounds = first!.rounds as Array<Record<string, unknown>>;
+  return withAttempt(backup, { rounds: [{ ...rounds[0], ...change }] });
+}
+
+function withLearner(backup: BackupJson, change: Record<string, unknown>): string {
+  const [first, ...rest] = backup.data.app.profiles;
+  return JSON.stringify({ ...backup, data: { ...backup.data, app: { ...backup.data.app, profiles: [{ ...first, ...change }, ...rest] } } });
 }
 
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
@@ -296,6 +323,19 @@ test.describe('import', () => {
       ['no sessions', JSON.stringify({ ...good, data: { app: good.data.app } })],
       ['a learner without an id', JSON.stringify({ ...good, data: { ...good.data, app: { ...good.data.app, profiles: [{ name: 'x' }] } } })],
       ['a bad export time', JSON.stringify({ ...good, exportedAt: 'yesterday' })],
+      ['a learner without settings', withLearner(good, { settings: undefined })],
+      ['a learner whose break setting is not one of the choices', withLearner(good, { settings: { shuffle: true, breakEvery: 7, sounds: true } })],
+      ['a learner without assigned lists', withLearner(good, { assignedListIds: undefined })],
+      ['an attempt with no rounds', withAttempt(good, { rounds: [] })],
+      ['an attempt with an unknown status', withAttempt(good, { status: 'paused' })],
+      ['an attempt for an unknown practice type', withAttempt(good, { practiceType: 'karaoke' })],
+      ['an attempt without a subject', withAttempt(good, { subject: undefined })],
+      ['an attempt without a break count', withAttempt(good, { marksSinceBreak: undefined })],
+      ['an attempt whose undo is not an undo entry', withAttempt(good, { undo: 'later' })],
+      ['a round positioned past its items', withRound(good, { position: 3 })],
+      ['a round with a bad phase', withRound(good, { phase: 'sleeping' })],
+      ['a round with a mark that is neither right nor wrong', withRound(good, { marks: { 点: 'maybe' } })],
+      ['a round whose items are not text', withRound(good, { itemIds: [1, 2] })],
     ];
     for (const [what, content] of malformed) {
       await chooseBackupFile(page, content);
