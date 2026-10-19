@@ -1,19 +1,11 @@
 name: CI
 
-# Pull requests: validate lists, typecheck, run both test seams, and build.
-# No secrets, no audio generation, no deploy: this workflow does not reference any repository secret, so
-# pull-request code can never read the Azure key. Audio comes from the committed audio/ folder; anything a PR
-# adds that has no committed audio yet gets silent placeholder audio (FAKE_AUDIO below), which is never
-# committed or deployed.
+# TEMPORARY debug workflow (do not merge): reproduce the CI-only offline.spec failure and keep traces.
 on:
   pull_request:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   check:
@@ -21,19 +13,19 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci
-
-      - name: Install WebKit for Playwright (Seam 1)
-        run: npx playwright install --with-deps webkit
-
-      # validate -> typecheck -> test:content (Seam 2) -> build -> test:e2e (Seam 1)
-      - name: Check
+      - run: npx playwright install --with-deps webkit
+      - name: offline.spec repeated, traces on
         env:
-          FAKE_AUDIO: '1' # explicit opt-in to placeholder audio for new items (see content-build/cli.ts)
-        run: npm run check
+          FAKE_AUDIO: '1'
+        run: nproc; npx playwright test tests/e2e/offline.spec.ts --repeat-each=3 --trace=on --reporter=list
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results
+          retention-days: 3
