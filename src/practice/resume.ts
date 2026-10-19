@@ -1,11 +1,19 @@
 // Finding and (re)opening the learner's session through the StorageAdapter.
 import type { ListData, PracticeTypeId } from '../content/types.ts';
-import type { StorageAdapter } from '../storage/types.ts';
-import { createSession, DEFAULT_PROFILE_ID, skipUnknownItems, type PracticeEnv, type Session } from './session.ts';
+import { activeProfileOf } from '../profiles.ts';
+import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
+import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
 
-/** The active profile's id, or the implicit default profile until profiles exist (ticket 07). */
+/** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
 export async function currentProfileId(storage: StorageAdapter): Promise<string> {
   return (await storage.loadApp()).activeProfileId ?? DEFAULT_PROFILE_ID;
+}
+
+/** The active profile's settings (the defaults until a profile exists). */
+export async function currentSettings(storage: StorageAdapter): Promise<ProfileSettings> {
+  const app = await storage.loadApp();
+  const profile = activeProfileOf(app);
+  return { ...DEFAULT_SETTINGS, ...profile?.settings };
 }
 
 /** The profile's active session. There is at most one; if data ever holds several, the newest wins. */
@@ -18,33 +26,50 @@ async function activeSessionOf(storage: StorageAdapter, profileId: string): Prom
 }
 
 export interface OpenedSession {
+  kind: 'opened';
   session: Session;
   /** Continued from saved progress (so audio must not auto-play) rather than freshly started. */
   resumed: boolean;
 }
 
+/** Mark a session stopped: it stays in history, but is no longer the one to keep going with. */
+export async function stopSession(storage: StorageAdapter, session: Session): Promise<void> {
+  await storage.putSession({ ...session, status: 'stopped' });
+}
+
+/** Another list's session is active and the learner has not yet been through the "stop it?" check. */
+export interface StopRequired {
+  kind: 'blocked';
+  blockedBy: Session;
+}
+
 /**
  * Open the list for practice: continue its active session, or start a new one. The new session is
  * saved before it is returned, so nothing is on screen that is not on disk. Starting a list while a
- * session on a different list is active stops that one (kept in history); ticket 09 puts the parent
- * gate and a confirmation in front of this.
+ * session on a different list is active replaces it (the old one is kept in history as stopped), but
+ * only once the caller has been through the confirmation and the parent gate (`stopActive`); until then
+ * nothing is changed and `StopRequired` comes back.
  */
 export async function openSession(
   storage: StorageAdapter,
   list: Pick<ListData, 'id' | 'subject' | 'items'>,
-  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean },
+  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; stopActive?: boolean },
   env: PracticeEnv,
-): Promise<OpenedSession> {
+): Promise<OpenedSession | StopRequired> {
+  const { stopActive = false, ...sessionOptions } = options;
   const profileId = await currentProfileId(storage);
   const active = await activeSessionOf(storage, profileId);
   if (active && active.listId === list.id && active.practiceType === options.practiceType) {
-    // A list edited since the session was saved may have dropped the item it was on.
-    const settled = skipUnknownItems(active, new Set(list.items.map((item) => item.target)), env);
+    // Reconcile with the list as it is now (the parent may have edited it since the session was saved).
+    const settled = reconcileWithList(active, new Set(list.items.map((item) => item.target)), env);
     if (settled !== active) await storage.putSession(settled);
-    return { session: settled, resumed: true };
+    return { kind: 'opened', session: settled, resumed: true };
   }
-  if (active) await storage.putSession({ ...active, status: 'stopped' });
-  const session = createSession(list, { ...options, profileId }, env);
+  if (active) {
+    if (!stopActive) return { kind: 'blocked', blockedBy: active };
+    await stopSession(storage, active);
+  }
+  const session = createSession(list, { ...sessionOptions, profileId }, env);
   await storage.putSession(session);
-  return { session, resumed: false };
+  return { kind: 'opened', session, resumed: false };
 }

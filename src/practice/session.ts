@@ -28,7 +28,7 @@ export interface Round {
   completedAt?: string;
 }
 
-/** Ticket 06 fills this in. */
+/** The last mark, kept so one tap can take it back (one level only). */
 export interface UndoEntry {
   roundIndex: number;
   itemId: string;
@@ -47,9 +47,9 @@ export interface Session {
   startedAt: string;
   completedAt?: string;
   rounds: Round[];
-  /** Ticket 06. */
+  /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
-  /** Ticket 06. */
+  /** Marks since the last break prompt was answered (or the last retry round started). */
   marksSinceBreak: number;
 }
 
@@ -60,7 +60,7 @@ export interface PracticeEnv {
   newId(): string;
 }
 
-/** Until profiles exist (ticket 07) everything belongs to this implicit profile. */
+/** Sessions saved before profiles existed (ticket 05) belong to this implicit profile; the first real profile adopts them (profiles.ts). */
 export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(
@@ -102,13 +102,18 @@ export const isRoundOver = (round: Round): boolean => round.position >= round.it
 /** The item being practiced, or undefined when the round is over. */
 export const currentItemId = (round: Round): string | undefined => round.itemIds[round.position];
 
-/** Ids marked wrong in a round, in the order the round presented them. */
-export const wrongItemIds = (round: Round): string[] => round.itemIds.filter((id) => round.marks[id] === 'wrong');
+/**
+ * Ids marked wrong in a round, in the order the round presented them. Misses on items the list no
+ * longer has (`listed` are the ids it has now) are left out: the parent removed them, and their marks
+ * stay in the round as history.
+ */
+export const wrongItemIds = (round: Round, listed: ReadonlySet<string>): string[] =>
+  round.itemIds.filter((id) => round.marks[id] === 'wrong' && listed.has(id));
 
 /** The finished round has misses to practice again (the session is still active). */
-export const canRetry = (session: Session): boolean => {
+export const canRetry = (session: Session, listed: ReadonlySet<string>): boolean => {
   const round = currentRound(session);
-  return session.status === 'active' && isRoundOver(round) && wrongItemIds(round).length > 0;
+  return session.status === 'active' && isRoundOver(round) && wrongItemIds(round, listed).length > 0;
 };
 
 export function markCounts(round: Round): { correct: number; wrong: number } {
@@ -157,8 +162,9 @@ export function reveal(session: Session): Session {
 
 /** Record the learner's mark for the revealed item and move to the next one (or finish the round). */
 export function mark(session: Session, result: Mark, env: PracticeEnv): Session {
+  const before = currentRound(session);
+  const itemId = currentItemId(before);
   const marked = withCurrentRound(session, (round) => {
-    const itemId = currentItemId(round);
     if (itemId === undefined || round.phase !== 'revealed') return round;
     const position = round.position + 1;
     return {
@@ -170,36 +176,109 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
       ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
     };
   });
-  return finishIfClean(marked, env);
+  if (marked === session || itemId === undefined) return marked;
+  const entry: UndoEntry = { roundIndex: before.index, itemId, position: before.position };
+  const previousMark = before.marks[itemId];
+  if (previousMark) entry.previousMark = previousMark;
+  const next = { ...marked, undo: entry, marksSinceBreak: marked.marksSinceBreak + 1 };
+  // Marking happens on the round as it is: every one of its items still counts.
+  return finishIfClean(next, env, new Set(currentRound(next).itemIds));
 }
 
-/** A round that ends with no misses completes the session (no summary / retry step). */
-function finishIfClean(session: Session, env: PracticeEnv): Session {
+/** The last mark can be taken back: it is in the current round, and nothing has been marked since. */
+export function canUndo(session: Session): boolean {
+  const entry = session.undo;
+  if (session.status !== 'active' || !entry) return false;
   const round = currentRound(session);
-  if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round).length > 0) return session;
-  return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now() };
+  return (
+    round.index === entry.roundIndex &&
+    entry.position < round.position &&
+    round.itemIds[entry.position] === entry.itemId
+  );
 }
 
 /**
- * Minimal guard for a list that changed under a saved session (ticket 10 does the full reconciliation):
- * step past current items that are no longer in the list, so the child is never stuck on one. If that
- * ends the round, the usual summary (or completion) follows.
+ * Take back the last mark: its item is shown again in the revealed phase with the mark removed (or
+ * put back to what it was). From a round summary this reopens the round. Undo is used up by this.
  */
-export function skipUnknownItems(session: Session, listed: ReadonlySet<string>, env: PracticeEnv): Session {
+export function undo(session: Session): Session {
+  if (!canUndo(session)) return session;
+  const entry = session.undo!;
+  const { completedAt: _reopened, ...round } = currentRound(session);
+  const { [entry.itemId]: _removed, ...marks } = round.marks;
+  const reopened: Round = {
+    ...round,
+    position: entry.position,
+    phase: 'revealed',
+    heardCurrent: true,
+    marks: entry.previousMark ? { ...marks, [entry.itemId]: entry.previousMark } : marks,
+  };
+  return {
+    ...session,
+    rounds: [...session.rounds.slice(0, -1), reopened],
+    undo: null,
+    marksSinceBreak: Math.max(0, session.marksSinceBreak - 1),
+  };
+}
+
+/**
+ * A break prompt is due: `breakEvery` marks (0 is off) since the last one, and the round is not over
+ * (a round end has its own summary, so the prompt never lands there).
+ */
+export function breakDue(session: Session, breakEvery: number): boolean {
+  return (
+    session.status === 'active' &&
+    breakEvery > 0 &&
+    session.marksSinceBreak >= breakEvery &&
+    !isRoundOver(currentRound(session))
+  );
+}
+
+/** Keep going / Break: the prompt is answered, so counting starts again. */
+export function resetBreakCount(session: Session): Session {
+  return session.marksSinceBreak === 0 ? session : { ...session, marksSinceBreak: 0 };
+}
+
+/** A round that ends with no misses to practice completes the session (no summary / retry step). */
+function finishIfClean(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
+  const round = currentRound(session);
+  if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round, listed).length > 0) return session;
+  return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now(), undo: null };
+}
+
+/**
+ * Make a saved session agree with the list as it is now. Run when the session is opened, and again after
+ * every step (a no-op once it agrees). Sessions hold item ids only, so edits to a clue, pinyin or audio
+ * need nothing here. What the list lost is handled:
+ *  - removed items still to come drop out of the current round, so they never show up and never reach a
+ *    later round. If the current item was removed practice moves to the next one; if that ends the round
+ *    the usual summary (or completion) follows;
+ *  - marks already made stay on the session as history, removed item or not; but the undo entry of a
+ *    removed item is dropped (nothing to take back to), and the break count is kept;
+ *  - items the list gained are not added (the next session picks them up);
+ *  - if none of the session's items are in the list any more, the session is stopped.
+ * Returns the same object when nothing needed to change.
+ */
+export function reconcileWithList(session: Session, listed: ReadonlySet<string>, env: PracticeEnv): Session {
   if (session.status !== 'active') return session;
-  const skipped = withCurrentRound(session, (round) => {
-    let position = round.position;
-    while (position < round.itemIds.length && !listed.has(round.itemIds[position]!)) position++;
-    if (position === round.position) return round;
+  if (!session.rounds[0]!.itemIds.some((id) => listed.has(id))) return { ...session, status: 'stopped', undo: null };
+  // Undo must never reopen an item the list no longer has. (Entries always point before the current
+  // position, which pruning below never touches, so the position stays valid; the break count is left
+  // alone: the marks it counts are kept as history.)
+  const kept = session.undo && !listed.has(session.undo.itemId) ? { ...session, undo: null } : session;
+  const pruned = withCurrentRound(kept, (round) => {
+    if (isRoundOver(round)) return round;
+    const itemIds = round.itemIds.filter((id, i) => i < round.position || listed.has(id));
+    if (itemIds.length === round.itemIds.length) return round;
+    const currentGone = itemIds[round.position] !== round.itemIds[round.position];
     return {
       ...round,
-      position,
-      phase: 'listening',
-      heardCurrent: false,
-      ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
+      itemIds,
+      ...(currentGone ? { phase: 'listening' as const, heardCurrent: false } : {}),
+      ...(round.position >= itemIds.length ? { completedAt: env.now() } : {}),
     };
   });
-  return skipped === session ? session : finishIfClean(skipped, env);
+  return finishIfClean(pruned, env, listed);
 }
 
 /**
@@ -207,10 +286,10 @@ export function skipUnknownItems(session: Session, listed: ReadonlySet<string>, 
  * The new order differs from the order those items had in the previous round (when there are
  * at least two), so the child never sees the same sequence again.
  */
-export function startRetryRound(session: Session, env: PracticeEnv): Session {
-  if (!canRetry(session)) return session;
+export function startRetryRound(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
+  if (!canRetry(session, listed)) return session;
   const previous = currentRound(session);
-  const missed = wrongItemIds(previous);
+  const missed = wrongItemIds(previous, listed);
   let itemIds = shuffled(missed, env.random);
   if (missed.length > 1 && itemIds.every((id, i) => id === missed[i])) {
     itemIds = [...itemIds.slice(1), itemIds[0]!];
@@ -224,7 +303,7 @@ export function startRetryRound(session: Session, env: PracticeEnv): Session {
     marks: {},
     startedAt: env.now(),
   };
-  return { ...session, rounds: [...session.rounds, round], undo: null };
+  return { ...session, rounds: [...session.rounds, round], undo: null, marksSinceBreak: 0 };
 }
 
 export interface SessionResult {

@@ -16,6 +16,10 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: BASE_URL,
+    // The app registers a service worker (ticket 14). Almost every spec runs with it blocked, so a cached
+    // response can never stand in for the server and page.route() interception keeps working. Only the
+    // offline/update specs opt in (tests/e2e/pwa-site.ts).
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
   },
   projects: [

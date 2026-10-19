@@ -1,11 +1,18 @@
-import { fetchManifest } from '../content/client.ts';
+import { useState } from 'preact/hooks';
+import { useAppRecord } from '../app-context.tsx';
+import { ConfirmYesNo } from '../confirm.tsx';
 import type { ListSummary, PracticeTypeId } from '../content/types.ts';
-import { findActiveSession } from '../practice/resume.ts';
+import { usePublishedLists } from '../content/use-lists.ts';
+import { findActiveSession, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
-import { listHref } from '../router.ts';
-import { getStorage, NewerSchemaError } from '../storage/index.ts';
+import { activeProfileOf, setActiveProfile } from '../profiles.ts';
+import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
+import { listHref, parentHref } from '../router.ts';
+import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
+import { SaveFailed } from '../save-failed.tsx';
+import { useSave } from '../use-save.ts';
 
 function ListCard({ subject, practiceType, list }: { subject: string; practiceType: PracticeTypeId; list: ListSummary }) {
   return (
@@ -24,69 +31,126 @@ function ListCard({ subject, practiceType, list }: { subject: string; practiceTy
   );
 }
 
-/** Resume the active session exactly where it was left. */
+/** Resume the active session exactly where it was left, or (after a confirmation) start it over. */
 function KeepGoingCard({ session, list }: { session: Session; list: ListSummary }) {
   const round = currentRound(session);
+  const href = listHref(session.subject, session.practiceType, session.listId);
+  const [asking, setAsking] = useState(false);
+  const { busy: saving, failed, run } = useSave();
+
+  // Yes: the current session is stopped (kept in history) and saved; opening the list then starts a
+  // fresh, freshly ordered one, exactly like tapping the list's card with nothing in progress.
+  const startOver = (): Promise<void> =>
+    run(
+      () => stopSession(getStorage(), session),
+      () => void (location.hash = href),
+    );
+
   return (
-    <a class="keep-going" href={listHref(session.subject, session.practiceType, session.listId)}>
-      <span class="keep-going__label">
-        <span aria-hidden="true">▶️ </span>Keep going
-      </span>
-      <span class="keep-going__title">{list.title}</span>
-      <span class="keep-going__progress">
-        <RoundBadge index={round.index} />
-        <StarBar done={round.position} total={round.itemIds.length} />
-      </span>
-    </a>
+    <>
+      <div class="keep-going-card">
+        <a class="keep-going" href={href}>
+          <span class="keep-going__label">
+            <span aria-hidden="true">▶️ </span>Keep going
+          </span>
+          <span class="keep-going__title">{list.title}</span>
+          <span class="keep-going__progress">
+            <RoundBadge index={round.index} />
+            <StarBar done={round.position} total={round.itemIds.length} />
+          </span>
+        </a>
+        <button type="button" class="btn keep-going-card__restart" onClick={() => setAsking(true)}>
+          <span aria-hidden="true">🔄</span>
+          <span class="sr-only">Start over</span>
+        </button>
+      </div>
+      {asking && !failed && (
+        <ConfirmYesNo
+          question="Start again from the beginning?"
+          busy={saving}
+          onYes={() => void startOver()}
+          onNo={() => setAsking(false)}
+        />
+      )}
+      {failed && <SaveFailed onRetry={() => void startOver()} />}
+    </>
   );
 }
 
-interface Resume {
-  session?: Session;
-  /** Saved progress was written by a newer version of the app. */
-  newerData?: boolean;
-}
-
-/** The active session, if any. Home still works when saved data can't be read. */
-async function loadResume(): Promise<Resume> {
+/** The profile's active session, if any. Home still works when saved sessions can't be read. */
+async function loadResume(): Promise<Session | undefined> {
   try {
-    return { session: await findActiveSession(getStorage()) };
-  } catch (error) {
-    return error instanceof NewerSchemaError ? { newerData: true } : {};
+    return await findActiveSession(getStorage());
+  } catch {
+    return undefined;
   }
 }
 
+/** Avatar buttons to switch learner: only shown when several learners share the device. */
+function ProfileSwitcher() {
+  const { app, update } = useAppRecord();
+  const active = activeProfileOf(app);
+  if (app.profiles.length < 2) return null;
+  return (
+    <div class="profile-switcher" role="group" aria-label="Who is practicing?">
+      {app.profiles.map((p) => (
+        <button
+          type="button"
+          key={p.id}
+          class="profile-switcher__button"
+          aria-label={p.name}
+          aria-pressed={p.id === active?.id}
+          onClick={() => void update((current) => setActiveProfile(current, p.id)).catch(() => undefined)}
+        >
+          <span aria-hidden="true">{p.avatar}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function HomeScreen() {
-  const manifest = useLoad(fetchManifest, []);
-  const resume = useLoad(loadResume, []);
-  const saved: Resume = resume.status === 'ready' ? resume.value : {};
-  const session = saved.session;
-  const lists =
-    manifest.status === 'ready'
-      ? manifest.value.subjects.flatMap((subject) => subject.practiceTypes.flatMap((type) => type.lists))
-      : [];
-  const resumeList = session && lists.find((list) => list.id === session.listId);
+  const { app } = useAppRecord();
+  const profile = activeProfileOf(app)!;
+  const published = usePublishedLists();
+  // Each learner has their own practice in progress: look again whenever the learner changes.
+  const resume = useLoad(loadResume, [profile.id]);
+  const updateReady = useUpdateReady();
+  const session = resume.status === 'ready' ? resume.value : undefined;
+  const all = published.status === 'ready' ? published.value : [];
+  const assigned = new Set(profile.assignedListIds);
+  const shown = all.filter(({ list }) => assigned.has(list.id));
+  // The practice in progress stays reachable even when its list has since been unassigned.
+  const resumeList = session && all.find(({ list }) => list.id === session.listId)?.list;
   return (
     <main class="screen">
-      <h1 class="screen__title">My Practice</h1>
-      {manifest.status === 'loading' && <p class="notice">Loading…</p>}
-      {manifest.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
-      {saved.newerData && (
-        <p class="notice" role="alert">
-          Your saved progress is from a newer version of this app. Please update the app.
-        </p>
+      <header class="home__top">
+        <h1 class="screen__title">
+          Hi {profile.avatar} {profile.name}!
+        </h1>
+        <a class="gear" href={parentHref()} aria-label="Parent area">
+          <span aria-hidden="true">⚙️</span>
+        </a>
+      </header>
+      <ProfileSwitcher />
+      {updateReady && (
+        <button type="button" class="update-banner" onClick={applyUpdate}>
+          New words are ready! <span aria-hidden="true">🔄</span>
+        </button>
       )}
+      {published.status === 'loading' && <p class="notice">Loading…</p>}
+      {published.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
       {session && resumeList && <KeepGoingCard session={session} list={resumeList} />}
-      {manifest.status === 'ready' &&
-        manifest.value.subjects.flatMap((subject) =>
-          subject.practiceTypes.map((type) => (
-            <section class="cards" key={`${subject.id}/${type.id}`}>
-              {type.lists.map((list) => (
-                <ListCard key={list.id} subject={subject.id} practiceType={type.id} list={list} />
-              ))}
-            </section>
-          )),
-        )}
+      {published.status === 'ready' && shown.length === 0 && !resumeList && (
+        <p class="notice">No lists yet. Ask a grown-up to pick some!</p>
+      )}
+      {shown.length > 0 && (
+        <section class="cards">
+          {shown.map(({ subject, practiceType, list }) => (
+            <ListCard key={list.id} subject={subject} practiceType={practiceType} list={list} />
+          ))}
+        </section>
+      )}
     </main>
   );
 }

@@ -13,11 +13,14 @@ const CLI = path.resolve('content-build/cli.ts');
 // pull-request CI) has must not change what these tests mean, and nothing here may reach the network.
 const CLEAN_ENV = { ...process.env, AZURE_SPEECH_KEY: '', AZURE_SPEECH_REGION: '', FAKE_AUDIO: '' };
 
-async function cli(args: string[], env: Record<string, string> = {}) {
+// `unset` removes variables entirely, so values from an env file can apply (an empty value still wins).
+async function cli(args: string[], env: Record<string, string> = {}, unset: string[] = []) {
+  const childEnv: Record<string, string | undefined> = { ...CLEAN_ENV, ...env };
+  for (const name of unset) delete childEnv[name];
   try {
     const { stdout, stderr } = await run('npx', ['tsx', CLI, ...args], {
       encoding: 'utf8',
-      env: { ...CLEAN_ENV, ...env },
+      env: childEnv,
     });
     return { code: 0, stdout, stderr };
   } catch (error) {
@@ -112,6 +115,25 @@ describe('content CLI: audio and credentials', () => {
     const fake = await cli([...base, '--fake-audio']);
     expect(fake.code).not.toBe(0);
     expect(fake.stderr).toContain('--fake-audio');
+    expect(await ws.storedAudio()).toEqual([]);
+  });
+
+  it('the audio command reads credentials from the env file, the environment wins, and the key is never printed', async () => {
+    const ws = await createWorkspace(OK_LIST);
+    const envFile = path.join(await mkdtemp(path.join(tmpdir(), 'env-')), '.env');
+    // An invalid region fails before any request, which proves the file was read without reaching the network.
+    await writeFile(envFile, 'AZURE_SPEECH_KEY=not-a-real-key\nAZURE_SPEECH_REGION=not/a/region\n');
+    const base = ['audio', '--content', ws.contentDir, '--audio-store', ws.audioStoreDir, '--env-file', envFile];
+
+    const fromFile = await cli(base, {}, ['AZURE_SPEECH_KEY', 'AZURE_SPEECH_REGION']);
+    expect(fromFile.code).not.toBe(0);
+    expect(fromFile.stderr).toContain('AZURE_SPEECH_REGION must be a plain region name');
+
+    const shellWins = await cli(base, { AZURE_SPEECH_REGION: '' }, ['AZURE_SPEECH_KEY']);
+    expect(shellWins.code).not.toBe(0);
+    expect(shellWins.stderr).toContain('AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must both be set');
+
+    for (const result of [fromFile, shellWins]) expect(result.stdout + result.stderr).not.toContain('not-a-real-key');
     expect(await ws.storedAudio()).toEqual([]);
   });
 

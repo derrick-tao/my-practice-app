@@ -15,6 +15,8 @@ export type Rendition = 'normal' | 'slow';
 
 export interface ListSummary {
   id: string;
+  /** The list's data file, relative to the content root (`<base>content/`), named by its content hash: `lists/<id>.<hash>.json`. */
+  file: string;
   title: string;
   script: Script;
   testDates?: string;

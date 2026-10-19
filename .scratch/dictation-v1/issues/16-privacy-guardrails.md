@@ -8,9 +8,13 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] With a local denylist containing a test name, committing a file containing it is blocked with a message naming the file; without a denylist, commits proceed
 - [ ] The denylist file is gitignored and never committed
 - [ ] Seam 1: across first run, practice, and the parent area, every request goes to the app's own origin
 - [ ] The README explains how to set up the local denylist
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 35e65bf, review fixes 4033da1).

@@ -3,8 +3,8 @@
 import type { TtsConfig } from './content-build/tts/config.ts';
 
 export const ttsConfig: TtsConfig = {
-  // 'azure': Azure Neural TTS over REST. Needs AZURE_SPEECH_KEY and AZURE_SPEECH_REGION, which only the
-  //          main deploy workflow has. Honours <phoneme> markup, so standalone targets are read from their
+  // 'azure': Azure Neural TTS over REST. Needs AZURE_SPEECH_KEY and AZURE_SPEECH_REGION: repo secrets in the
+  //          main deploy workflow, or the git-ignored .env locally (see .env.example). Honours <phoneme> markup, so standalone targets are read from their
   //          pinyin (什 shén, 么 me, 只 zhī, 分 fēn).
   // 'edge':  unofficial Microsoft Edge read-aloud service (msedge-tts), the fallback. Needs no key, but
   //          the service accepts only plain text with one voice and one prosody tag, so it CANNOT carry

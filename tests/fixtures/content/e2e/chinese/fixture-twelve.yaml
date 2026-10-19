@@ -1,0 +1,19 @@
+# Seam 1 fixture: twelve characters, so a break prompt (every 10 marks by default) lands mid-round.
+id: fixture-twelve
+title: Fixture Twelve
+subject: chinese
+practiceTypes: [dictation]
+script: simplified
+items:
+  - target: 一
+  - target: 二
+  - target: 三
+  - target: 四
+  - target: 五
+  - target: 六
+  - target: 七
+  - target: 八
+  - target: 九
+  - target: 十
+  - target: 大
+  - target: 小

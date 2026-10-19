@@ -1,8 +1,9 @@
 import { expect, test } from './harness.ts';
+import { setUpLearner } from './parent-driver.ts';
 
 test.describe('home screen', () => {
   test('shows a card for each published list with title, test dates and character count', async ({ page }) => {
-    await page.goto('./');
+    await setUpLearner(page);
 
     const card = page.getByRole('link', { name: /Fixture Three/ });
     await expect(card).toBeVisible();
@@ -16,7 +17,7 @@ test.describe('home screen', () => {
   });
 
   test('fits every card inside the screen in this orientation', async ({ page }) => {
-    await page.goto('./');
+    await setUpLearner(page);
     const viewport = page.viewportSize()!;
     for (const name of [/Fixture Three/, /Fixture Five/]) {
       const card = page.getByRole('link', { name });
@@ -30,7 +31,7 @@ test.describe('home screen', () => {
   });
 
   test('tapping a card opens its list route under subject / practice type / list', async ({ page }) => {
-    await page.goto('./');
+    await setUpLearner(page);
     await page.getByRole('link', { name: /Fixture Three/ }).click();
 
     await expect(page).toHaveURL(/#\/chinese\/dictation\/fixture-three$/);
@@ -44,11 +45,13 @@ test.describe('home screen', () => {
   });
 
   test('opening a list route directly works', async ({ page }) => {
+    await setUpLearner(page);
     await page.goto('./#/chinese/dictation/fixture-five');
     await expect(page.getByRole('heading', { name: 'Fixture Five' })).toBeVisible();
   });
 
   test('a route that is not a list falls back to home; an unknown list offers a way home', async ({ page }) => {
+    await setUpLearner(page);
     await page.goto('./#/nowhere');
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
 
@@ -70,7 +73,7 @@ test.describe('home screen', () => {
     });
     page.on('requestfailed', (request) => failures.push(`failed ${request.url()}`));
 
-    await page.goto('./');
+    await setUpLearner(page);
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
 
     expect(foreign).toEqual([]);

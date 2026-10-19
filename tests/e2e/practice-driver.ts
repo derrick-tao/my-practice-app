@@ -47,6 +47,12 @@ export class PracticeScreen {
   readonly retry: Locator;
   readonly roundBadge: Locator;
   readonly completion: Locator;
+  /** The "↩️ Undo" chip shown after a mark. */
+  readonly undo: Locator;
+  /** The "Great job! Take a break?" prompt and its two choices. */
+  readonly breakPrompt: Locator;
+  readonly keepOn: Locator;
+  readonly takeBreak: Locator;
   /** The home screen's resume card. */
   readonly keepGoing: Locator;
 
@@ -67,6 +73,10 @@ export class PracticeScreen {
     this.retry = page.getByRole('button', { name: /Practice the .* words/ });
     this.roundBadge = page.getByTestId('round-badge');
     this.completion = page.getByTestId('completion');
+    this.undo = page.getByRole('button', { name: 'Undo' });
+    this.breakPrompt = page.getByTestId('break-prompt');
+    this.keepOn = page.getByRole('button', { name: 'Keep going' });
+    this.takeBreak = page.getByRole('button', { name: 'Break' });
     this.keepGoing = page.getByRole('link', { name: /Keep going/ });
   }
 
@@ -106,6 +116,20 @@ export class PracticeScreen {
     return (await this.target.textContent())!;
   }
 
+  /** On the listening screen: Check, then mark. Returns the revealed target. */
+  async markNext(correct: boolean): Promise<string> {
+    const target = await this.reveal();
+    await (correct ? this.gotIt : this.notYet).click();
+    return target;
+  }
+
+  /** Mark `count` items in a row (stops being meaningful at a round end or break prompt). */
+  async markMany(count: number, isCorrect: (index: number) => boolean = () => true): Promise<string[]> {
+    const order: string[] = [];
+    for (let i = 0; i < count; i++) order.push(await this.markNext(isCorrect(i)));
+    return order;
+  }
+
   /**
    * Play the current round to its end. `isCorrect(target, indexInRound)` decides each mark.
    * Returns the targets in the order the round presented them. Stops at the round summary, or at
@@ -114,7 +138,11 @@ export class PracticeScreen {
   async playRound(isCorrect: (target: string, index: number) => boolean): Promise<string[]> {
     const order: string[] = [];
     for (;;) {
-      await expect(this.check.or(this.summary).or(this.completion)).toBeVisible();
+      await expect(this.check.or(this.summary).or(this.completion).or(this.breakPrompt)).toBeVisible();
+      if (await this.breakPrompt.isVisible()) {
+        await this.keepOn.click(); // a break prompt is not part of the round: carry on
+        continue;
+      }
       if (!(await this.check.isVisible())) return order;
       const target = await this.reveal();
       order.push(target);
