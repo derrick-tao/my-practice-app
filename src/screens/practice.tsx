@@ -35,6 +35,7 @@ import { ConfirmYesNo } from '../confirm.tsx';
 import { ParentGate } from '../parent/gate.tsx';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
+import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 
@@ -96,16 +97,6 @@ const realEnv = (): PracticeEnv => ({
   now: () => new Date().toISOString(),
   newId: () => crypto.randomUUID(),
 });
-
-export function SaveFailed({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div role="alert" class="save-failed">
-      <button type="button" class="btn btn--primary btn--bad" onClick={onRetry}>
-        <span aria-hidden="true">⚠️ </span>Couldn't save — tap to retry
-      </button>
-    </div>
-  );
-}
 
 /** Continues the saved session for this list, or starts and saves a new one, before showing practice. */
 function OpenPractice({

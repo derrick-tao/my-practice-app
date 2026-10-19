@@ -211,7 +211,3 @@ export function describeBackupAge(age: BackupAge): string {
   if (age.days === 0) return 'today';
   return age.days === 1 ? '1 day ago' : `${age.days} days ago`;
 }
-
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}

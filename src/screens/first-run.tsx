@@ -7,6 +7,8 @@ import { ParentGate } from '../parent/gate.tsx';
 import { ListSwitches } from '../parent/list-switches.tsx';
 import { ProfileFields } from '../parent/profile-fields.tsx';
 import { addProfile, AVATARS } from '../profiles.ts';
+import { SaveFailed } from '../save-failed.tsx';
+import { useSave } from '../use-save.ts';
 
 type Step = 'welcome' | 'gate' | 'profile' | 'lists';
 
@@ -90,27 +92,19 @@ function ListsStep(props: {
 }) {
   const { update } = useAppRecord();
   const lists = usePublishedLists();
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { busy: saving, failed: saveFailed, run } = useSave();
 
-  const done = async (): Promise<void> => {
-    if (saving) return;
-    setSaving(true);
-    setSaveFailed(false);
-    try {
-      await update((current) =>
+  const done = (): Promise<void> =>
+    run(() =>
+      update((current) =>
         addProfile(
           current,
           { name: props.name, avatar: props.avatar, assignedListIds: [...props.assigned] },
           crypto.randomUUID(),
           new Date().toISOString(),
         ),
-      );
-    } catch {
-      setSaveFailed(true);
-      setSaving(false);
-    }
-  };
+      ),
+    );
 
   // A list is needed to practice: finishing with none picked would leave the child an empty home.
   const needsPick = lists.status === 'ready' && lists.value.length > 0 && props.assigned.size === 0;
@@ -125,11 +119,7 @@ function ListsStep(props: {
       {lists.status === 'ready' && (
         <ListSwitches lists={lists.value} assigned={props.assigned} onToggle={props.onToggle} />
       )}
-      {saveFailed && (
-        <div role="alert" class="save-failed">
-          <span aria-hidden="true">⚠️ </span>Couldn't save — tap Done to retry
-        </div>
-      )}
+      {saveFailed && <SaveFailed />}
       <div class="row">
         <button type="button" class="btn btn--audio" onClick={props.onBack}>
           <span aria-hidden="true">⬅️ </span>Back

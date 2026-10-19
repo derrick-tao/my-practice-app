@@ -6,6 +6,7 @@ import { eraseEverything, eraseLearnerProgress } from '../../erase.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { HOME_HREF } from '../../router.ts';
 import { getStorage } from '../../storage/index.ts';
+import { useSave } from '../../use-save.ts';
 import type { ParentSection } from '../sections.ts';
 
 const CONFIRM_WORD = 'ERASE';
@@ -21,29 +22,13 @@ function DangerZone() {
   const profile = activeProfileOf(app);
   const [flow, setFlow] = useState<Flow>({ kind: 'none' });
   const [typed, setTyped] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const { busy, failed, run, clearFailed } = useSave();
   const [erasedName, setErasedName] = useState<string | null>(null);
 
   const reset = (): void => {
     setFlow({ kind: 'none' });
     setTyped('');
-    setFailed(false);
-  };
-
-  const run = async (erase: () => Promise<void>, done: () => void | Promise<void>): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
-    setFailed(false);
-    try {
-      await erase();
-    } catch {
-      setFailed(true);
-      setBusy(false);
-      return;
-    }
-    setBusy(false);
-    await done();
+    clearFailed();
   };
 
   const eraseLearner = (profileId: string, name: string): Promise<void> =>

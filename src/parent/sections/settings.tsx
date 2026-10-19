@@ -3,8 +3,11 @@
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { activeProfileOf, setSettings } from '../../profiles.ts';
+import { SaveFailed } from '../../save-failed.tsx';
 import type { ProfileSettings } from '../../storage/types.ts';
+import { useSave } from '../../use-save.ts';
 import type { ParentSection } from '../sections.ts';
+import { SwitchRow } from '../switch-row.tsx';
 
 const BREAK_CHOICES: ReadonlyArray<{ value: ProfileSettings['breakEvery']; label: string }> = [
   { value: 0, label: 'Off' },
@@ -13,58 +16,18 @@ const BREAK_CHOICES: ReadonlyArray<{ value: ProfileSettings['breakEvery']; label
   { value: 15, label: '15' },
 ];
 
-function Toggle({
-  on,
-  title,
-  meta,
-  onToggle,
-}: {
-  on: boolean;
-  title: string;
-  meta: string;
-  onToggle: () => void;
-}) {
-  return (
-    <li>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        class={`switch${on ? ' switch--on' : ''}`}
-        onClick={onToggle}
-      >
-        <span class="switch__label">
-          <span class="switch__title">{title}</span>
-          <span class="switch__meta">{meta}</span>
-        </span>
-        <span class="switch__track" aria-hidden="true">
-          <span class="switch__thumb" />
-        </span>
-      </button>
-    </li>
-  );
-}
-
 function Settings() {
   const { app, update } = useAppRecord();
   const profile = activeProfileOf(app);
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState<Partial<ProfileSettings> | null>(null);
+  const { failed, run } = useSave();
+  const [lastChange, setLastChange] = useState<Partial<ProfileSettings>>({});
 
   if (!profile) return null;
   const { shuffle, breakEvery, sounds } = profile.settings;
 
-  const save = async (change: Partial<ProfileSettings>): Promise<void> => {
-    if (saving) return;
-    setFailed(null);
-    setSaving(true);
-    try {
-      await update((current) => setSettings(current, profile.id, change));
-    } catch {
-      setFailed(change);
-    } finally {
-      setSaving(false);
-    }
+  const save = (change: Partial<ProfileSettings>): Promise<void> => {
+    setLastChange(change);
+    return run(() => update((current) => setSettings(current, profile.id, change)));
   };
 
   return (
@@ -73,13 +36,13 @@ function Settings() {
         Settings for {profile.avatar} {profile.name}:
       </p>
       <ul class="switches">
-        <Toggle
+        <SwitchRow
           on={shuffle}
           title="Shuffle the first round"
           meta="Off: the first round follows the list's order"
           onToggle={() => void save({ shuffle: !shuffle })}
         />
-        <Toggle
+        <SwitchRow
           on={sounds}
           title="Sound effects"
           meta="The voice always plays"
@@ -105,13 +68,7 @@ function Settings() {
           ))}
         </div>
       </div>
-      {failed && (
-        <div role="alert" class="save-failed">
-          <button type="button" class="btn btn--primary btn--bad" onClick={() => void save(failed)}>
-            <span aria-hidden="true">⚠️ </span>Couldn't save — tap to retry
-          </button>
-        </div>
-      )}
+      {failed && <SaveFailed onRetry={() => void save(lastChange)} />}
     </>
   );
 }

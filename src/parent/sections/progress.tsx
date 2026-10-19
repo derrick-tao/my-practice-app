@@ -9,6 +9,7 @@ import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchList } from '../../content/client.ts';
 import type { ItemData, ListData } from '../../content/types.ts';
+import { formatDate } from '../../format-date.ts';
 import { usePublishedLists } from '../../content/use-lists.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
@@ -35,9 +36,6 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
 };
 
 const characters = (count: number): string => `${count} ${count === 1 ? 'character' : 'characters'}`;
-
-const formatDate = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
