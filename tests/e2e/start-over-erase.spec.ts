@@ -1,12 +1,12 @@
 // Seam 1: starting over, switching lists, and erasing (ticket 09). Everything a child or grown-up does
-// goes through the screens; the saved history is read directly because the progress page (ticket 11)
-// and the backup file (ticket 13) do not exist yet (see saved-sessions.ts).
+// goes through the screens; the saved history is read through a backup export on a second tab, because
+// the progress page (ticket 11) does not exist yet (see saved-sessions.ts).
 import type { Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { failGate, openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
-import { addOtherLearner, OTHER_LEARNER, savedApp, savedSessions } from './saved-sessions.ts';
+import { addOtherLearner, savedApp, savedSessions } from './saved-sessions.ts';
 
 interface Fixtures {
   page: Page;
@@ -201,9 +201,8 @@ test.describe('danger zone', () => {
     loadList,
   }) => {
     const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
-    await addOtherLearner(page);
+    const otherId = await addOtherLearner(page);
     expect(await savedSessions(page)).toHaveLength(2);
-    await page.reload();
 
     await openDangerZone(page);
     await eraseOne(page).click();
@@ -215,7 +214,7 @@ test.describe('danger zone', () => {
     await page.getByRole('button', { name: 'Yes, erase' }).click();
     await expect(page.getByText("Mia's progress was erased.")).toBeVisible();
 
-    expect((await savedSessions(page)).map((s) => s.profileId)).toEqual([OTHER_LEARNER.id]);
+    expect((await savedSessions(page)).map((s) => s.profileId)).toEqual([otherId]);
     expect((await savedApp(page)).profiles.map((p) => p.name)).toEqual(['Mia', 'Leo']);
 
     await page.getByRole('link', { name: 'Home' }).click();
@@ -246,7 +245,6 @@ test.describe('danger zone', () => {
   }) => {
     const practice = await practiceThenHome({ page, audio, loadList }, 'fixture-three', 2);
     await addOtherLearner(page);
-    await page.reload();
 
     await openDangerZone(page);
     await eraseEverything(page).click();
@@ -262,10 +260,10 @@ test.describe('danger zone', () => {
     await erase.click();
 
     await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // first run
-    expect(await savedSessions(page)).toEqual([]);
-    expect((await savedApp(page)).profiles).toEqual([]);
 
-    await setUpLearner(page);
+    await setUpLearner(page); // the backup section needs a learner to look at what is left
+    expect(await savedSessions(page)).toEqual([]);
+    expect((await savedApp(page)).profiles).toHaveLength(1);
     await expect(practice.keepGoing).toHaveCount(0);
     await expect(practice.listCard()).toBeVisible();
   });

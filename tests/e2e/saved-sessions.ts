@@ -1,115 +1,82 @@
-// Seam 1 helpers that read (and, for "another learner", add to) what is saved on the device directly.
-// There is no screen for these yet: the progress page is ticket 11 and the backup file is ticket 13.
-// Once 13 lands, replace them with an export/import round trip (see ticket 05's comments).
+// Seam 1 helpers for specs that need to see what is saved on the device while a screen stays where it is
+// (a confirmation half way, an error showing). There is no progress page for that yet (ticket 11), so the
+// data is read the way a grown-up can: from a backup export, taken on a second tab of the same browser
+// context so the page under test is not disturbed. "Another learner" is added through the Profiles screen
+// and given a saved practice through backup import. Nothing here touches IndexedDB directly.
 import type { Page } from '@playwright/test';
+import { editSavedData, exportBackup, openBackupSection, type SavedData, type SessionJson } from './backup-driver.ts';
+import { addLearner, openProfiles } from './parent-driver.ts';
 
-export interface SavedSession {
-  id: string;
-  profileId: string;
-  listId: string;
-  status: 'active' | 'completed' | 'stopped';
-  startedAt: string;
-  rounds: Array<{ index: number; position: number; itemIds: string[] }>;
-}
+export type SavedSession = SessionJson & { rounds: Array<{ index: number; position: number; itemIds: string[] }> };
 
 interface SavedApp {
   profiles: Array<{ id: string; name: string }>;
   activeProfileId: string | null;
 }
 
+/** Everything saved on the device, read through Export on a second tab. Needs a set-up learner. */
+async function savedData(page: Page): Promise<SavedData> {
+  const reader = await page.context().newPage();
+  try {
+    await reader.goto('./');
+    await openBackupSection(reader);
+    return (await exportBackup(reader)).backup.data;
+  } finally {
+    await reader.close();
+  }
+}
+
 /** Every saved session on the device, oldest first. */
 export async function savedSessions(page: Page): Promise<SavedSession[]> {
-  const sessions = await page.evaluate(
-    () =>
-      new Promise<SavedSession[]>((resolve, reject) => {
-        const open = indexedDB.open('my-practice-app', 1);
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const get = db.transaction('sessions', 'readonly').objectStore('sessions').getAll();
-          get.onsuccess = () => (db.close(), resolve(get.result as SavedSession[]));
-          get.onerror = () => reject(get.error);
-        };
-      }),
-  );
-  return sessions.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const { sessions } = await savedData(page);
+  return [...(sessions as SavedSession[])].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 }
 
 /** The saved app record (profiles and which one is active). */
 export async function savedApp(page: Page): Promise<SavedApp> {
-  return page.evaluate(
-    () =>
-      new Promise<SavedApp>((resolve, reject) => {
-        const open = indexedDB.open('my-practice-app', 1);
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const get = db.transaction('meta', 'readonly').objectStore('meta').get('app');
-          get.onsuccess = () => (db.close(), resolve(get.result as SavedApp));
-          get.onerror = () => reject(get.error);
-        };
-      }),
-  );
+  return (await savedData(page)).app;
 }
 
-export const OTHER_LEARNER = { id: 'other-learner-id', name: 'Leo' } as const;
+export const OTHER_LEARNER = { name: 'Leo', avatar: '🦊' } as const;
 
 /**
- * Add a second learner (not the active one) with one saved practice, as profiles from ticket 08 would
- * leave behind. Call it once the first learner is set up, then reload.
+ * Add a second learner (not the active one) with one saved practice. The learner is added on the Profiles
+ * screen; the practice is put in through backup import. Starts on home, ends on a fresh load of home, and
+ * returns the new learner's profile id.
  */
-export async function addOtherLearner(page: Page): Promise<void> {
-  await page.evaluate(
-    (other) =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('my-practice-app', 1);
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const tx = db.transaction(['meta', 'sessions'], 'readwrite');
-          const meta = tx.objectStore('meta');
-          const get = meta.get('app');
-          get.onsuccess = () => {
-            const app = get.result;
-            app.profiles.push({
-              id: other.id,
-              name: other.name,
-              avatar: '🦊',
-              createdAt: '2026-10-01T09:00:00.000Z',
-              settings: { shuffle: true, breakEvery: 10, sounds: true },
-              assignedListIds: ['fixture-three'],
-            });
-            meta.put(app, 'app');
-            tx.objectStore('sessions').put({
-              id: 'other-learner-session',
-              profileId: other.id,
-              subject: 'chinese',
-              practiceType: 'dictation',
-              listId: 'fixture-three',
-              contentVersion: 'saved-before',
-              status: 'completed',
-              startedAt: '2026-10-01T09:00:00.000Z',
-              completedAt: '2026-10-01T09:01:00.000Z',
-              rounds: [
-                {
-                  index: 1,
-                  itemIds: ['点', '分', '找'],
-                  position: 3,
-                  phase: 'listening',
-                  heardCurrent: false,
-                  marks: { 点: 'correct', 分: 'correct', 找: 'correct' },
-                  startedAt: '2026-10-01T09:00:00.000Z',
-                  completedAt: '2026-10-01T09:01:00.000Z',
-                },
-              ],
-              undo: null,
-              marksSinceBreak: 0,
-            });
-          };
-          tx.oncomplete = () => (db.close(), resolve());
-          tx.onerror = () => reject(tx.error);
-        };
-      }),
-    OTHER_LEARNER,
-  );
+export async function addOtherLearner(page: Page): Promise<string> {
+  await openProfiles(page);
+  await addLearner(page, { ...OTHER_LEARNER, lists: ['fixture-three'] });
+  await page.getByRole('link', { name: 'Home' }).click();
+  let otherId = '';
+  await editSavedData(page, (saved) => {
+    otherId = saved.app.profiles.find((p) => p.name === OTHER_LEARNER.name)!.id;
+    const session: SessionJson = {
+      id: 'other-learner-session',
+      profileId: otherId,
+      subject: 'chinese',
+      practiceType: 'dictation',
+      listId: 'fixture-three',
+      contentVersion: 'saved-before',
+      status: 'completed',
+      startedAt: '2026-10-01T09:00:00.000Z',
+      completedAt: '2026-10-01T09:01:00.000Z',
+      rounds: [
+        {
+          index: 1,
+          itemIds: ['点', '分', '找'],
+          position: 3,
+          phase: 'listening',
+          heardCurrent: false,
+          marks: { 点: 'correct', 分: 'correct', 找: 'correct' },
+          startedAt: '2026-10-01T09:00:00.000Z',
+          completedAt: '2026-10-01T09:01:00.000Z',
+        },
+      ],
+      undo: null,
+      marksSinceBreak: 0,
+    };
+    return { ...saved, sessions: [...saved.sessions, session] };
+  });
+  return otherId;
 }
