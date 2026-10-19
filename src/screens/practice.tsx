@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchList, fetchManifest } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
+import { Celebration } from '../practice/celebration.tsx';
 import { createEffects } from '../practice/effects.ts';
 import { loadKaiFont } from '../practice/kai-font.ts';
 import { createRandomSource } from '../practice/random.ts';
@@ -92,6 +93,9 @@ export function PracticeScreen({
     </main>
   );
 }
+
+/** Failed audio requests in a row before the "turn up the volume" hint appears. */
+const VOLUME_HINT_AFTER = 2;
 
 const realEnv = (): PracticeEnv => ({
   random: createRandomSource(),
@@ -196,6 +200,8 @@ function PracticeRun({
   const { session, saveFailed } = view;
   /** Auto-play for this place was rejected by the browser: the Listen button pulses. */
   const [blockedAt, setBlockedAt] = useState<Place | null>(null);
+  /** Character-audio requests in a row that the browser refused; any success starts the count again. */
+  const [audioFailures, setAudioFailures] = useState(0);
 
   const round = currentRound(session);
   const itemId = currentItemId(round);
@@ -211,6 +217,7 @@ function PracticeRun({
   const requestAudio = (target: ItemData, rendition: Rendition, autoplay: boolean, place: Place): void => {
     if (!autoplay) sync.dispatch((s) => markHeard(s, place));
     void player.play(target.audio[rendition]).then((started) => {
+      setAudioFailures((count) => (started ? 0 : count + 1));
       if (started) {
         setBlockedAt(null);
         if (autoplay) sync.dispatch((s) => markHeard(s, place));
@@ -343,6 +350,13 @@ function PracticeRun({
             )}
           </div>
           <div class="practice__controls">
+            <div role="status" class="volume-hint-slot">
+              {audioFailures >= VOLUME_HINT_AFTER && (
+                <p class="volume-hint">
+                  No sound? Turn up the volume <span aria-hidden="true">🔈</span>
+                </p>
+              )}
+            </div>
             <div class="row">
               <button
                 type="button"
@@ -447,6 +461,7 @@ function RoundSummary({
 function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: number; total: number; rounds: number }) {
   return (
     <section class="summary completion" data-testid="completion">
+      <Celebration />
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>
