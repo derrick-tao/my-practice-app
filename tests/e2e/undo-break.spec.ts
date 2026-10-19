@@ -201,6 +201,30 @@ test.describe('break prompt', () => {
     await expect(practice.check).toBeVisible();
   });
 
+  test('Undo is offered on the break prompt: it takes back the mark that triggered it, dismisses the prompt and returns to the item', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const { practice } = await start({ page, audio, loadList }, 'fixture-twelve');
+    await practice.markMany(9);
+    const tenth = await practice.markNext(false); // a mis-tap on the mark that triggers the prompt
+    await expect(practice.breakPrompt).toBeVisible();
+    await expect(practice.undo).toBeVisible();
+
+    await practice.undo.click();
+
+    await expect(practice.breakPrompt).toHaveCount(0);
+    await expect(practice.target).toHaveText(tenth);
+    await expect(practice.progressText()).toHaveText('9 / 12');
+    await expect(practice.undo).toHaveCount(0);
+
+    // Marked again, it counts as the 10th mark and the prompt returns.
+    await practice.gotIt.click();
+    await expect(practice.breakPrompt).toBeVisible();
+    await expect(practice.progressText()).toHaveText('10 / 12');
+  });
+
   test('a reload on the break prompt restores it, and Keep going continues from there', async ({
     page,
     audio,
@@ -276,6 +300,7 @@ test.describe('break prompt', () => {
 
     await practice.markNext(true);
     await expect(practice.breakPrompt).toBeVisible();
+    await inside(practice.undo, 64);
     await inside(practice.keepOn, 96);
     await inside(practice.takeBreak, 64);
   });

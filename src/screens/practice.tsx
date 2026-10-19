@@ -327,7 +327,7 @@ function PracticeRun({
     <main class="screen practice">
       <header class="practice__top">
         <HomeButton />
-        {canUndo(session) && !onBreakPrompt && (
+        {canUndo(session) && (
           <button type="button" class="btn btn--chip" onClick={onUndo}>
             <span aria-hidden="true">↩️ </span>Undo
           </button>
