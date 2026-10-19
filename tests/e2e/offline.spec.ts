@@ -61,6 +61,31 @@ test.describe('offline', () => {
     }
   });
 
+  test('the revealed character is drawn with the subset font with the network off', async ({
+    page,
+    context,
+    audio,
+    request,
+  }) => {
+    await startAtHome(page);
+    const list = (await (await request.get('content/lists/fixture-three.json')).json()) as ListData;
+
+    await context.setOffline(true);
+    await page.reload();
+
+    const practice = new PracticeScreen(page, audio, list);
+    await practice.open();
+    const target = await practice.reveal();
+    await expect
+      .poll(() =>
+        page.evaluate((text) => {
+          const faces = [...document.fonts].filter((face) => face.family.replace(/["']/g, '') === 'Practice Kai');
+          return { statuses: faces.map((face) => face.status), covers: document.fonts.check('1em "Practice Kai"', text) };
+        }, target),
+      )
+      .toEqual({ statuses: ['loaded'], covers: true });
+  });
+
   test('every list, its audio and the content manifest are available offline, including after a restart', async ({
     page,
     context,
