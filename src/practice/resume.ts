@@ -71,11 +71,9 @@ export async function openSession(
   if (saved) {
     // Reconcile with the lesson as it is now (the parent may have edited it since the session was saved).
     const settled = reconcileWithList(saved, new Set((items ?? []).map((item) => item.target)), env);
-    await storage.putSession(settled);
-    return { session: settled, resumed: true };
+    return { session: await storage.putSession(settled), resumed: true };
   }
   if (!items) return undefined;
   const session = createSession(lesson, { ...options, profileId }, env);
-  await storage.putSession(session);
-  return { session, resumed: false };
+  return { session: await storage.putSession(session), resumed: false };
 }
