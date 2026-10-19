@@ -45,6 +45,28 @@ test.describe('first run', () => {
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   });
 
+  test('each lesson switch shows the size of every list the lesson has, in first-run set-up and in Assign lessons', async ({
+    page,
+  }) => {
+    await page.goto('./');
+    await page.getByRole('button', { name: /grown-up/i }).click();
+    await passGate(page);
+    await page.getByRole('textbox', { name: 'Name' }).fill('Mia');
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    const five = page.getByRole('switch', { name: /Fixture Five/ });
+    await expect(five).toContainText('5 characters · 6 phrases');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).toContainText('3 characters');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).not.toContainText('phrase');
+    await five.click();
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await openParentArea(page);
+    await openParentSection(page, /Assign lessons/);
+    await expect(page.getByRole('switch', { name: /Fixture Five/ })).toContainText('5 characters · 6 phrases');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).toContainText('3 characters');
+  });
+
   test('setUpLearner (the shared helper) gets to the home screen with the chosen name, avatar and lessons', async ({
     page,
   }) => {

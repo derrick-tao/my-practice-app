@@ -2,7 +2,7 @@
 // ("✏️ Write"), the noun for its items ("37 characters"), and the screen that practices it. Being a Record
 // keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
 import type { ComponentType } from 'preact';
-import type { PracticeTypeId } from '../content/types.ts';
+import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
 import { DictationScreen, PhraseRecognitionScreen, type PracticeRouteProps } from '../screens/practice.tsx';
 
 export interface PracticeType {
@@ -36,3 +36,7 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
 /** "37 characters", "1 phrase". */
 export const countLabel = (type: PracticeType, count: number): string =>
   `${count} ${count === 1 ? type.itemNoun.singular : type.itemNoun.plural}`;
+
+/** "5 characters · 6 phrases": the sizes of a lesson's lists, one per practice type it offers. */
+export const listCountsLabel = (lesson: Pick<LessonSummary, 'practiceTypes'>): string =>
+  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');

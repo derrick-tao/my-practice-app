@@ -3,10 +3,10 @@
 // #/parent/lesson-preview/<lessonId> is one lesson's preview.
 import { useMemo } from 'preact/hooks';
 import { fetchLesson } from '../../content/client.ts';
-import { listEntries, type ItemData, type LessonData, type LessonSummary, type Rendition } from '../../content/types.ts';
+import { listEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
-import { countLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
+import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
 import { useLoad } from '../../use-async.ts';
 import '../lesson-preview.css';
@@ -106,10 +106,6 @@ function LessonPreview({ lessonId }: { lessonId: string }) {
   return <Preview lesson={lesson.value} />;
 }
 
-/** "5 characters · 6 phrases": the sizes of the lesson's lists. */
-const countsOf = (lesson: LessonSummary): string =>
-  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
-
 function Lessons() {
   const lessons = usePublishedLessons();
   if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
@@ -120,7 +116,7 @@ function Lessons() {
         <li key={lesson.id}>
           <a class="parent__entry" href={parentHref('lesson-preview', lesson.id)}>
             {lesson.title}
-            <span> · {countsOf(lesson)}</span>
+            <span> · {listCountsLabel(lesson)}</span>
           </a>
         </li>
       ))}
