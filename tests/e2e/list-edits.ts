@@ -9,18 +9,19 @@ import type { ListData, Manifest } from '../../src/content/types.ts';
 
 /** From now on the site serves `edit(original)` for this list. Call again to replace the edit. */
 export async function publishListEdit(page: Page, listId: string, edit: (list: ListData) => ListData): Promise<void> {
-  await page.route(`**/content/lists/${listId}.json`, async (route) => {
+  await page.route(`**/content/lists/${listId}.*.json`, async (route) => {
     const original = (await (await route.fetch()).json()) as ListData;
     await route.fulfill({ json: edit(original) });
   });
   await page.route('**/content/manifest.json', async (route) => {
     const manifest = (await (await route.fetch()).json()) as Manifest;
-    const listUrl = new URL(`lists/${listId}.json`, route.request().url()).href;
-    const original = (await (await route.fetch({ url: listUrl })).json()) as ListData;
-    const itemCount = edit(original).items.length;
     for (const subject of manifest.subjects) {
       for (const type of subject.practiceTypes) {
-        for (const list of type.lists) if (list.id === listId) list.itemCount = itemCount;
+        for (const list of type.lists) {
+          if (list.id !== listId) continue;
+          const original = (await (await route.fetch({ url: new URL(list.file, route.request().url()).href })).json()) as ListData;
+          list.itemCount = edit(original).items.length;
+        }
       }
     }
     await route.fulfill({ json: manifest });

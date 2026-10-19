@@ -24,15 +24,15 @@ describe('the real published content', () => {
     const summaries = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists));
     expect(summaries).toContainEqual({
       id: 'fall-2026-assessment',
+      file: expect.stringMatching(/^lists\/fall-2026-assessment\.[0-9a-f]{12}\.json$/),
       title: 'Fall 2026 Assessment',
       script: 'simplified',
       testDates: '2026-10-26 to 2026-10-30',
       itemCount: 37,
     });
 
-    const list = JSON.parse(
-      await readFile(path.join(outDir, 'lists', 'fall-2026-assessment.json'), 'utf8'),
-    ) as ListData;
+    const { file } = summaries.find((l) => l.id === 'fall-2026-assessment')!;
+    const list = JSON.parse(await readFile(path.join(outDir, file), 'utf8')) as ListData;
     const targets = list.items.map((item) => item.target).join('');
     expect(targets).toBe('找点分作业半玩做车可以买东西后午晚安家看书洗想吃米饭面喝什么猫狗今年养只鸟');
     const byTarget = Object.fromEntries(list.items.map((item) => [item.target, item.pinyin]));

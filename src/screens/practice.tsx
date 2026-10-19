@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { fetchList, fetchManifest } from '../content/client.ts';
+import { fetchListWithVersion } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { Celebration } from '../practice/celebration.tsx';
@@ -65,13 +65,7 @@ export function PracticeScreen({
   practiceType: PracticeTypeId;
   listId: string;
 }) {
-  const loaded = useLoad(
-    async () => {
-      const [list, manifest] = await Promise.all([fetchList(listId), fetchManifest()]);
-      return { list, contentVersion: manifest.contentVersion };
-    },
-    [listId],
-  );
+  const loaded = useLoad(() => fetchListWithVersion(listId), [listId]);
   if (loaded.status === 'ready') {
     const { list } = loaded.value;
     // Checked before anything is opened, so a wrong address can never stop the saved practice.

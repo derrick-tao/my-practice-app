@@ -4,8 +4,16 @@
 //    (tests/fixtures/content/e2e). See playwright.config.ts.
 //  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
 //    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
-import { expect, test as base, type Page } from '@playwright/test';
-import type { ListData, Rendition } from '../../src/content/types.ts';
+import { expect, test as base, type APIRequestContext, type Page } from '@playwright/test';
+import type { ListData, Manifest, Rendition } from '../../src/content/types.ts';
+
+/** Where the served site keeps a list's data (its file name carries a content hash), read from the served manifest. */
+export async function listPath(request: APIRequestContext, id: string): Promise<string> {
+  const manifest = (await (await request.get('content/manifest.json')).json()) as Manifest;
+  const summary = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists)).find((l) => l.id === id);
+  if (!summary) throw new Error(`no published list "${id}"`);
+  return `content/${summary.file}`;
+}
 
 export interface PlayedAudio {
   /** Path relative to the content root, e.g. `audio/<hash>.mp3`. */
@@ -69,7 +77,7 @@ export const test = base.extend<{ audio: AudioProbe; loadList: (id: string) => P
   },
   loadList: async ({ page }, use) => {
     await use(async (id) => {
-      const response = await page.request.get(`content/lists/${id}.json`);
+      const response = await page.request.get(await listPath(page.request, id));
       expect(response.ok(), `list ${id} should be served`).toBe(true);
       return (await response.json()) as ListData;
     });

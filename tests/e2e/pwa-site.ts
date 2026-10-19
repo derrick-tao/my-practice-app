@@ -53,24 +53,34 @@ async function startSite(): Promise<{ site: PwaSite; server: Server }> {
     baseURL,
     async deployNewVersion() {
       const read = async (rel: string) => readFile(path.join(DIST, rel), 'utf8');
-      const list = JSON.parse(await read('content/lists/fixture-three.json')) as { title: string };
-      list.title = NEW_TITLE;
-      overlay.set('content/lists/fixture-three.json', JSON.stringify(list));
-
       const manifest = JSON.parse(await read('content/manifest.json')) as {
         contentVersion: string;
-        subjects: Array<{ practiceTypes: Array<{ lists: Array<{ id: string; title: string }> }> }>;
+        subjects: Array<{ practiceTypes: Array<{ lists: Array<{ id: string; title: string; file: string }> }> }>;
       };
+      const entries = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists));
+      const entry = entries.find((e) => e.id === 'fixture-three')!;
+
+      // List files are named by their content, so a changed list is a new file next to the old one.
+      const list = JSON.parse(await read(`content/${entry.file}`)) as { title: string };
+      list.title = NEW_TITLE;
+      const newFile = 'lists/fixture-three.deployed-later.json';
+      overlay.set(`content/${newFile}`, JSON.stringify(list));
+
+      const oldFile = entry.file;
       manifest.contentVersion = 'deployed-later';
-      for (const entry of manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists))) {
-        if (entry.id === 'fixture-three') entry.title = NEW_TITLE;
+      for (const e of entries) {
+        if (e.id === 'fixture-three') Object.assign(e, { title: NEW_TITLE, file: newFile });
       }
       overlay.set('content/manifest.json', JSON.stringify(manifest));
 
-      // A deploy with changed content produces a service worker with a different build id.
+      // A deploy with changed content produces a service worker with a different build id and precache list.
       const worker = await read('sw.js');
       expect(worker).toMatch(/"buildId":"[^"]*"/);
-      overlay.set('sw.js', worker.replace(/"buildId":"[^"]*"/, '"buildId":"deployed-later"'));
+      expect(worker).toContain(`content/${oldFile}`);
+      overlay.set(
+        'sw.js',
+        worker.replace(/"buildId":"[^"]*"/, '"buildId":"deployed-later"').replace(`content/${oldFile}`, `content/${newFile}`),
+      );
     },
   };
   return { site, server };
