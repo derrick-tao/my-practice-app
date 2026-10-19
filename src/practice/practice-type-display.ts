@@ -9,4 +9,5 @@ export interface PracticeTypeDisplay {
 
 export const PRACTICE_TYPE_DISPLAY: Record<PracticeTypeId, PracticeTypeDisplay> = {
   dictation: { icon: '✏️', label: 'Write' },
+  'phrase-recognition': { icon: '🗣️', label: 'Say' },
 };
