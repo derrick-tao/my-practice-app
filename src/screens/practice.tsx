@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchList, fetchManifest } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
+import { createEffects } from '../practice/effects.ts';
+import { loadKaiFont } from '../practice/kai-font.ts';
 import { createRandomSource } from '../practice/random.ts';
 import { currentSettings, openSession } from '../practice/resume.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
@@ -125,9 +127,9 @@ function OpenPractice({
   const opened = useLoad(
     async () => {
       const storage = getStorage();
-      const { breakEvery, shuffle } = await currentSettings(storage);
+      const { breakEvery, shuffle, sounds } = await currentSettings(storage);
       const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return 'blockedBy' in result ? result : { ...result, breakEvery };
+      return 'blockedBy' in result ? result : { ...result, breakEvery, sounds };
     },
     [openTries, stopActive],
   );
@@ -149,8 +151,8 @@ function OpenPractice({
     );
   }
   if (opened.status === 'ready') {
-    const { session, resumed, breakEvery } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
-    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} />;
+    const { session, resumed, breakEvery, sounds } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
+    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (
     <main class="screen">
@@ -170,6 +172,7 @@ function PracticeRun({
   initial,
   resumed,
   breakEvery,
+  sounds,
 }: {
   list: ListData;
   env: PracticeEnv;
@@ -178,8 +181,11 @@ function PracticeRun({
   resumed: boolean;
   /** Offer a break every this many marks; 0 is off (the profile's setting). */
   breakEvery: number;
+  /** Play sound effects on ✅, ❌ and finishing (the profile's setting). Character audio ignores it. */
+  sounds: boolean;
 }) {
   const player = useMemo(createAudioPlayer, []);
+  const effects = useMemo(() => createEffects(sounds), []);
   const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
   const listedIds = useMemo(() => new Set(itemsById.keys()), [itemsById]);
 
@@ -213,6 +219,9 @@ function PracticeRun({
       }
     });
   };
+
+  // The handwriting font is fetched as practice opens, so it is ready by the first reveal.
+  useEffect(() => void loadKaiFont(), []);
 
   // First item of a new session: auto-play on arrival (not when resuming).
   useEffect(() => {
@@ -252,7 +261,9 @@ function PracticeRun({
 
   const onMark = (result: Mark): void => {
     const after = advance((s) => mark(s, result, env));
-    if (after) autoplayCurrent(after);
+    if (!after) return;
+    effects.play(after.status === 'completed' ? 'fanfare' : result === 'correct' ? 'chime' : 'gentle');
+    autoplayCurrent(after);
   };
 
   const onRetry = (): void => {

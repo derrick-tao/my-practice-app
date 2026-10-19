@@ -129,6 +129,16 @@ export async function addLearner(
   await expect(page.getByRole('button', { name: `Edit ${name}` })).toBeVisible();
 }
 
+/** Home -> Settings -> turn the active learner's "Sound effects" on or off -> back to home. */
+export async function setSoundEffects(page: Page, on: boolean): Promise<void> {
+  await openSettings(page);
+  const sounds = page.getByRole('switch', { name: 'Sound effects' });
+  if ((await sounds.isChecked()) !== on) await sounds.click();
+  if (on) await expect(sounds).toBeChecked();
+  else await expect(sounds).not.toBeChecked();
+  await page.getByRole('link', { name: 'Home' }).click();
+}
+
 /** Home -> gear -> gate -> Profiles (add, edit, delete and switch learners). */
 export async function openProfiles(page: Page): Promise<void> {
   await openParentArea(page);
