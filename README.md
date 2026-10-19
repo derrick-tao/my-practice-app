@@ -20,7 +20,7 @@ With no `.privacy-denylist` (as in CI and on a fresh clone) the check passes sil
 
 ## Publish a lesson
 
-Add `content/<subject>/<lesson-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. A lesson holds one list per practice type (so far just `dictation:`); see `content/chinese/fall-2026-assessment.yaml` for the format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
+Add `content/<subject>/<lesson-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. A lesson holds one list per practice type: `dictation:` (target, optional clue, pinyin, say) and `phrase-recognition:` (target, optional pinyin, say; no clue). The same target may appear in both lists. Phrase pinyin is generated when omitted, so write `pinyin:` where the generator differs from the textbook. The app only has a practice screen for dictation so far; see `content/chinese/fall-2026-assessment.yaml` for the format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
 
 ## Audio
 

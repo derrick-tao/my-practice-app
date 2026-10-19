@@ -14,13 +14,19 @@ export type Route =
   /** Looks like a lesson address but names a practice type that does not exist. */
   | { name: 'not-found' };
 
+/** The practice types the app has a practice screen for. A lesson's other lists are ignored until their screens land. */
+const PRACTICE_SCREEN_TYPES: readonly PracticeTypeId[] = ['dictation'];
+
+export const hasPracticeScreen = (practiceType: PracticeTypeId): boolean =>
+  PRACTICE_SCREEN_TYPES.includes(practiceType);
+
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').split('?')[0] ?? '';
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
   if (parts[0] === 'parent') return { name: 'parent', path: parts.slice(1) };
   if (parts.length === 3) {
     const [subject, practiceType, lessonId] = parts as [string, string, string];
-    return isPracticeTypeId(practiceType)
+    return isPracticeTypeId(practiceType) && hasPracticeScreen(practiceType)
       ? { name: 'lesson', subject, practiceType, lessonId }
       : { name: 'not-found' };
   }

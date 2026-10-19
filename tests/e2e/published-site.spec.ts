@@ -31,20 +31,21 @@ test('the deployed app carries no test-only hooks (seeded random, forced storage
   }
 });
 
-test('every one of the 37 items has normal and slow audio references that resolve', async ({
+test('every one of the 37 dictation and 44 phrase items has normal and slow audio references that resolve', async ({
   page,
   loadLesson,
 }) => {
   const lesson = await loadLesson('fall-2026-assessment');
   expect(lesson.lists.dictation!).toHaveLength(37);
-  for (const item of lesson.lists.dictation!) {
+  expect(lesson.lists['phrase-recognition']!).toHaveLength(44);
+  for (const item of [...lesson.lists.dictation!, ...lesson.lists['phrase-recognition']!]) {
     for (const ref of [item.audio.normal, item.audio.slow]) {
       expect((await page.request.get(`content/${ref}`)).status(), `${item.target} ${ref}`).toBe(200);
     }
   }
 });
 
-test('the service worker precaches the shell, the content manifest, every lesson and all 74 audio files', async ({
+test('the service worker precaches the shell, the content manifest, every lesson and all 162 audio files', async ({
   page,
   loadLesson,
 }) => {
@@ -53,8 +54,9 @@ test('the service worker precaches the shell, the content manifest, every lesson
   const precache = JSON.parse(/const PRECACHE = (\{.*\});/.exec(source)![1]!) as { buildId: string; urls: string[] };
   expect(precache.buildId).toMatch(/^[0-9a-f]{12}$/);
 
-  const audio = lesson.lists.dictation!.flatMap((item) => [item.audio.normal, item.audio.slow]);
-  expect(audio).toHaveLength(74);
+  const items = [...lesson.lists.dictation!, ...lesson.lists['phrase-recognition']!];
+  const audio = items.flatMap((item) => [item.audio.normal, item.audio.slow]);
+  expect(audio).toHaveLength(162); // (37 + 44) items, normal and slow
   expect(precache.urls).toEqual(
     expect.arrayContaining([
       'index.html',

@@ -46,6 +46,7 @@ const LESSON_KEYS: readonly string[] = ['id', 'title', 'subject', 'script', 'tes
 /** The fields an item may have, per practice type. A lesson's keys are LESSON_KEYS plus one list key per practice type. */
 const ITEM_KEYS: Record<PracticeTypeId, readonly string[]> = {
   dictation: ['target', 'clue', 'pinyin', 'say'],
+  'phrase-recognition': ['target', 'pinyin', 'say'],
 };
 const HAN = /^\p{Script=Han}+$/u;
 

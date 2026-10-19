@@ -9,15 +9,15 @@ import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
-import { lessonHref, parentHref } from '../router.ts';
+import { hasPracticeScreen, lessonHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-/** A lesson's card opens its first practice type (dictation is the only one so far). */
+/** A lesson's card opens its first practice type that has a screen (dictation is the only one so far). */
 function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
-  const [first] = lesson.practiceTypes;
+  const first = lesson.practiceTypes.find((type) => hasPracticeScreen(type.id));
   if (!first) return null;
   return (
     <a class="lesson-card" href={lessonHref(subject, first.id, lesson.id)}>
