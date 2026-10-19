@@ -31,8 +31,6 @@ import {
   type Place,
   type Session,
 } from '../practice/session.ts';
-import { ConfirmYesNo } from '../confirm.tsx';
-import { ParentGate } from '../parent/gate.tsx';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
@@ -69,8 +67,9 @@ export function PracticeScreen({
   const loaded = useLoad(() => fetchLessonWithVersion(lessonId), [lessonId]);
   if (loaded.status === 'ready') {
     const { lesson } = loaded.value;
-    // Checked before anything is opened, so a wrong address can never stop the saved practice.
-    if (lesson.subject !== subject || !lesson.lists[practiceType]) return <LessonNotFound />;
+    // Checked before anything is opened, so a wrong address can never stop the saved practice. A lesson that has
+    // lost this practice type still opens: its saved session for it is stopped (see openSession).
+    if (lesson.subject !== subject) return <LessonNotFound />;
     return (
       <OpenPractice
         key={lessonId}
@@ -120,36 +119,17 @@ function OpenPractice({
 }) {
   const env = useMemo(realEnv, []);
   const [openTries, setOpenTries] = useState(0);
-  // Another lesson's practice is active: the child confirms, then a grown-up passes the gate, before it is stopped.
-  const [stopStep, setStopStep] = useState<'ask' | 'gate' | 'done'>('ask');
-  const stopActive = stopStep === 'done';
   const opened = useLoad(
     async () => {
       const storage = getStorage();
       const { breakEvery, shuffle, sounds } = await currentSettings(storage);
-      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return result.kind === 'blocked' ? result : { ...result, breakEvery, sounds };
+      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle }, env);
+      return result && { ...result, breakEvery, sounds };
     },
-    [openTries, stopActive],
+    [openTries],
   );
+  if (opened.status === 'ready' && !opened.value) return <LessonNotFound />;
   const result = opened.status === 'ready' ? opened.value : undefined;
-  if (result?.kind === 'blocked') {
-    return (
-      <main class="screen">
-        <HomeButton />
-        {stopStep === 'gate' ? (
-          // A one-off check: it lets this practice be stopped and does not unlock the parent area.
-          <ParentGate onPassed={() => setStopStep('done')} />
-        ) : (
-          <ConfirmYesNo
-            question="Stop your current practice?"
-            onYes={() => setStopStep('gate')}
-            onNo={() => void (location.hash = HOME_HREF)}
-          />
-        )}
-      </main>
-    );
-  }
   if (result) {
     const { session, resumed, breakEvery, sounds } = result;
     return <PracticeRun lesson={lesson} practiceType={practiceType} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;

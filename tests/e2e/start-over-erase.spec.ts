@@ -1,10 +1,10 @@
-// Seam 1: starting over, switching lessons, and erasing (ticket 09). Everything a child or grown-up does
+// Seam 1: starting over and erasing (ticket 09). Everything a child or grown-up does
 // goes through the screens; the saved history is read through a backup export on a second tab, because
 // the progress page (ticket 11) does not exist yet (see saved-sessions.ts).
 import type { Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
-import { failGate, openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
+import { openParentArea, openParentSection, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
 import { addOtherLearner, savedApp, savedSessions } from './saved-sessions.ts';
 
@@ -98,89 +98,6 @@ test.describe('start over', () => {
     await expect(practice.keepGoing).toBeVisible();
     await practice.keepGoing.click();
     await expect(practice.progressText()).toHaveText('0 / 3');
-  });
-});
-
-test.describe('switching lessons', () => {
-  const fiveCard = (page: Page) =>
-    page.getByRole('link', { name: /Fixture Five/ }).filter({ hasNotText: 'Keep going' });
-
-  test('asks before stopping and needs the gate; the old session is kept as stopped', async ({
-    page,
-    audio,
-    loadLesson,
-  }) => {
-    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
-
-    await fiveCard(page).click();
-    await expect(page.getByText('Stop your current practice?')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Listen' })).toHaveCount(0);
-    await yes(page).click();
-    await passGate(page);
-
-    const five = new PracticeScreen(page, audio, await loadLesson('fixture-five'));
-    await expect(five.progressText()).toHaveText('0 / 5');
-    expect((await savedSessions(page)).map((s) => [s.lessonId, s.status])).toEqual([
-      ['fixture-three', 'stopped'],
-      ['fixture-five', 'active'],
-    ]);
-  });
-
-  test('a wrong gate answer gives a new question and stops nothing', async ({ page, audio, loadLesson }) => {
-    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
-
-    await fiveCard(page).click();
-    await yes(page).click();
-    await failGate(page);
-
-    await expect(page.getByTestId('gate-question')).toBeVisible();
-    expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
-  });
-
-  test('No, or leaving at the gate, keeps the current session', async ({ page, audio, loadLesson }) => {
-    const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
-
-    await fiveCard(page).click();
-    await no(page).click();
-    await expect(practice.keepGoing).toBeVisible();
-
-    await fiveCard(page).click();
-    await yes(page).click();
-    await expect(page.getByTestId('gate-question')).toBeVisible();
-    await practice.home.click();
-
-    await practice.keepGoing.click();
-    await expect(practice.progressText()).toHaveText('2 / 3');
-    expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
-  });
-
-  test('typing another lesson address while practicing asks the same question', async ({ page, audio, loadLesson }) => {
-    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
-
-    await page.goto('./#/chinese/dictation/fixture-five');
-
-    await expect(page.getByText('Stop your current practice?')).toBeVisible();
-    expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
-  });
-
-  test('passing the gate here does not unlock the parent area', async ({ page, audio, loadLesson }) => {
-    await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 1);
-    await fiveCard(page).click();
-    await yes(page).click();
-    await passGate(page);
-    await expect(page.getByRole('button', { name: 'Listen' })).toBeVisible();
-
-    await page.getByRole('link', { name: 'Home' }).click();
-    await page.getByRole('link', { name: 'Parent area' }).click();
-
-    await expect(page.getByTestId('gate-question')).toBeVisible();
-  });
-
-  test('with no practice in progress, a lesson card opens straight away', async ({ page }) => {
-    await setUpLearner(page);
-    await page.getByRole('link', { name: /Fixture Five/ }).click();
-    await expect(page.getByText('Stop your current practice?')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Listen' })).toBeVisible();
   });
 });
 

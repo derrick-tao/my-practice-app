@@ -278,6 +278,11 @@
   font-weight: 700;
 }
 
+.keep-going__type {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
 .keep-going__progress {
   display: flex;
   align-items: center;
