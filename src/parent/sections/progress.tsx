@@ -1,18 +1,21 @@
 // Parent area section: how practice is going, per lesson, for the active learner.
 //   #/parent/progress                      the lessons
-//   #/parent/progress/<lessonId>             header, attempts (newest first), trickiest characters, first-try trend
-//   #/parent/progress/<lessonId>/<sessionId> one attempt: every round, its counts and the missed characters
-// The numbers come from src/practice/progress.ts. Missed and tricky characters are buttons that play the
-// character's normal audio; a character the lesson's list no longer has is labeled "(removed)" and has no audio.
+//   #/parent/progress/<lessonId>             header, then a part per practice type: its attempts (newest first),
+//                                            first-try trend, best score and trickiest items
+//   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
+//                                            its counts and the missed items
+// The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
+// normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
-import type { ItemData, LessonData } from '../../content/types.ts';
+import { PRACTICE_TYPE_IDS, type ItemData, type LessonData, type LessonSummary } from '../../content/types.ts';
 import { formatDate } from '../../format-date.ts';
-import { itemCountOf, usePublishedLessons } from '../../content/use-lessons.ts';
+import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { countLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
   lessonProgress,
   type AttemptSummary,
@@ -35,16 +38,20 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
   stopped: { icon: '⏹️', label: 'Stopped' },
 };
 
-const characters = (count: number): string => `${count} ${count === 1 ? 'character' : 'characters'}`;
-
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
-interface LessonView {
-  lesson: LessonData;
-  /** The lesson's dictation list (the only practice type so far). */
+/** One practice type's part of a lesson: its list now, the learner's sessions of it, and the numbers worked out from them. */
+interface Part {
+  type: PracticeType;
   items: ItemData[];
   sessions: Session[];
   progress: LessonProgress;
+}
+
+interface LessonView {
+  lesson: LessonData;
+  /** A part per practice type the lesson offers (or has saved sessions for), in registry order. */
+  parts: Part[];
 }
 
 /** The lesson, the active learner's saved attempts at it, and the numbers worked out from them. */
@@ -56,12 +63,14 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
   const loaded = useLoad(
     async (): Promise<LessonView | 'unknown'> => {
       if (!known || profileId === undefined) return 'unknown';
-      const [lesson, sessions] = await Promise.all([
-        fetchLesson(lessonId),
-        getStorage().listSessions(profileId, { lessonId, practiceType: 'dictation' }),
-      ]);
-      const items = lesson.lists.dictation ?? [];
-      return { lesson, items, sessions, progress: lessonProgress(sessions, items.map((item) => item.target)) };
+      const [lesson, sessions] = await Promise.all([fetchLesson(lessonId), getStorage().listSessions(profileId, { lessonId })]);
+      const parts = PRACTICE_TYPE_IDS.flatMap((id): Part[] => {
+        const own = sessions.filter((session) => session.practiceType === id);
+        const items = lesson.lists[id] ?? [];
+        if (items.length === 0 && own.length === 0) return [];
+        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: lessonProgress(own, items.map((item) => item.target)) }];
+      });
+      return { lesson, parts };
     },
     [lessonId, known, profileId],
   );
@@ -145,75 +154,100 @@ function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptS
   );
 }
 
+function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part; player: AudioPlayer }) {
+  const { type, items: listed, progress } = part;
+  const items = new Map(listed.map((item) => [item.target, item]));
+  return (
+    <section class="progress-part" data-testid={`progress-part-${type.id}`}>
+      <h3 class="progress-part__title">
+        <span aria-hidden="true">{type.icon} </span>
+        {type.label}
+      </h3>
+      <div class="progress-header__facts" data-testid="progress-facts">
+        <span>{countLabel(type, listed.length)}</span>
+        <span>Attempts: {progress.attemptCount}</span>
+        <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
+      </div>
+
+      <h4 class="progress-heading">First-try trend</h4>
+      <p class="progress-trend" data-testid="trend">
+        {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
+      </p>
+
+      <h4 class="progress-heading">Attempts</h4>
+      {progress.attempts.length === 0 ? (
+        <p class="notice">No attempts yet</p>
+      ) : (
+        <ul class="progress-list">
+          {progress.attempts.map((attempt) => (
+            <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
+          ))}
+        </ul>
+      )}
+
+      {progress.trickiest.length > 0 && (
+        <>
+          <h4 class="progress-heading">Trickiest {type.itemNoun.plural}</h4>
+          <ol class="progress-list progress-tricky">
+            {progress.trickiest.map(({ target, wrong }) => (
+              <li key={target} class="progress-tricky__row" data-testid="tricky">
+                <PlayableCharacter player={player} target={target} item={items.get(target)} />
+                <span class="progress-tricky__count">
+                  <span aria-hidden="true">❌ </span>
+                  {wrong}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </section>
+  );
+}
+
 function LessonProgressPage({ lessonId }: { lessonId: string }) {
   const view = useLessonView(lessonId);
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ lesson, items: listed, progress }) => {
-        const items = new Map(listed.map((item) => [item.target, item]));
-        return (
-          <>
-            <Who />
-            <div class="progress-header" data-testid="progress-header">
-              <h2 class="progress-header__title">{lesson.title}</h2>
-              <div class="progress-header__facts">
-                {lesson.testDates && (
-                  <span>
-                    <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
-                  </span>
-                )}
-                <span>{characters(listed.length)}</span>
-                <span>Attempts: {progress.attemptCount}</span>
-                <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
-              </div>
+      {({ lesson, parts }) => (
+        <>
+          <Who />
+          <div class="progress-header" data-testid="progress-header">
+            <h2 class="progress-header__title">{lesson.title}</h2>
+            <div class="progress-header__facts">
+              {lesson.testDates && (
+                <span>
+                  <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
+                </span>
+              )}
             </div>
-
-            <h3 class="progress-heading">First-try trend</h3>
-            <p class="progress-trend" data-testid="trend">
-              {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
-            </p>
-
-            <h3 class="progress-heading">Attempts</h3>
-            {progress.attempts.length === 0 ? (
-              <p class="notice">No attempts yet</p>
-            ) : (
-              <ul class="progress-list">
-                {progress.attempts.map((attempt) => (
-                  <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
-                ))}
-              </ul>
-            )}
-
-            {progress.trickiest.length > 0 && (
-              <>
-                <h3 class="progress-heading">Trickiest characters</h3>
-                <ol class="progress-list progress-tricky">
-                  {progress.trickiest.map(({ target, wrong }) => (
-                    <li key={target} class="progress-tricky__row" data-testid="tricky">
-                      <PlayableCharacter player={player} target={target} item={items.get(target)} />
-                      <span class="progress-tricky__count">
-                        <span aria-hidden="true">❌ </span>
-                        {wrong}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </>
-            )}
-          </>
-        );
-      }}
+          </div>
+          {parts.map((part) => (
+            <PartProgress key={part.type.id} lessonId={lessonId} part={part} player={player} />
+          ))}
+        </>
+      )}
     </Page>
   );
 }
 
-function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<string, ItemData>; player: AudioPlayer }) {
+function RoundBlock({
+  round,
+  type,
+  items,
+  player,
+}: {
+  round: RoundSummary;
+  type: PracticeType;
+  items: Map<string, ItemData>;
+  player: AudioPlayer;
+}) {
   return (
     <li class="progress-round" data-testid="round">
       <div class="progress-round__facts">
         <strong>Round {round.index}</strong>
-        <span>{characters(round.itemCount)}</span>
+        <span>{countLabel(type, round.itemCount)}</span>
         <span>✅ {round.correct}</span>
         <span>❌ {round.wrong}</span>
         {!round.finished && <span>(so far)</span>}
@@ -234,12 +268,11 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ lesson, items: listed, sessions, progress }) => {
-        const attempt = progress.attempts.find((a) => a.id === attemptId);
-        if (!attempt || !sessions.some((s) => s.id === attemptId)) {
-          return <p class="notice">We couldn't find this attempt.</p>;
-        }
-        const items = new Map(listed.map((item) => [item.target, item]));
+      {({ lesson, parts }) => {
+        const part = parts.find((p) => p.sessions.some((s) => s.id === attemptId));
+        const attempt = part?.progress.attempts.find((a) => a.id === attemptId);
+        if (!part || !attempt) return <p class="notice">We couldn't find this attempt.</p>;
+        const items = new Map(part.items.map((item) => [item.target, item]));
         const status = STATUS[attempt.status];
         return (
           <>
@@ -248,13 +281,14 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
               {lesson.title}
             </a>
             <h2 class="progress-header__title">
-              {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
+              <span aria-hidden="true">{part.type.icon} </span>
+              {part.type.label} · {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
               {status.label}
             </h2>
             <p>First try: {scoreText(attempt.firstTry)}</p>
             <ol class="progress-list">
               {attempt.rounds.map((round) => (
-                <RoundBlock key={round.index} round={round} items={items} player={player} />
+                <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
               ))}
             </ol>
           </>
@@ -263,6 +297,10 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
     </Page>
   );
 }
+
+/** "5 characters · 6 phrases": the sizes of the lesson's lists. */
+const countsOf = (lesson: LessonSummary): string =>
+  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
 
 function Lessons() {
   const lessons = usePublishedLessons();
@@ -276,7 +314,7 @@ function Lessons() {
           <li key={lesson.id}>
             <a class="parent__entry" href={parentHref('progress', lesson.id)}>
               {lesson.title}
-              <span> · {characters(itemCountOf(lesson, 'dictation'))}</span>
+              <span> · {countsOf(lesson)}</span>
             </a>
           </li>
         ))}
