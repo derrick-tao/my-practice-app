@@ -5,7 +5,11 @@ import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { allowAudioPlayback, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
 import { setUpLearner } from './parent-driver.ts';
-import { savedDataFixture, savedPersistence, seedSavedData, stubPersistentStorage } from './saved-data.ts';
+import { exportBackup, openBackupSection, restoreSessions, type SessionJson } from './backup-driver.ts';
+import { savedDataFixture, seedSavedData, stubPersistentStorage } from './saved-data.ts';
+
+/** The saved-data fixture's sessions (written by the first schema, before profiles existed). */
+const savedFixture = (): { sessions: SessionJson[] } => savedDataFixture('schema-v1') as { sessions: SessionJson[] };
 
 interface Fixtures {
   page: Page;
@@ -345,14 +349,13 @@ test.describe('saving: persist before the screen moves on', () => {
 });
 
 test.describe('saved data', () => {
-  test('a saved-data fixture at the current schema version loads: Keep going resumes the saved retry round', async ({
+  test('a saved-data fixture at the current schema version restores through backup: Keep going resumes the saved retry round', async ({
     page,
     audio,
     loadList,
   }) => {
-    await page.goto('./');
-    await seedSavedData(page, savedDataFixture('schema-v1') as Parameters<typeof seedSavedData>[1]);
-    await setUpLearner(page); // the first profile takes over the practice saved before profiles existed
+    await setUpLearner(page);
+    await restoreSessions(page, savedFixture().sessions);
     const list = await loadList('fixture-three');
     const practice = new PracticeScreen(page, audio, list);
 
@@ -382,7 +385,12 @@ test.describe('saved data', () => {
     await practice.gotIt.click();
     await expect(practice.progressText()).toHaveText('1 / 3');
 
-    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 1 }));
+    // A backup taken now says which schema the saved data is.
+    await page.goto('./');
+    await openBackupSection(page);
+    const { backup } = await exportBackup(page);
+    expect(backup.schemaVersion).toBe(1);
+    expect(backup.data.app.schemaVersion).toBe(1);
     await practice.reopenViaKeepGoing();
     await expect(practice.progressText()).toHaveText('1 / 3');
   });
@@ -406,13 +414,9 @@ test.describe('saved data', () => {
   });
 
   /** The fixture's active Fixture Three session with its first round replaced (ids may be ones the list no longer has). */
-  function savedRound1(round: object): Parameters<typeof seedSavedData>[1] {
-    const fixture = savedDataFixture('schema-v1') as { app: unknown; sessions: Array<{ listId: string; status: string }> };
-    const active = fixture.sessions.find((x) => x.listId === 'fixture-three' && x.status === 'active')!;
-    return {
-      app: fixture.app,
-      sessions: [{ ...active, rounds: [round] }] as unknown as Array<{ id: string }>,
-    };
+  function savedRound1(round: object): SessionJson[] {
+    const active = savedFixture().sessions.find((x) => x.listId === 'fixture-three' && x.status === 'active')!;
+    return [{ ...active, rounds: [round] }];
   }
   const round1 = { index: 1, phase: 'listening', heardCurrent: true, startedAt: '2026-10-01T09:00:00.000Z' };
 
@@ -421,12 +425,11 @@ test.describe('saved data', () => {
     audio,
     loadList,
   }) => {
-    await page.goto('./');
-    await seedSavedData(
+    await setUpLearner(page);
+    await restoreSessions(
       page,
       savedRound1({ ...round1, itemIds: ['点', '没有了', '分', '找'], position: 1, marks: { 点: 'correct' } }),
     );
-    await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
 
     await practice.keepGoing.click();
@@ -442,12 +445,11 @@ test.describe('saved data', () => {
     audio,
     loadList,
   }) => {
-    await page.goto('./');
-    await seedSavedData(
+    await setUpLearner(page);
+    await restoreSessions(
       page,
       savedRound1({ ...round1, itemIds: ['点', '分', '没有了'], position: 2, marks: { 点: 'correct', 分: 'wrong' } }),
     );
-    await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
 
     await practice.keepGoing.click();
@@ -478,25 +480,28 @@ test.describe('persistent storage', () => {
     await stubPersistentStorage(page, true);
     await page.goto('./');
     await expect.poll(() => page.evaluate(() => window.__persistRequests)).toBe(1);
-    await expect.poll(() => savedPersistence(page)).toEqual(expect.objectContaining({ granted: true }));
 
     await setUpLearner(page);
     await page.reload();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => window.__persistRequests)).toBe(0);
+    // The kept answer is what the Backup section shows.
+    await openBackupSection(page);
+    await expect(page.getByTestId('persistence')).toContainText('Persistent storage: on');
   });
 
   test('a refusal is kept too, and not asked again', async ({ page }) => {
     await stubPersistentStorage(page, false);
     await page.goto('./');
-    await expect.poll(() => savedPersistence(page)).toEqual(expect.objectContaining({ granted: false }));
+    await expect.poll(() => page.evaluate(() => window.__persistRequests)).toBe(1);
 
     await setUpLearner(page);
     await page.reload();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => window.__persistRequests)).toBe(0);
-    expect(await savedPersistence(page)).toEqual(expect.objectContaining({ granted: false }));
+    await openBackupSection(page);
+    await expect(page.getByTestId('persistence')).toContainText('Persistent storage: off');
   });
 });

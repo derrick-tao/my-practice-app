@@ -120,3 +120,14 @@ export async function editSavedData(page: Page, edit: (saved: SavedData) => Save
   await confirmImport(page);
   await page.goto('./');
 }
+
+/**
+ * Put these sessions on a set-up device (replacing whatever it had), as the active learner's. Sessions from
+ * the saved-data fixtures carry the old implicit profile id; it is swapped for the learner's real one.
+ */
+export async function restoreSessions(page: Page, sessions: SessionJson[]): Promise<void> {
+  await editSavedData(page, (saved) => ({
+    ...saved,
+    sessions: sessions.map((s) => ({ ...s, profileId: saved.app.activeProfileId ?? s.profileId })),
+  }));
+}
