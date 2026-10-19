@@ -4,7 +4,7 @@
 import type { Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
 import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
-import { PracticeScreen } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import { lessonPath } from './harness.ts';
 import { expect, NEW_TITLE, test } from './pwa-site.ts';
 
@@ -107,7 +107,7 @@ test.describe('offline', () => {
       );
       expect(statuses, id).toEqual(statuses.map(() => 200));
     }
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 });
 

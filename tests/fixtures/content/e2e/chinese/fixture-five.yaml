@@ -19,3 +19,7 @@ phrase-recognition:
   - target: 猫
   - target: 三只猫
   - target: 书包
+  # Long enough to need shrinking: it has to stay on one line on a phone.
+  - target: 收拾房间
+  - target: 四只仓鼠
+  - target: 一只狗

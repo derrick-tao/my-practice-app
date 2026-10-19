@@ -26,7 +26,10 @@ export async function publishLessonEdit(page: Page, lessonId: string, edit: (les
         if (lesson.id !== lessonId) continue;
         const original = (await (await route.fetch({ url: new URL(lesson.file, route.request().url()).href })).json()) as LessonData;
         const edited = edit(original);
-        for (const type of lesson.practiceTypes) type.itemCount = edited.lists[type.id]?.length ?? type.itemCount;
+        // A list the edit removed is no longer offered; the others carry their edited size.
+        lesson.practiceTypes = lesson.practiceTypes
+          .filter((type) => edited.lists[type.id] !== undefined)
+          .map((type) => ({ ...type, itemCount: edited.lists[type.id]!.length }));
       }
     }
     await route.fulfill({ json: manifest });

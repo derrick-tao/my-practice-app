@@ -3,35 +3,39 @@ import { useAppRecord } from '../app-context.tsx';
 import { ConfirmYesNo } from '../confirm.tsx';
 import type { LessonSummary } from '../content/types.ts';
 import { usePublishedLessons } from '../content/use-lessons.ts';
-import { PRACTICE_TYPE_DISPLAY } from '../practice/practice-type-display.ts';
+import { countLabel, PRACTICE_TYPES } from '../practice/practice-types.tsx';
 import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
-import { hasPracticeScreen, lessonHref, parentHref } from '../router.ts';
+import { lessonHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-/** A lesson's card opens its first practice type that has a screen (dictation is the only one so far). */
+/** A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count. */
 function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
-  const first = lesson.practiceTypes.find((type) => hasPracticeScreen(type.id));
-  if (!first) return null;
   return (
-    <a class="lesson-card" href={lessonHref(subject, first.id, lesson.id)}>
+    <section class="lesson-card" role="group" aria-label={lesson.title}>
       <span class="lesson-card__title">{lesson.title}</span>
       {lesson.testDates && (
         <span class="lesson-card__meta">
           <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
         </span>
       )}
-      <span class="lesson-card__meta">
-        <span aria-hidden="true">✏️ </span>
-        {first.itemCount} {first.itemCount === 1 ? 'character' : 'characters'}
-      </span>
-    </a>
+      {lesson.practiceTypes.map(({ id, itemCount }) => {
+        const type = PRACTICE_TYPES[id];
+        return (
+          <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
+            <span aria-hidden="true">{type.icon} </span>
+            {type.label} · {countLabel(type, itemCount)}
+            <span class="sr-only"> for {lesson.title}</span>
+          </a>
+        );
+      })}
+    </section>
   );
 }
 
@@ -39,7 +43,7 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
 function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSummary }) {
   const round = currentRound(session);
   const href = lessonHref(session.subject, session.practiceType, session.lessonId);
-  const type = PRACTICE_TYPE_DISPLAY[session.practiceType];
+  const type = PRACTICE_TYPES[session.practiceType];
   const [asking, setAsking] = useState(false);
   const { busy: saving, failed, run } = useSave();
 

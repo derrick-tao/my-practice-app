@@ -155,10 +155,10 @@ export function markHeard(session: Session, place: Place): Session {
   );
 }
 
-/** Check: only available once the current item's audio has been heard. */
-export function reveal(session: Session): Session {
+/** Check: moves to the revealed phase. With `needsHeard` (dictation) it is only available once the current item's audio has been heard. */
+export function reveal(session: Session, needsHeard: boolean): Session {
   return withCurrentRound(session, (round) =>
-    isRoundOver(round) || round.phase !== 'prompt' || !round.heardCurrent
+    isRoundOver(round) || round.phase !== 'prompt' || (needsHeard && !round.heardCurrent)
       ? round
       : { ...round, phase: 'revealed' },
   );

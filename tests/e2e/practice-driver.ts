@@ -1,7 +1,7 @@
 // Seam 1 helpers for driving the practice screens the way a child does (taps and visible text only).
 // Later tickets (04 retries, 05 resume, 06 undo/breaks) reuse these.
 import type { Locator, Page } from '@playwright/test';
-import type { LessonData } from '../../src/content/types.ts';
+import type { LessonData, PracticeTypeId } from '../../src/content/types.ts';
 import { expect, type AudioProbe } from './harness.ts';
 
 declare global {
@@ -34,6 +34,12 @@ export async function rejectAudioPlayback(page: Page): Promise<void> {
 export const allowAudioPlayback = (page: Page): Promise<void> =>
   page.evaluate(() => void (window.__rejectAudio = false));
 
+/** A lesson's card on the home screen (not the Keep going cards, which also name it). */
+export const lessonGroup = (page: Page, title: string): Locator => page.getByRole('group', { name: title, exact: true });
+
+/** The button label a child sees for each practice type (see the practice-type registry). */
+const BUTTON_LABEL: Record<PracticeTypeId, string> = { dictation: 'Write', 'phrase-recognition': 'Say' };
+
 export class PracticeScreen {
   readonly listen: Locator;
   readonly slow: Locator;
@@ -42,6 +48,8 @@ export class PracticeScreen {
   readonly notYet: Locator;
   readonly home: Locator;
   readonly target: Locator;
+  /** Phrase recognition: the phrase shown in the prompt phase, before Check. */
+  readonly phrase: Locator;
   readonly progress: Locator;
   readonly summary: Locator;
   readonly retry: Locator;
@@ -60,6 +68,8 @@ export class PracticeScreen {
     readonly page: Page,
     readonly audio: AudioProbe,
     readonly lesson: LessonData,
+    /** The practice type this screen drives. */
+    readonly practiceType: PracticeTypeId = 'dictation',
   ) {
     this.listen = page.getByRole('button', { name: 'Listen' });
     this.slow = page.getByRole('button', { name: 'Slow' });
@@ -68,6 +78,7 @@ export class PracticeScreen {
     this.notYet = page.getByRole('button', { name: 'Not yet' });
     this.home = page.getByRole('link', { name: 'Home' });
     this.target = page.getByTestId('target');
+    this.phrase = page.getByTestId('prompt-phrase');
     this.progress = page.getByRole('progressbar');
     this.summary = page.getByTestId('round-summary');
     this.retry = page.getByRole('button', { name: /Practice the .* words/ });
@@ -80,9 +91,9 @@ export class PracticeScreen {
     this.keepGoing = page.getByRole('link', { name: /Keep going/ });
   }
 
-  /** The lesson's card on the home screen (not the Keep going card, which also names the lesson). */
+  /** The lesson's button for this practice type on its home card (not the Keep going card, which also names the lesson). */
   lessonCard(): Locator {
-    return this.page.getByRole('link', { name: new RegExp(this.lesson.title) }).filter({ hasNotText: 'Keep going' });
+    return lessonGroup(this.page, this.lesson.title).getByRole('link', { name: new RegExp(`${BUTTON_LABEL[this.practiceType]} ·`) });
   }
 
   /** Home screen -> tap the lesson's card. */

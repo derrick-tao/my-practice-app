@@ -2,15 +2,17 @@
 import { REAL_BASE_URL } from './servers.ts';
 import { expect, lessonPath, test } from './harness.ts';
 import { setUpLearner } from './parent-driver.ts';
+import { lessonGroup } from './practice-driver.ts';
 
 test.use({ baseURL: REAL_BASE_URL });
 
-test('the Fall 2026 Assessment card shows its test dates and 37 characters', { tag: '@layout' }, async ({ page }) => {
+test('the Fall 2026 Assessment card shows its test dates, 37 characters to write and 44 phrases to say', { tag: '@layout' }, async ({ page }) => {
   await setUpLearner(page); // against the real manifest, with every published lesson assigned
-  const card = page.getByRole('link', { name: /Fall 2026 Assessment/ });
+  const card = lessonGroup(page, 'Fall 2026 Assessment');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Test: 2026-10-26 to 2026-10-30');
-  await expect(card).toContainText('37 characters');
+  await expect(card.getByRole('link', { name: /Write · 37 characters/ })).toBeVisible();
+  await expect(card.getByRole('link', { name: /Say · 44 phrases/ })).toBeVisible();
 
   const viewport = page.viewportSize()!;
   const box = (await card.boundingBox())!;

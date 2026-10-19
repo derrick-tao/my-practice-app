@@ -8,7 +8,7 @@ import { expect, test, type AudioProbe } from './harness.ts';
 import { restoreSessions, type SessionJson } from './backup-driver.ts';
 import { publishLessonEdit } from './lesson-edits.ts';
 import { openParentArea, openParentSection, setUpLearner } from './parent-driver.ts';
-import { PracticeScreen } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import { savedSessions } from './saved-sessions.ts';
 
 interface Fixtures {
@@ -69,6 +69,42 @@ test.describe('a session in progress for every list', () => {
     expect((await savedSessions(page)).map((s) => [s.lessonId, s.status])).toEqual([
       ['fixture-three', 'active'],
       ['fixture-five', 'active'],
+    ]);
+  });
+
+  test('dictation half done, then phrase recognition of the same lesson: no gate, two cards with the phrase one first, each resumes at its exact place', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    const lesson = await loadLesson('fixture-five');
+    const write = await practiceThenHome({ page, audio, loadLesson }, 'fixture-five', 2);
+
+    const say = new PracticeScreen(page, audio, lesson, 'phrase-recognition');
+    await say.lessonCard().click();
+    await expect(page.getByText('Stop your current practice?')).toHaveCount(0);
+    await expect(say.progressText()).toHaveText('0 / 6');
+    await say.markMany(1);
+    await expect(say.check).toBeVisible();
+    await say.home.click();
+
+    await expect(cards(page)).toHaveCount(2);
+    await expect(cards(page).nth(0)).toHaveAccessibleName('Keep going: Fixture Five, Say');
+    await expect(cards(page).nth(1)).toHaveAccessibleName('Keep going: Fixture Five, Write');
+    await expect(cards(page).nth(0)).toContainText('🗣️ Say');
+    await expect(cards(page).nth(0).getByTestId('progress-text')).toHaveText('1 / 6');
+    await expect(cards(page).nth(1).getByTestId('progress-text')).toHaveText('2 / 5');
+
+    await page.getByRole('group', { name: 'Keep going: Fixture Five, Write' }).getByRole('link').click();
+    await expect(write.progressText()).toHaveText('2 / 5');
+    await write.home.click();
+    await page.getByRole('group', { name: 'Keep going: Fixture Five, Say' }).getByRole('link').click();
+    await expect(say.progressText()).toHaveText('1 / 6');
+
+    expect((await savedSessions(page)).map((s) => [s.practiceType, s.status])).toEqual([
+      ['dictation', 'active'],
+      ['phrase-recognition', 'active'],
     ]);
   });
 
@@ -175,6 +211,38 @@ test.describe('a session in progress for every list', () => {
     await expect(cards(page).getByTestId('progress-text')).toHaveText('3 / 5');
     await cards(page).getByRole('link').click();
     await expect(new PracticeScreen(page, audio, lesson).progressText()).toHaveText('3 / 5');
+  });
+
+  test('a lesson that loses its phrase list stops the phrase session only; the same lesson\'s dictation session is left alone', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    const lesson = await loadLesson('fixture-five');
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-five', 2);
+    const say = new PracticeScreen(page, audio, lesson, 'phrase-recognition');
+    await say.lessonCard().click();
+    await say.markMany(1);
+    await expect(say.check).toBeVisible();
+    await say.home.click();
+    await publishLessonEdit(page, 'fixture-five', (l) => ({ ...l, lists: { dictation: l.lists.dictation! } }));
+    await page.reload();
+    await expect(lessonGroup(page, 'Fixture Five').getByRole('link')).toHaveCount(1); // only Write is offered now
+
+    await cardFor(page, 'Fixture Five, Say').getByRole('link').click();
+
+    await expect(page.getByText('This lesson changed — pick a lesson')).toBeVisible();
+    await page.getByRole('link', { name: 'Home' }).click();
+    await expect(cards(page)).toHaveCount(1);
+    await expect(cards(page).nth(0)).toHaveAccessibleName('Keep going: Fixture Five, Write');
+    await expect(cards(page).getByTestId('progress-text')).toHaveText('2 / 5');
+    expect((await savedSessions(page)).map((s) => [s.practiceType, s.status])).toEqual([
+      ['dictation', 'active'],
+      ['phrase-recognition', 'stopped'],
+    ]);
+    await cards(page).getByRole('link').click();
+    await expect(new PracticeScreen(page, audio, lesson).progressText()).toHaveText('2 / 5');
   });
 
   test('a lesson that no longer has the practice type stops that session only; the other lessons keep theirs', async ({
