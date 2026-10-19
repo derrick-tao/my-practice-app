@@ -190,7 +190,7 @@ test.describe('break prompt', () => {
     const { practice } = await start({ page, audio, loadList }, 'fixture-twelve');
     await practice.markMany(10);
     await expect(practice.breakPrompt).toBeVisible();
-    await practice.nextWordPlayed(11);
+    await practice.waitForItemAudio(11);
 
     await practice.takeBreak.click();
 
@@ -234,7 +234,7 @@ test.describe('break prompt', () => {
     const { practice } = await start({ page, audio, loadList }, 'fixture-twelve');
     await practice.markMany(10);
     await expect(practice.breakPrompt).toBeVisible();
-    await practice.nextWordPlayed(11);
+    await practice.waitForItemAudio(11);
 
     await practice.reopenViaKeepGoing();
 

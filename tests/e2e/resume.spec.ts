@@ -209,7 +209,7 @@ test.describe('resume: Keep going', () => {
         await practice.reveal();
         await practice.gotIt.click();
         await expect(practice.progressText()).toHaveText('1 / 5');
-        await expect(practice.check).toBeVisible(); // the next word has played (it follows the ✅ sound)
+        await expect(practice.check).toBeVisible(); // the next item's audio has played (it follows the ✅ sound)
 
         await page.goto(`./${hash}`);
         await expect(page.getByText("We couldn't find this list.")).toBeVisible();

@@ -8,7 +8,8 @@ export interface AudioPlayer {
   /**
    * Request playback from the start. Resolves true once playback started, false if the browser
    * rejected it (e.g. iOS blocking auto-play outside a user gesture).
-   * Call it synchronously from the tap handler: that is what keeps iOS happy.
+   * Call it synchronously from the tap handler, or from a timer of at most 1 s that the handler set:
+   * that is what keeps iOS happy.
    */
   play(audioRef: string): Promise<boolean>;
   preload(audioRefs: readonly string[]): void;

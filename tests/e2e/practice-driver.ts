@@ -109,12 +109,17 @@ export class PracticeScreen {
     return played.at(-1)?.target;
   }
 
+  /** How many times item audio has been requested so far. */
+  async itemAudioCount(): Promise<number> {
+    return (await this.audio.played(this.list)).length;
+  }
+
   /**
-   * Wait until `count` words have been requested in all. After a mark the next word waits for the ✅/❌
-   * sound to finish, and leaving the screen before then drops it.
+   * Wait until item audio has been requested `count` times in all. After a mark, the next item's audio waits
+   * for the ✅/❌ sound to finish, and leaving the screen before then drops it.
    */
-  async nextWordPlayed(count: number): Promise<void> {
-    await expect.poll(async () => (await this.audio.played(this.list)).length).toBe(count);
+  async waitForItemAudio(count: number): Promise<void> {
+    await expect.poll(() => this.itemAudioCount()).toBe(count);
   }
 
   /** On the listening screen: tap Check and return the revealed target. */

@@ -92,11 +92,15 @@ export function PracticeScreen({
 /** Failed audio requests in a row before the "turn up the volume" hint appears. */
 const VOLUME_HINT_AFTER = 2;
 
+/** Silence between the end of the ✅/❌ sound and the next item's audio. */
+const AFTER_EFFECT_GAP_MS = 50;
+
 /**
- * Silence between the end of the ✅/❌ sound and the next word. The whole wait must stay at or under 1 s:
- * WebKit only lets a timer that short inherit the tap, which is what lets iOS play the word without one.
+ * The longest the next item's audio may wait after a mark. WebKit lets a timer inherit the tap only if it
+ * fires within 1 s of it, and that is what lets iOS play the audio without another tap; the rest of the
+ * second is headroom for the tap handler and a late timer.
  */
-const AFTER_EFFECT_GAP_MS = 100;
+const MAX_HELD_AUDIO_MS = 900;
 
 const realEnv = (): PracticeEnv => ({
   random: createRandomSource(),
@@ -194,7 +198,7 @@ function PracticeRun({
   const [blockedAt, setBlockedAt] = useState<Place | null>(null);
   /** Character-audio requests in a row that the browser refused; any success starts the count again. */
   const [audioFailures, setAudioFailures] = useState(0);
-  /** The next word's auto-play, waiting for the ✅/❌ sound to finish (see onMark). */
+  /** The next item's auto-play, waiting for the ✅/❌ sound to finish (see onMark). */
   const heldAudio = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cancelHeldAudio = (): void => clearTimeout(heldAudio.current);
   // Leaving the screen drops it, so it never plays over another one.
@@ -257,7 +261,10 @@ function PracticeRun({
     return after;
   };
 
-  /** Auto-play the current item of `after` from inside the tap handler, so iOS allows the audio. */
+  /**
+   * Auto-play the current item of `after`. Call it from the tap handler, or from a timer the handler set
+   * (see onMark), so iOS allows the audio.
+   */
   const autoplayCurrent = (after: Session): void => {
     const id = currentItemId(currentRound(after));
     const next = id === undefined ? undefined : itemsById.get(id);
@@ -274,9 +281,14 @@ function PracticeRun({
       return;
     }
     const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
-    // The next word follows the ✅/❌ sound instead of playing over it; with the sounds setting off it plays now.
-    if (effectMs === 0) autoplayCurrent(after);
-    else heldAudio.current = setTimeout(() => autoplayCurrent(after), effectMs + AFTER_EFFECT_GAP_MS);
+    cancelHeldAudio();
+    if (effectMs === 0) {
+      autoplayCurrent(after); // the sounds setting is off: nothing to wait for
+      return;
+    }
+    // The next item's audio follows the ✅/❌ sound instead of playing over it.
+    const wait = Math.min(effectMs + AFTER_EFFECT_GAP_MS, MAX_HELD_AUDIO_MS);
+    heldAudio.current = setTimeout(() => autoplayCurrent(after), wait);
   };
 
   const onRetry = (): void => {
