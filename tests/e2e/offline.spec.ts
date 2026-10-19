@@ -174,6 +174,44 @@ test.describe('updates', () => {
     await expect(page.getByRole('heading', { name: NEW_TITLE, exact: true })).toBeAttached();
   });
 
+  test('the very first install is not an update, even when WebKit delivers installed after the worker has claimed the page', async ({
+    page,
+  }) => {
+    // Linux WebKit under load can report the first worker as `installed` after clients.claim() has already set
+    // navigator.serviceWorker.controller. Reproduce that order: from the moment any worker reports `installed`,
+    // the page already has a controller.
+    await page.addInitScript(() => {
+      let claimed = false;
+      const realController = Object.getOwnPropertyDescriptor(ServiceWorkerContainer.prototype, 'controller')!.get!;
+      Object.defineProperty(navigator.serviceWorker, 'controller', {
+        get() {
+          return realController.call(this) ?? (claimed ? Object.create(ServiceWorker.prototype) : null);
+        },
+      });
+      const add = ServiceWorker.prototype.addEventListener;
+      ServiceWorker.prototype.addEventListener = function (
+        this: ServiceWorker,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) {
+        if (type !== 'statechange') return add.call(this, type, listener, options);
+        const wrapped = (event: Event): void => {
+          if (this.state === 'installed') claimed = true;
+          if (typeof listener === 'function') listener.call(this, event);
+          else listener.handleEvent(event);
+        };
+        return add.call(this, type, wrapped, options);
+      };
+    });
+    await startAtHome(page);
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /New words are ready/ })).toHaveCount(0);
+  });
+
   test('the banner is not shown when nothing new was published', async ({ page }) => {
     await startAtHome(page);
     await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
