@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { fetchList, fetchManifest } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
+import { Celebration } from '../practice/celebration.tsx';
+import { createEffects } from '../practice/effects.ts';
+import { loadKaiFont } from '../practice/kai-font.ts';
 import { createRandomSource } from '../practice/random.ts';
 import { currentSettings, openSession } from '../practice/resume.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
@@ -91,6 +94,9 @@ export function PracticeScreen({
   );
 }
 
+/** Failed audio requests in a row before the "turn up the volume" hint appears. */
+const VOLUME_HINT_AFTER = 2;
+
 const realEnv = (): PracticeEnv => ({
   random: createRandomSource(),
   now: () => new Date().toISOString(),
@@ -125,9 +131,9 @@ function OpenPractice({
   const opened = useLoad(
     async () => {
       const storage = getStorage();
-      const { breakEvery, shuffle } = await currentSettings(storage);
+      const { breakEvery, shuffle, sounds } = await currentSettings(storage);
       const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return 'blockedBy' in result ? result : { ...result, breakEvery };
+      return 'blockedBy' in result ? result : { ...result, breakEvery, sounds };
     },
     [openTries, stopActive],
   );
@@ -149,8 +155,8 @@ function OpenPractice({
     );
   }
   if (opened.status === 'ready') {
-    const { session, resumed, breakEvery } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
-    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} />;
+    const { session, resumed, breakEvery, sounds } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
+    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (
     <main class="screen">
@@ -170,6 +176,7 @@ function PracticeRun({
   initial,
   resumed,
   breakEvery,
+  sounds,
 }: {
   list: ListData;
   env: PracticeEnv;
@@ -178,8 +185,11 @@ function PracticeRun({
   resumed: boolean;
   /** Offer a break every this many marks; 0 is off (the profile's setting). */
   breakEvery: number;
+  /** Play sound effects on ✅, ❌ and finishing (the profile's setting). Character audio ignores it. */
+  sounds: boolean;
 }) {
   const player = useMemo(createAudioPlayer, []);
+  const effects = useMemo(() => createEffects(sounds), []);
   const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
   const listedIds = useMemo(() => new Set(itemsById.keys()), [itemsById]);
 
@@ -190,6 +200,8 @@ function PracticeRun({
   const { session, saveFailed } = view;
   /** Auto-play for this place was rejected by the browser: the Listen button pulses. */
   const [blockedAt, setBlockedAt] = useState<Place | null>(null);
+  /** Character-audio requests in a row that the browser refused; any success starts the count again. */
+  const [audioFailures, setAudioFailures] = useState(0);
 
   const round = currentRound(session);
   const itemId = currentItemId(round);
@@ -205,6 +217,7 @@ function PracticeRun({
   const requestAudio = (target: ItemData, rendition: Rendition, autoplay: boolean, place: Place): void => {
     if (!autoplay) sync.dispatch((s) => markHeard(s, place));
     void player.play(target.audio[rendition]).then((started) => {
+      setAudioFailures((count) => (started ? 0 : count + 1));
       if (started) {
         setBlockedAt(null);
         if (autoplay) sync.dispatch((s) => markHeard(s, place));
@@ -213,6 +226,9 @@ function PracticeRun({
       }
     });
   };
+
+  // The handwriting font is fetched as practice opens, so it is ready by the first reveal.
+  useEffect(() => void loadKaiFont(), []);
 
   // First item of a new session: auto-play on arrival (not when resuming).
   useEffect(() => {
@@ -252,7 +268,9 @@ function PracticeRun({
 
   const onMark = (result: Mark): void => {
     const after = advance((s) => mark(s, result, env));
-    if (after) autoplayCurrent(after);
+    if (!after) return;
+    effects.play(after.status === 'completed' ? 'fanfare' : result === 'correct' ? 'chime' : 'gentle');
+    autoplayCurrent(after);
   };
 
   const onRetry = (): void => {
@@ -332,6 +350,13 @@ function PracticeRun({
             )}
           </div>
           <div class="practice__controls">
+            <div role="status" class="volume-hint-slot">
+              {audioFailures >= VOLUME_HINT_AFTER && (
+                <p class="volume-hint">
+                  No sound? Turn up the volume <span aria-hidden="true">🔈</span>
+                </p>
+              )}
+            </div>
             <div class="row">
               <button
                 type="button"
@@ -436,6 +461,7 @@ function RoundSummary({
 function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: number; total: number; rounds: number }) {
   return (
     <section class="summary completion" data-testid="completion">
+      <Celebration />
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>

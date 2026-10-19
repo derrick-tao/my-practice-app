@@ -191,10 +191,11 @@ describe('content validation: script mismatch is only a warning', () => {
       'chinese/x.yaml': listYaml('x', '\n  - target: 點\n    clue: 幾點\n    pinyin: diǎn\n'),
     });
     const result = await ws.build();
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain('chinese/x.yaml');
-    expect(result.warnings[0]).toContain('item 1 (點)');
-    expect(result.warnings[0]).toContain('[script-mismatch]');
+    // 點 is traditional, which the simplified Kai font does not carry: that is a separate font warning.
+    const mismatches = result.warnings.filter((warning) => warning.includes('[script-mismatch]'));
+    expect(mismatches).toHaveLength(1);
+    expect(mismatches[0]).toContain('chinese/x.yaml');
+    expect(mismatches[0]).toContain('item 1 (點)');
   });
 
   it('warns when a traditional list contains simplified characters', async () => {

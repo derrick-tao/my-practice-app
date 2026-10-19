@@ -6,6 +6,7 @@ import type { ItemData, ListData, ListSummary, Manifest, PracticeTypeId } from '
 import { formatIssue, validateAcrossFiles, validateListFile, type Issue, type SourceList } from './validate.ts';
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
+import { FONT_REF, buildFontSubset } from './font.ts';
 
 export interface BuildOptions extends AudioOptions {
   /** Folder of list files, grouped by subject: `<contentDir>/<subject>/<list-id>.yaml`. */
@@ -70,7 +71,14 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
   for (const [ref, file] of audioFiles) await copyFile(file, path.join(options.outDir, ref));
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
-  return { contentVersion, warnings, audio: resolved.stats };
+  const font = await buildFontSubset(
+    sources.flatMap((s) => s.items.map((i) => i.target)),
+    sources.flatMap((s) => s.items.flatMap((i) => (i.clue === undefined ? [] : [i.clue]))),
+  );
+  await mkdir(path.join(options.outDir, path.dirname(FONT_REF)), { recursive: true });
+  await writeFile(path.join(options.outDir, FONT_REF), font.woff2);
+
+  return { contentVersion, warnings: [...warnings, ...font.warnings], audio: resolved.stats };
 }
 
 function buildManifest(lists: ListData[], contentVersion: string): Manifest {

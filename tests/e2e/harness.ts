@@ -16,8 +16,11 @@ export interface PlayedAudio {
 }
 
 export interface AudioProbe {
-  /** Every play() request so far, oldest first, resolved against `list` when given. */
+  /** Every character-audio play() request so far (not sound effects), oldest first, resolved against `list` when given. */
   played(list?: ListData): Promise<PlayedAudio[]>;
+  /** Sound effects requested so far, oldest first, by name: 'chime' (✅), 'gentle' (❌), 'fanfare' (completion). */
+  effects(): Promise<string[]>;
+  /** Forget both the character audio and the sound effects requested so far. */
   clear(): Promise<void>;
 }
 
@@ -39,7 +42,7 @@ function installAudioStub(): void {
 function audioProbe(page: Page): AudioProbe {
   return {
     async played(list) {
-      const urls = await page.evaluate(() => window.__audioPlays);
+      const urls = (await page.evaluate(() => window.__audioPlays)).filter((url) => url.includes('/content/'));
       return urls.map((url) => {
         const ref = url.slice(url.indexOf('/content/') + '/content/'.length);
         const hit = list?.items
@@ -50,6 +53,10 @@ function audioProbe(page: Page): AudioProbe {
           .find((entry) => entry.audioRef === ref);
         return hit ? { ref, target: hit.item.target, rendition: hit.rendition } : { ref };
       });
+    },
+    async effects() {
+      const urls = await page.evaluate(() => window.__audioPlays);
+      return urls.flatMap((url) => /\/sounds\/([a-z-]+)\.wav$/.exec(url)?.[1] ?? []);
     },
     clear: () => page.evaluate(() => void (window.__audioPlays.length = 0)),
   };
