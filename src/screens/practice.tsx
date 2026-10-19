@@ -118,11 +118,12 @@ function OpenPractice({
       const storage = getStorage();
       const { breakEvery, shuffle, sounds } = await currentSettings(storage);
       const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return 'blockedBy' in result ? result : { ...result, breakEvery, sounds };
+      return result.kind === 'blocked' ? result : { ...result, breakEvery, sounds };
     },
     [openTries, stopActive],
   );
-  if (opened.status === 'ready' && 'blockedBy' in opened.value) {
+  const result = opened.status === 'ready' ? opened.value : undefined;
+  if (result?.kind === 'blocked') {
     return (
       <main class="screen">
         <HomeButton />
@@ -139,8 +140,8 @@ function OpenPractice({
       </main>
     );
   }
-  if (opened.status === 'ready') {
-    const { session, resumed, breakEvery, sounds } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
+  if (result) {
+    const { session, resumed, breakEvery, sounds } = result;
     return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (

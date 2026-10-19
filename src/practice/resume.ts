@@ -26,6 +26,7 @@ async function activeSessionOf(storage: StorageAdapter, profileId: string): Prom
 }
 
 export interface OpenedSession {
+  kind: 'opened';
   session: Session;
   /** Continued from saved progress (so audio must not auto-play) rather than freshly started. */
   resumed: boolean;
@@ -38,6 +39,7 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
 
 /** Another list's session is active and the learner has not yet been through the "stop it?" check. */
 export interface StopRequired {
+  kind: 'blocked';
   blockedBy: Session;
 }
 
@@ -61,13 +63,13 @@ export async function openSession(
     // Reconcile with the list as it is now (the parent may have edited it since the session was saved).
     const settled = reconcileWithList(active, new Set(list.items.map((item) => item.target)), env);
     if (settled !== active) await storage.putSession(settled);
-    return { session: settled, resumed: true };
+    return { kind: 'opened', session: settled, resumed: true };
   }
   if (active) {
-    if (!stopActive) return { blockedBy: active };
+    if (!stopActive) return { kind: 'blocked', blockedBy: active };
     await stopSession(storage, active);
   }
   const session = createSession(list, { ...sessionOptions, profileId }, env);
   await storage.putSession(session);
-  return { session, resumed: false };
+  return { kind: 'opened', session, resumed: false };
 }
