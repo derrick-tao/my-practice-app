@@ -27,8 +27,16 @@ export function registerServiceWorker(): void {
     if (registration.waiting && container.controller) setWaiting(registration.waiting);
     registration.addEventListener('updatefound', () => {
       const installing = registration.installing;
-      installing?.addEventListener('statechange', () => {
-        if (installing.state === 'installed' && container.controller) setWaiting(installing);
+      if (!installing) return;
+      // Decide now, not when the worker reports `installed`: WebKit can deliver that after the worker has
+      // already claimed the page, so a controller seen later may be this very worker (a first visit).
+      const isUpdate = container.controller !== null || registration.active !== null;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && isUpdate) setWaiting(installing);
+        // Taking over (or being dropped) without a tap means it is no longer waiting.
+        if (waiting === installing && ['activating', 'activated', 'redundant'].includes(installing.state)) {
+          setWaiting(undefined);
+        }
       });
     });
     // A phone app can stay open for days: look for a new version whenever it comes back to the screen.
