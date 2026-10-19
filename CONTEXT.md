@@ -35,7 +35,7 @@ The Chinese text of an item: the character to write in dictation, or the phrase 
 ### Practice
 
 **Session**:
-One learner's run through one list, made of rounds. Also called an attempt in the parent area.
+One learner's run through one list, made of rounds. Also called an attempt in the parent area. A learner has at most one session in progress per lesson and practice type, all at once; opening a list continues its session or starts one, and never stops another. Home shows a Keep going card for each, most recently used first.
 
 **Round**:
 An ordered pass over a set of items; round 1 covers them all, and each later round covers only the items marked ❌ in the round before.
