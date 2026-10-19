@@ -8,7 +8,9 @@ let waiting: ServiceWorker | undefined;
 let reloadRequested = false;
 const listeners = new Set<() => void>();
 
+const dbg = (...args: unknown[]): void => console.log('[sw-debug]', performance.now().toFixed(0), ...args);
 function setWaiting(worker: ServiceWorker | undefined): void {
+  dbg('setWaiting', worker?.state, 'controller?', !!navigator.serviceWorker.controller);
   waiting = worker;
   for (const listener of listeners) listener();
 }
@@ -18,16 +20,20 @@ export function registerServiceWorker(): void {
   const container = navigator.serviceWorker;
 
   container.addEventListener('controllerchange', () => {
+    dbg('controllerchange');
     // Also fires when the very first worker takes over a page; only an explicit tap may reload.
     if (reloadRequested) location.reload();
   });
 
   const watch = (registration: ServiceWorkerRegistration): void => {
+    dbg('registered', { installing: registration.installing?.state, waiting: registration.waiting?.state, active: registration.active?.state, controller: !!container.controller });
     // A waiting worker only counts as an update when an older one is already running the page.
     if (registration.waiting && container.controller) setWaiting(registration.waiting);
     registration.addEventListener('updatefound', () => {
       const installing = registration.installing;
+      dbg('updatefound', installing?.state, 'controller?', !!container.controller);
       installing?.addEventListener('statechange', () => {
+        dbg('statechange', installing.state, { waitingIsThis: registration.waiting === installing, activeIsThis: registration.active === installing, controller: !!container.controller });
         if (installing.state === 'installed' && container.controller) setWaiting(installing);
       });
     });
