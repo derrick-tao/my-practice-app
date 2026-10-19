@@ -28,6 +28,8 @@ import {
   type Place,
   type Session,
 } from '../practice/session.ts';
+import { ConfirmYesNo } from '../confirm.tsx';
+import { ParentGate } from '../parent/gate.tsx';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
@@ -95,7 +97,7 @@ const realEnv = (): PracticeEnv => ({
   newId: () => crypto.randomUUID(),
 });
 
-function SaveFailed({ onRetry }: { onRetry: () => void }) {
+export function SaveFailed({ onRetry }: { onRetry: () => void }) {
   return (
     <div role="alert" class="save-failed">
       <button type="button" class="btn btn--primary btn--bad" onClick={onRetry}>
@@ -117,25 +119,39 @@ function OpenPractice({
 }) {
   const env = useMemo(realEnv, []);
   const [openTries, setOpenTries] = useState(0);
+  // Another list's practice is active: the child confirms, then a grown-up passes the gate, before it is stopped.
+  const [stopStep, setStopStep] = useState<'ask' | 'gate' | 'done'>('ask');
+  const stopActive = stopStep === 'done';
   const opened = useLoad(
     // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
     async () => {
       const storage = getStorage();
       const { breakEvery } = await currentSettings(storage);
-      return { ...(await openSession(storage, list, { practiceType, contentVersion, shuffle: true }, env)), breakEvery };
+      const result = await openSession(storage, list, { practiceType, contentVersion, shuffle: true, stopActive }, env);
+      return 'blockedBy' in result ? result : { ...result, breakEvery };
     },
-    [openTries],
+    [openTries, stopActive],
   );
-  if (opened.status === 'ready') {
+  if (opened.status === 'ready' && 'blockedBy' in opened.value) {
     return (
-      <PracticeRun
-        list={list}
-        env={env}
-        initial={opened.value.session}
-        resumed={opened.value.resumed}
-        breakEvery={opened.value.breakEvery}
-      />
+      <main class="screen">
+        <HomeButton />
+        {stopStep === 'gate' ? (
+          // A one-off check: it lets this practice be stopped and does not unlock the parent area.
+          <ParentGate onPassed={() => setStopStep('done')} />
+        ) : (
+          <ConfirmYesNo
+            question="Stop your current practice?"
+            onYes={() => setStopStep('gate')}
+            onNo={() => void (location.hash = HOME_HREF)}
+          />
+        )}
+      </main>
     );
+  }
+  if (opened.status === 'ready') {
+    const { session, resumed, breakEvery } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
+    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} />;
   }
   return (
     <main class="screen">
