@@ -217,6 +217,68 @@ test.describe('parent progress page', () => {
     await expect(rounds.nth(1)).toContainText('so far');
   });
 
+  test('trickiest characters stops at ten and breaks ties in list order, whatever order they were presented in', async ({
+    page,
+    loadList,
+  }) => {
+    await setUpLearner(page);
+    const targets = (await loadList('fixture-twelve')).items.map((item) => item.target);
+    expect(targets).toHaveLength(12);
+    const presented = [...targets].reverse();
+    await restoreSessions(page, [
+      attempt('ten-1', 'fixture-twelve', 'completed', '2026-10-01T12:00:00.000Z', [
+        round(1, presented, presented.map(bad), '2026-10-01T12:00:00.000Z'),
+      ]),
+    ]);
+    await openProgress(page, /Fixture Twelve/);
+
+    // All twelve were missed once: the first ten in list order are shown.
+    const rows = page.getByTestId('tricky');
+    await expect(rows).toHaveCount(10);
+    for (const [i, target] of targets.slice(0, 10).entries()) {
+      await expect(rows.nth(i).getByRole('button', { name: `Hear ${target}` })).toBeVisible();
+    }
+  });
+
+  test('stopped and in-progress attempts are listed but leave out the trend and the best first try', async ({ page }) => {
+    await setUpLearner(page);
+    await restoreSessions(page, [
+      // Completed: first try 1 of 3 (the only attempt that counts).
+      attempt('c-1', 'fixture-three', 'completed', '2026-10-01T12:00:00.000Z', [
+        round(1, ['找', '点', '分'], [ok('找'), bad('点'), bad('分')], '2026-10-01T12:00:00.000Z'),
+        round(2, ['点', '分'], [ok('点'), ok('分')], '2026-10-01T12:05:00.000Z'),
+      ]),
+      // Stopped: a perfect round 1, with round 2 not started.
+      attempt('s-1', 'fixture-three', 'stopped', '2026-10-03T12:00:00.000Z', [
+        round(1, ['找', '点', '分'], [ok('找'), ok('点'), ok('分')], '2026-10-03T12:00:00.000Z'),
+      ]),
+      // In progress: round 1 not over yet (no first-try score), with one miss so far.
+      attempt('a-1', 'fixture-three', 'active', '2026-10-05T12:00:00.000Z', [
+        round(1, ['分', '找', '点'], [bad('分')], '2026-10-05T12:00:00.000Z'),
+      ]),
+    ]);
+    await openProgress(page, /Fixture Three/);
+
+    const header = page.getByTestId('progress-header');
+    await expect(header).toContainText('Attempts: 3');
+    await expect(header).toContainText('Best first try: 1 of 3');
+    await expect(page.getByTestId('trend')).toHaveText(/^\s*1\s*$/);
+
+    const attempts = page.getByTestId('attempt');
+    await expect(attempts.nth(0)).toContainText('In progress');
+    await expect(attempts.nth(0)).toContainText('First try: —');
+    await expect(attempts.nth(1)).toContainText('Stopped');
+    await expect(attempts.nth(1)).toContainText('First try: 3 of 3');
+
+    // Misses still count toward the trickiest, whatever the attempt's status: 分 twice (completed, in progress), 点 once.
+    const rows = page.getByTestId('tricky');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('分');
+    await expect(rows.nth(0)).toContainText('❌ 2');
+    await expect(rows.nth(1)).toContainText('点');
+    await expect(rows.nth(1)).toContainText('❌ 1');
+  });
+
   test('a character the list no longer has is labeled (removed) and has no audio to play', async ({ page }) => {
     await setUpLearner(page);
     await restoreSessions(page, [
@@ -227,6 +289,11 @@ test.describe('parent progress page', () => {
     ]);
     await openProgress(page, /Fixture Three/);
 
+    // 旧 and 分 were each missed once; the removed one comes last although it was presented first.
+    const tricky = page.getByTestId('tricky');
+    await expect(tricky).toHaveCount(2);
+    await expect(tricky.nth(0)).toContainText('分');
+    await expect(tricky.nth(1)).toContainText('旧');
     await expect(page.getByTestId('tricky').filter({ hasText: '旧' })).toContainText('(removed)');
     await expect(page.getByTestId('tricky').filter({ hasText: '分' })).not.toContainText('(removed)');
 
