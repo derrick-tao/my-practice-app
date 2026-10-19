@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createWorkspace, listYaml } from './harness.ts';
+import { createWorkspace, lessonYaml } from './harness.ts';
 
 async function requestsFor(items: string) {
-  const ws = await createWorkspace({ 'chinese/t.yaml': listYaml('t', items) });
+  const ws = await createWorkspace({ 'chinese/t.yaml': lessonYaml('t', items) });
   await ws.build();
   return ws.provider.requests;
 }
@@ -59,7 +59,7 @@ describe('content build: TTS provider seam (fake provider)', () => {
 
   it('does not ask the provider again for audio that is already in the audio store', async () => {
     const ws = await createWorkspace({
-      'chinese/t.yaml': listYaml('t', '\n  - target: 找\n    clue: 找东西\n    pinyin: zhǎo\n'),
+      'chinese/t.yaml': lessonYaml('t', '\n  - target: 找\n    clue: 找东西\n    pinyin: zhǎo\n'),
     });
     await ws.build();
     expect(ws.provider.requests).toHaveLength(2);

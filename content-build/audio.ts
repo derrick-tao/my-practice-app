@@ -1,15 +1,15 @@
-// Audio for every item: content-addressed files, generated only when missing, optionally pruned.
+// Audio for every item of every list: content-addressed files, generated only when missing, optionally pruned.
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { itemPinyin } from './pinyin.ts';
 import { ttsConfig as defaultTtsConfig } from '../tts.config.ts';
-import type { Rendition } from '../src/content/types.ts';
+import { listEntries, type PracticeTypeId, type Rendition } from '../src/content/types.ts';
 import { buildSsml, spokenPrompt } from './tts/prompt.ts';
 import type { TtsConfig } from './tts/config.ts';
 import { createProvider, type ProviderDeps } from './tts/provider-factory.ts';
 import type { TtsProvider, TtsRequest } from './tts/types.ts';
-import type { SourceList } from './validate.ts';
+import type { SourceItem, SourceLesson } from './validate.ts';
 
 export interface AudioOptions {
   /** Content-addressed store of real audio (the committed `audio/` folder). */
@@ -41,8 +41,8 @@ export interface LocatedAudio {
 }
 
 export interface ResolvedAudio {
-  /** Parallel to the `sources` passed in: one entry per list, one per item. */
-  lists: Array<Array<Record<Rendition, LocatedAudio>>>;
+  /** Parallel to the `sources` passed in: per lesson, per practice type, one entry per item. */
+  lessons: Array<Partial<Record<PracticeTypeId, Array<Record<Rendition, LocatedAudio>>>>>;
   stats: AudioStats;
 }
 
@@ -71,7 +71,7 @@ interface Planned {
 
 const AUDIO_FILE = /^[0-9a-f]{32}\.[a-z0-9]+$/;
 
-export async function resolveAudio(sources: SourceList[], options: AudioOptions): Promise<ResolvedAudio> {
+export async function resolveAudio(sources: SourceLesson[], options: AudioOptions): Promise<ResolvedAudio> {
   const { placeholder } = options;
   const log = options.log ?? (() => {});
   const tts = options.tts ?? defaultTtsConfig;
@@ -81,15 +81,18 @@ export async function resolveAudio(sources: SourceList[], options: AudioOptions)
   // items (or a repeated rendition) is only ever requested once.
   const wanted = new Map<string, TtsRequest>();
   const plans = sources.map((source) =>
-    source.items.map((item) => {
-      const planFor = (rendition: Rendition): { primary: Planned; fallback?: Planned } => {
-        const label = `${source.id}/${item.target} ${rendition}`;
-        const primary = plan(provider, tts, item, rendition, label);
-        wanted.set(primary.name, primary.request);
-        return { primary, ...(placeholder && { fallback: plan(placeholder.provider, tts, item, rendition, label) }) };
-      };
-      return { normal: planFor('normal'), slow: planFor('slow') };
-    }),
+    listEntries(source.lists).map(([type, items]) => ({
+      type,
+      items: items.map((item) => {
+        const planFor = (rendition: Rendition): { primary: Planned; fallback?: Planned } => {
+          const label = `${source.id}/${item.target} ${rendition}`;
+          const primary = plan(provider, tts, item, rendition, label);
+          wanted.set(primary.name, primary.request);
+          return { primary, ...(placeholder && { fallback: plan(placeholder.provider, tts, item, rendition, label) }) };
+        };
+        return { normal: planFor('normal'), slow: planFor('slow') };
+      }),
+    })),
   );
 
   const missing: string[] = [];
@@ -142,18 +145,22 @@ export async function resolveAudio(sources: SourceList[], options: AudioOptions)
     return { ref: `audio/${name}`, file };
   };
 
-  const lists: ResolvedAudio['lists'] = [];
-  for (const items of plans) {
-    const resolved: Array<Record<Rendition, LocatedAudio>> = [];
-    for (const item of items) resolved.push({ normal: await locate(item.normal), slow: await locate(item.slow) });
-    lists.push(resolved);
+  const lessons: ResolvedAudio['lessons'] = [];
+  for (const lists of plans) {
+    const resolvedLists: ResolvedAudio['lessons'][number] = {};
+    for (const { type, items } of lists) {
+      const resolved: Array<Record<Rendition, LocatedAudio>> = [];
+      for (const item of items) resolved.push({ normal: await locate(item.normal), slow: await locate(item.slow) });
+      resolvedLists[type] = resolved;
+    }
+    lessons.push(resolvedLists);
   }
   if (usePlaceholder) log(`audio: ${missing.length} file(s) missing, using silent placeholder audio (not committed)`);
 
   if (options.prune) stats.pruned = await pruneStore(options.audioStoreDir, new Set(wanted.keys()));
   if (stats.pruned.length > 0) log(`audio: pruned ${stats.pruned.length} unreferenced file(s)`);
 
-  return { lists, stats };
+  return { lessons, stats };
 }
 
 /** Remove audio files in the store that are not in `keep`. Anything that is not an audio file is left alone. */
@@ -172,7 +179,7 @@ async function pruneStore(storeDir: string, keep: Set<string>): Promise<string[]
 function plan(
   provider: TtsProvider,
   tts: TtsConfig,
-  item: SourceList['items'][number],
+  item: SourceItem,
   rendition: Rendition,
   label: string,
 ): Planned {

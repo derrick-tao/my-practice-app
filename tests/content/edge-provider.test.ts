@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ttsConfig } from '../../tts.config.ts';
 import { silentMp3 } from '../../content-build/tts/fake-provider.ts';
 import type { ProviderDeps } from '../../content-build/tts/provider-factory.ts';
-import { createWorkspace, listYaml, type Workspace } from './harness.ts';
+import { createWorkspace, lessonYaml, type Workspace } from './harness.ts';
 
 const edgeConfig = { ...ttsConfig, provider: 'edge' as const };
 
@@ -29,7 +29,7 @@ function edge(transport?: Transport) {
   return { providerDeps, calls, sleeps };
 }
 
-const ONE_ITEM = listYaml('t', '\n  - target: 点\n    clue: 几点\n    pinyin: diǎn\n');
+const ONE_ITEM = lessonYaml('t', '\n  - target: 点\n    clue: 几点\n    pinyin: diǎn\n');
 
 const workspace = (items = ONE_ITEM): Promise<Workspace> => createWorkspace({ 'chinese/t.yaml': items });
 
@@ -42,10 +42,10 @@ const buildError = (ws: Workspace, options: Parameters<Workspace['buildConfigure
   );
 
 describe('edge provider (fallback behind the config flag)', () => {
-  it('needs no Azure key: builds a whole list with plain text, no phoneme tags, and the configured voice and format', async () => {
+  it('needs no Azure key: builds a whole lesson with plain text, no phoneme tags, and the configured voice and format', async () => {
     const { providerDeps, calls } = edge();
     const ws = await workspace(
-      listYaml(
+      lessonYaml(
         't',
         `
   - target: 什
@@ -74,7 +74,7 @@ describe('edge provider (fallback behind the config flag)', () => {
 
   it('escapes XML-significant characters, because the service wraps the text in its own SSML', async () => {
     const { providerDeps, calls } = edge();
-    const ws = await workspace(listYaml('t', '\n  - target: 点\n    pinyin: diǎn\n    say: "a < b & c"\n'));
+    const ws = await workspace(lessonYaml('t', '\n  - target: 点\n    pinyin: diǎn\n    say: "a < b & c"\n'));
     await ws.buildConfigured({ tts: edgeConfig, providerDeps });
     expect(calls[0]!.text).toBe('a &lt; b &amp; c');
   });

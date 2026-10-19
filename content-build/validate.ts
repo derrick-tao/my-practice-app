@@ -1,4 +1,4 @@
-// Validation of list files. Every problem names the file, the item (when relevant) and the rule.
+// Validation of lesson files. Every problem names the file, the practice type and item (when relevant) and the rule.
 import { parse as parseYaml } from 'yaml';
 import * as OpenCC from 'opencc-js';
 import { PRACTICE_TYPE_IDS, type PracticeTypeId, type Script } from '../src/content/types.ts';
@@ -7,24 +7,25 @@ export interface SourceItem {
   target: string;
   clue?: string;
   pinyin?: string;
-  lesson?: string;
   say?: string;
 }
 
-export interface SourceList {
+export interface SourceLesson {
   id: string;
   title: string;
   subject: string;
-  practiceTypes: PracticeTypeId[];
   script: Script;
   testDates?: string;
-  items: SourceItem[];
+  /** The lesson's lists, one per practice type it offers (each non-empty). */
+  lists: Partial<Record<PracticeTypeId, SourceItem[]>>;
 }
 
 export interface Issue {
   /** Path relative to the content dir, with forward slashes. */
   file: string;
-  /** 1-based item number, for item-level issues. */
+  /** The practice type (list) the issue is in, when it is in one. */
+  practiceType?: string;
+  /** 1-based item number within that list, for item-level issues. */
   itemNumber?: number;
   target?: string;
   rule: string;
@@ -35,31 +36,34 @@ export function formatIssue(issue: Issue): string {
   const item =
     issue.itemNumber === undefined
       ? ''
-      : `item ${issue.itemNumber}${issue.target ? ` (${issue.target})` : ''}: `;
-  return `${issue.file}: ${item}[${issue.rule}] ${issue.message}`;
+      : `item ${issue.itemNumber}${issue.target ? ` (${issue.target})` : ''}`;
+  const scope = [issue.practiceType, item].filter(Boolean).join(' ');
+  return `${issue.file}: ${scope ? `${scope}: ` : ''}[${issue.rule}] ${issue.message}`;
 }
 
 const SCRIPTS: readonly string[] = ['simplified', 'traditional'];
-const PRACTICE_TYPES: readonly string[] = PRACTICE_TYPE_IDS;
-const LIST_KEYS = ['id', 'title', 'subject', 'practiceTypes', 'script', 'testDates', 'items'];
-const ITEM_KEYS = ['target', 'clue', 'pinyin', 'lesson', 'say'];
+const LESSON_KEYS: readonly string[] = ['id', 'title', 'subject', 'script', 'testDates'];
+/** The fields an item may have, per practice type. A lesson's keys are LESSON_KEYS plus one list key per practice type. */
+const ITEM_KEYS: Record<PracticeTypeId, readonly string[]> = {
+  dictation: ['target', 'clue', 'pinyin', 'say'],
+};
 const HAN = /^\p{Script=Han}+$/u;
 
 const toTraditional = OpenCC.Converter({ from: 'cn', to: 't' });
 const toSimplified = OpenCC.Converter({ from: 't', to: 'cn' });
 
 export interface FileResult {
-  list?: SourceList;
+  lesson?: SourceLesson;
   errors: Issue[];
   warnings: Issue[];
 }
 
-/** Validate one list file's text. `file` is relative to the content dir. */
-export function validateListFile(file: string, text: string): FileResult {
+/** Validate one lesson file's text. `file` is relative to the content dir. */
+export function validateLessonFile(file: string, text: string): FileResult {
   const errors: Issue[] = [];
   const warnings: Issue[] = [];
-  const fail = (rule: string, message: string, item?: { number: number; target?: string }): void => {
-    errors.push({ file, rule, message, ...(item && { itemNumber: item.number, target: item.target }) });
+  const fail = (rule: string, message: string, at?: Place): void => {
+    errors.push({ file, rule, message, ...at });
   };
 
   let doc: unknown;
@@ -70,13 +74,18 @@ export function validateListFile(file: string, text: string): FileResult {
     return { errors, warnings };
   }
   if (!isRecord(doc)) {
-    fail('yaml-syntax', 'the file must contain a mapping of list fields (id, title, subject, ...)');
+    fail('yaml-syntax', 'the file must contain a mapping of lesson fields (id, title, subject, ...)');
     return { errors, warnings };
   }
 
+  const allowed = [...LESSON_KEYS, ...PRACTICE_TYPE_IDS];
   for (const key of Object.keys(doc)) {
-    if (!LIST_KEYS.includes(key)) {
-      fail('unknown-key', `unknown list field "${key}" (allowed: ${LIST_KEYS.join(', ')})`);
+    if (!allowed.includes(key)) {
+      fail(
+        'unknown-key',
+        `unknown lesson field "${key}" (allowed: ${LESSON_KEYS.join(', ')}, and a list per practice type: ${PRACTICE_TYPE_IDS.join(', ')})`,
+        Array.isArray(doc[key]) ? { practiceType: key } : undefined,
+      );
     }
   }
 
@@ -97,143 +106,156 @@ export function validateListFile(file: string, text: string): FileResult {
     fail('invalid-value', `"subject" must be a lowercase word such as "chinese" (got "${subject}")`);
   }
 
-  let practiceTypes: PracticeTypeId[] | undefined;
-  if (doc.practiceTypes === undefined || doc.practiceTypes === null) {
-    fail('required-field', 'required field "practiceTypes" is missing');
-  } else if (!Array.isArray(doc.practiceTypes) || doc.practiceTypes.length === 0) {
-    fail('invalid-value', '"practiceTypes" must be a non-empty list, e.g. [dictation]');
-  } else {
-    const bad = doc.practiceTypes.filter((t) => typeof t !== 'string' || !PRACTICE_TYPES.includes(t));
-    if (bad.length > 0) {
-      fail('invalid-value', `"practiceTypes" has unsupported value(s) ${bad.map(String).join(', ')} (allowed: ${PRACTICE_TYPES.join(', ')})`);
-    } else {
-      practiceTypes = doc.practiceTypes as PracticeTypeId[];
+  const lists: SourceLesson['lists'] = {};
+  const present = PRACTICE_TYPE_IDS.filter((type) => doc[type] !== undefined);
+  if (present.length === 0) {
+    fail('no-lists', `a lesson needs at least one list of items: ${PRACTICE_TYPE_IDS.map((t) => `"${t}"`).join(' or ')}`);
+  }
+  for (const type of present) {
+    const raw = doc[type];
+    if (!Array.isArray(raw) || raw.length === 0) {
+      fail('empty-list', `the "${type}" list must contain at least one item`, { practiceType: type });
+      continue;
     }
+    lists[type] = validateList(type, raw, { subject, script, fail, warnings, file });
   }
 
-  const items: SourceItem[] = [];
-  if (doc.items === undefined || doc.items === null) {
-    fail('required-field', 'required field "items" is missing');
-  } else if (!Array.isArray(doc.items) || doc.items.length === 0) {
-    fail('required-field', '"items" must contain at least one item');
-  } else {
-    const firstSeen = new Map<string, number>();
-    doc.items.forEach((raw: unknown, index: number) => {
-      const number = index + 1;
-      if (!isRecord(raw)) {
-        fail('invalid-value', 'each item must be a mapping with a "target"', { number });
-        return;
-      }
-      const rawTarget = typeof raw.target === 'string' ? raw.target : undefined;
-      const at = { number, ...(rawTarget ? { target: rawTarget } : {}) };
-      const itemFail = (rule: string, message: string): void => fail(rule, message, at);
-
-      for (const key of Object.keys(raw)) {
-        if (!ITEM_KEYS.includes(key)) {
-          itemFail('unknown-key', `unknown item field "${key}" (allowed: ${ITEM_KEYS.join(', ')})`);
-        }
-      }
-
-      let target: string | undefined;
-      if (raw.target === undefined || raw.target === null) {
-        itemFail('required-field', 'required field "target" is missing');
-      } else if (typeof raw.target !== 'string') {
-        itemFail('invalid-value', '"target" must be text (put quotes around it if needed)');
-      } else if (raw.target.trim() === '') {
-        itemFail('target-empty', 'the target must not be empty');
-      } else {
-        target = raw.target.trim();
-        if (subject === 'chinese' && !HAN.test(target)) {
-          itemFail('target-cjk', `target "${target}" must contain only Chinese characters`);
-        }
-        const first = firstSeen.get(target);
-        if (first !== undefined) {
-          itemFail('target-duplicate', `target "${target}" repeats item ${first}`);
-        } else {
-          firstSeen.set(target, number);
-        }
-      }
-
-      const clue = optionalString(raw, 'clue', itemFail);
-      const pinyin = optionalString(raw, 'pinyin', itemFail, true);
-      const lesson = optionalString(raw, 'lesson', itemFail);
-      const say = optionalString(raw, 'say', itemFail);
-
-      if (target !== undefined && clue !== undefined && !clue.includes(target)) {
-        itemFail('clue-contains-target', `clue "${clue}" must contain the target "${target}"`);
-      }
-      if (pinyin !== undefined) {
-        const problem = pinyinProblem(pinyin);
-        if (problem) {
-          itemFail('pinyin-format', problem);
-        } else if (target !== undefined) {
-          const syllables = pinyin.normalize('NFC').trim().split(/\s+/).length;
-          const length = [...target].length;
-          if (syllables !== length) {
-            itemFail(
-              'pinyin-syllable-count',
-              `pinyin "${pinyin}" has ${syllables} syllable(s) but the target "${target}" has ${length} character(s)`,
-            );
-          }
-        }
-      }
-
-      if (target !== undefined) {
-        items.push({
-          target,
-          ...(clue !== undefined && { clue }),
-          ...(pinyin !== undefined && { pinyin: pinyin.normalize('NFC').trim() }),
-          ...(lesson !== undefined && { lesson }),
-          ...(say !== undefined && { say }),
-        });
-      }
-
-      if (target !== undefined && (script === 'simplified' || script === 'traditional')) {
-        if (looksLikeOtherScript(script, `${target}${clue ?? ''}`)) {
-          warnings.push({
-            file,
-            itemNumber: number,
-            target,
-            rule: 'script-mismatch',
-            message: `characters look ${script === 'simplified' ? 'traditional' : 'simplified'}, but the list script is ${script}`,
-          });
-        }
-      }
-    });
-  }
-
-  if (errors.length > 0 || !id || !title || !subject || !script || !practiceTypes) {
+  if (errors.length > 0 || !id || !title || !subject || !script) {
     return { errors, warnings };
   }
   return {
-    list: {
+    lesson: {
       id,
       title,
       subject,
-      practiceTypes,
       script: script as Script,
       ...(testDates !== undefined && { testDates }),
-      items,
+      lists,
     },
     errors,
     warnings,
   };
 }
 
+interface Place {
+  practiceType?: string;
+  itemNumber?: number;
+  target?: string;
+}
+
+interface ListContext {
+  file: string;
+  subject: string | undefined;
+  script: string | undefined;
+  fail: (rule: string, message: string, at?: Place) => void;
+  warnings: Issue[];
+}
+
+/** Validate one practice type's list; returns the items that are usable (the caller only keeps them when the file has no errors). */
+function validateList(type: PracticeTypeId, rawItems: unknown[], context: ListContext): SourceItem[] {
+  const { file, subject, script, fail, warnings } = context;
+  const itemKeys = ITEM_KEYS[type];
+  const items: SourceItem[] = [];
+  const firstSeen = new Map<string, number>();
+
+  rawItems.forEach((raw: unknown, index: number) => {
+    const number = index + 1;
+    if (!isRecord(raw)) {
+      fail('invalid-value', 'each item must be a mapping with a "target"', { practiceType: type, itemNumber: number });
+      return;
+    }
+    const rawTarget = typeof raw.target === 'string' ? raw.target : undefined;
+    const at: Place = { practiceType: type, itemNumber: number, ...(rawTarget ? { target: rawTarget } : {}) };
+    const itemFail = (rule: string, message: string): void => fail(rule, message, at);
+
+    for (const key of Object.keys(raw)) {
+      if (!itemKeys.includes(key)) {
+        itemFail('unknown-key', `unknown item field "${key}" (allowed: ${itemKeys.join(', ')})`);
+      }
+    }
+
+    let target: string | undefined;
+    if (raw.target === undefined || raw.target === null) {
+      itemFail('required-field', 'required field "target" is missing');
+    } else if (typeof raw.target !== 'string') {
+      itemFail('invalid-value', '"target" must be text (put quotes around it if needed)');
+    } else if (raw.target.trim() === '') {
+      itemFail('target-empty', 'the target must not be empty');
+    } else {
+      target = raw.target.trim();
+      if (subject === 'chinese' && !HAN.test(target)) {
+        itemFail('target-cjk', `target "${target}" must contain only Chinese characters`);
+      }
+      const first = firstSeen.get(target);
+      if (first !== undefined) {
+        itemFail('target-duplicate', `target "${target}" repeats item ${first}`);
+      } else {
+        firstSeen.set(target, number);
+      }
+    }
+
+    const clue = itemKeys.includes('clue') ? optionalString(raw, 'clue', itemFail) : undefined;
+    const pinyin = optionalString(raw, 'pinyin', itemFail, true);
+    const say = optionalString(raw, 'say', itemFail);
+
+    if (target !== undefined && clue !== undefined && !clue.includes(target)) {
+      itemFail('clue-contains-target', `clue "${clue}" must contain the target "${target}"`);
+    }
+    if (pinyin !== undefined) {
+      const problem = pinyinProblem(pinyin);
+      if (problem) {
+        itemFail('pinyin-format', problem);
+      } else if (target !== undefined) {
+        const syllables = pinyin.normalize('NFC').trim().split(/\s+/).length;
+        const length = [...target].length;
+        if (syllables !== length) {
+          itemFail(
+            'pinyin-syllable-count',
+            `pinyin "${pinyin}" has ${syllables} syllable(s) but the target "${target}" has ${length} character(s)`,
+          );
+        }
+      }
+    }
+
+    if (target !== undefined) {
+      items.push({
+        target,
+        ...(clue !== undefined && { clue }),
+        ...(pinyin !== undefined && { pinyin: pinyin.normalize('NFC').trim() }),
+        ...(say !== undefined && { say }),
+      });
+    }
+
+    if (target !== undefined && (script === 'simplified' || script === 'traditional')) {
+      if (looksLikeOtherScript(script, `${target}${clue ?? ''}`)) {
+        warnings.push({
+          file,
+          practiceType: type,
+          itemNumber: number,
+          target,
+          rule: 'script-mismatch',
+          message: `characters look ${script === 'simplified' ? 'traditional' : 'simplified'}, but the lesson script is ${script}`,
+        });
+      }
+    }
+  });
+  return items;
+}
+
 /** Cross-file rules. */
-export function validateAcrossFiles(parsed: Array<{ file: string; list: SourceList }>): Issue[] {
+export function validateAcrossFiles(parsed: Array<{ file: string; lesson: SourceLesson }>): Issue[] {
   const errors: Issue[] = [];
   const byId = new Map<string, string>();
-  for (const { file, list } of parsed) {
-    const other = byId.get(list.id);
+  for (const { file, lesson } of parsed) {
+    const other = byId.get(lesson.id);
     if (other !== undefined) {
       errors.push({
         file,
         rule: 'id-unique',
-        message: `id "${list.id}" is also used by ${other}`,
+        message: `id "${lesson.id}" is also used by ${other}`,
       });
     } else {
-      byId.set(list.id, file);
+      byId.set(lesson.id, file);
     }
   }
   return errors;

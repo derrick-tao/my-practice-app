@@ -2,14 +2,14 @@
 //
 // The list is derived from what the build actually produced, never from a hand-kept glob:
 //   - the app shell: every file in the output folder except content/ and the worker itself
-//   - the content: manifest.json, the font subset, every list file, and every audio file those lists reference
-// A list that references audio missing from the output fails the build instead of shipping a worker
+//   - the content: manifest.json, the font subset, every lesson file, and every audio file those lessons reference
+// A lesson that references audio missing from the output fails the build instead of shipping a worker
 // that could never finish installing.
 import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from 'vite';
-import type { ListData } from '../src/content/types.ts';
+import { listEntries, type LessonData } from '../src/content/types.ts';
 import { FONT_REF } from './font.ts';
 
 const PLACEHOLDER = "/*PRECACHE*/ { buildId: 'dev', urls: [] }";
@@ -34,12 +34,14 @@ export async function collectPrecache(outDir: string): Promise<Precache> {
   const contentDir = path.join(outDir, 'content');
   urls.add('content/manifest.json');
   urls.add(`content/${FONT_REF}`);
-  const listFiles = (await readdir(path.join(contentDir, 'lists'))).filter((f) => f.endsWith('.json')).sort();
-  for (const file of listFiles) {
-    urls.add(`content/lists/${file}`);
-    const list = JSON.parse(await readFile(path.join(contentDir, 'lists', file), 'utf8')) as ListData;
-    for (const item of list.items) {
-      for (const ref of [item.audio.normal, item.audio.slow]) urls.add(`content/${ref}`);
+  const lessonFiles = (await readdir(path.join(contentDir, 'lessons'))).filter((f) => f.endsWith('.json')).sort();
+  for (const file of lessonFiles) {
+    urls.add(`content/lessons/${file}`);
+    const lesson = JSON.parse(await readFile(path.join(contentDir, 'lessons', file), 'utf8')) as LessonData;
+    for (const [, items] of listEntries(lesson.lists)) {
+      for (const item of items) {
+        for (const ref of [item.audio.normal, item.audio.slow]) urls.add(`content/${ref}`);
+      }
     }
   }
 
