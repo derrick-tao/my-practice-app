@@ -181,7 +181,7 @@
   /* About 40% of the short side of the screen; long targets shrink to stay on screen. */
   font-size: calc(40vmin / var(--scale, 1));
   line-height: 1.05;
-  font-family: 'Kaiti SC', 'STKaiti', 'KaiTi', 'LXGW WenKai', 'PingFang SC', system-ui, serif;
+  font-family: 'Practice Kai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'PingFang SC', system-ui, serif;
 }
 
 .reveal__pinyin {
