@@ -11,7 +11,8 @@ import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { listHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
-import { SaveFailed } from './practice.tsx';
+import { SaveFailed } from '../save-failed.tsx';
+import { useSave } from '../use-save.ts';
 
 function ListCard({ subject, practiceType, list }: { subject: string; practiceType: PracticeTypeId; list: ListSummary }) {
   return (
@@ -35,22 +36,15 @@ function KeepGoingCard({ session, list }: { session: Session; list: ListSummary 
   const round = currentRound(session);
   const href = listHref(session.subject, session.practiceType, session.listId);
   const [asking, setAsking] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const { busy: saving, failed, run } = useSave();
 
   // Yes: the current session is stopped (kept in history) and saved; opening the list then starts a
   // fresh, freshly ordered one, exactly like tapping the list's card with nothing in progress.
-  const startOver = async (): Promise<void> => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      await stopSession(getStorage(), session);
-      location.hash = href;
-    } catch {
-      setFailed(true);
-      setSaving(false);
-    }
-  };
+  const startOver = (): Promise<void> =>
+    run(
+      () => stopSession(getStorage(), session),
+      () => void (location.hash = href),
+    );
 
   return (
     <>

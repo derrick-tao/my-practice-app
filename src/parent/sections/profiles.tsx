@@ -5,8 +5,11 @@ import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { usePublishedLists } from '../../content/use-lists.ts';
 import { addProfile, AVATARS, editProfile, removeProfile, setActiveProfile } from '../../profiles.ts';
+import { eraseLearnerProgress } from '../../erase.ts';
+import { SaveFailed } from '../../save-failed.tsx';
 import { getStorage } from '../../storage/index.ts';
 import type { Profile } from '../../storage/types.ts';
+import { useSave } from '../../use-save.ts';
 import { ListSwitches } from '../list-switches.tsx';
 import { ProfileFields } from '../profile-fields.tsx';
 import type { ParentSection } from '../sections.ts';
@@ -17,36 +20,13 @@ type View =
   | { name: 'edit'; profileId: string }
   | { name: 'delete'; profileId: string };
 
-function SaveError() {
-  return (
-    <div role="alert" class="save-failed">
-      <span aria-hidden="true">⚠️ </span>Couldn't save — please try again
-    </div>
-  );
-}
-
 function Profiles() {
   const { app, update } = useAppRecord();
   const [view, setView] = useState<View>({ name: 'list' });
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-
   /** Run one write; on success, `then` (e.g. back to the list). */
-  const run = async (write: () => Promise<unknown>, then?: () => void): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
-    setFailed(false);
-    try {
-      await write();
-      then?.();
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { busy, failed, run, clearFailed } = useSave();
   const toList = (): void => {
-    setFailed(false);
+    clearFailed();
     setView({ name: 'list' });
   };
 
@@ -109,7 +89,7 @@ function Profiles() {
                     run(async () => {
                       // Sessions first: if the second step fails the learner is still listed, so
                       // deleting again finishes the job. Never the other way round (orphaned practice).
-                      await getStorage().deleteSessionsByProfile(profile.id);
+                      await eraseLearnerProgress(getStorage(), profile.id);
                       await update((current) => removeProfile(current, profile.id));
                     }, toList)
                   }
@@ -133,7 +113,7 @@ function Profiles() {
                       type="button"
                       class="btn btn--small btn--danger"
                       onClick={() => {
-                        setFailed(false);
+                        clearFailed();
                         setView({ name: 'delete', profileId: profile.id });
                       }}
                     >
@@ -146,7 +126,7 @@ function Profiles() {
           );
         })}
       </ul>
-      {failed && <SaveError />}
+      {failed && <SaveFailed />}
       <button type="button" class="btn btn--primary" onClick={() => setView({ name: 'add' })}>
         <span aria-hidden="true">➕ </span>Add a learner
       </button>
@@ -230,7 +210,7 @@ function AddForm({
           />
         </>
       )}
-      {failed && <SaveError />}
+      {failed && <SaveFailed />}
       <FormButtons
         canSave={name.trim() !== '' && !busy}
         onCancel={onCancel}
@@ -258,7 +238,7 @@ function EditForm({
   return (
     <div class="first-run">
       <ProfileFields name={name} avatar={avatar} onName={setName} onAvatar={setAvatar} />
-      {failed && <SaveError />}
+      {failed && <SaveFailed />}
       <FormButtons canSave={name.trim() !== '' && !busy} onCancel={onCancel} onSave={() => onSave({ name, avatar })} />
     </div>
   );

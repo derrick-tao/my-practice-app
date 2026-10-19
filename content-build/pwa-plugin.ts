@@ -2,7 +2,7 @@
 //
 // The list is derived from what the build actually produced, never from a hand-kept glob:
 //   - the app shell: every file in the output folder except content/ and the worker itself
-//   - the content: manifest.json, every list file, and every audio file those lists reference
+//   - the content: manifest.json, the font subset, every list file, and every audio file those lists reference
 // A list that references audio missing from the output fails the build instead of shipping a worker
 // that could never finish installing.
 import { createHash } from 'node:crypto';
@@ -10,6 +10,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import type { ListData } from '../src/content/types.ts';
+import { FONT_REF } from './font.ts';
 
 const PLACEHOLDER = "/*PRECACHE*/ { buildId: 'dev', urls: [] }";
 const WORKER_FILE = 'sw.js';
@@ -32,6 +33,7 @@ export async function collectPrecache(outDir: string): Promise<Precache> {
 
   const contentDir = path.join(outDir, 'content');
   urls.add('content/manifest.json');
+  urls.add(`content/${FONT_REF}`);
   const listFiles = (await readdir(path.join(contentDir, 'lists'))).filter((f) => f.endsWith('.json')).sort();
   for (const file of listFiles) {
     urls.add(`content/lists/${file}`);

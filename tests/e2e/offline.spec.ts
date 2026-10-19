@@ -5,6 +5,7 @@ import type { Page } from '@playwright/test';
 import type { ListData } from '../../src/content/types.ts';
 import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
+import { listPath } from './harness.ts';
 import { expect, NEW_TITLE, test } from './pwa-site.ts';
 
 /** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
@@ -32,7 +33,7 @@ test.describe('offline', () => {
     request,
   }) => {
     await startAtHome(page);
-    const list = (await (await request.get('content/lists/fixture-three.json')).json()) as ListData;
+    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
 
     await context.setOffline(true);
     await page.reload();
@@ -61,6 +62,31 @@ test.describe('offline', () => {
     }
   });
 
+  test('the revealed character is drawn with the subset font with the network off', async ({
+    page,
+    context,
+    audio,
+    request,
+  }) => {
+    await startAtHome(page);
+    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
+
+    await context.setOffline(true);
+    await page.reload();
+
+    const practice = new PracticeScreen(page, audio, list);
+    await practice.open();
+    const target = await practice.reveal();
+    await expect
+      .poll(() =>
+        page.evaluate((text) => {
+          const faces = [...document.fonts].filter((face) => face.family.replace(/["']/g, '') === 'Practice Kai');
+          return { statuses: faces.map((face) => face.status), covers: document.fonts.check('1em "Practice Kai"', text) };
+        }, target),
+      )
+      .toEqual({ statuses: ['loaded'], covers: true });
+  });
+
   test('every list, its audio and the content manifest are available offline, including after a restart', async ({
     page,
     context,
@@ -72,11 +98,12 @@ test.describe('offline', () => {
     // Control: the network really is off, so a file that was never precached cannot be fetched.
     expect(await page.evaluate(() => fetch('content/lists/never-published.json').then(() => 'served', () => 'failed'))).toBe('failed');
     for (const id of ['fixture-three', 'fixture-five']) {
-      const list = (await (await request.get(`content/lists/${id}.json`)).json()) as ListData;
+      const path = await listPath(request, id);
+      const list = (await (await request.get(path)).json()) as ListData;
       const refs = list.items.flatMap((item) => [item.audio.normal, item.audio.slow]);
       const statuses = await page.evaluate(
         async (urls) => Promise.all(urls.map(async (url) => (await fetch(url)).status)),
-        [`content/lists/${id}.json`, ...refs.map((ref) => `content/${ref}`)],
+        [path, ...refs.map((ref) => `content/${ref}`)],
       );
       expect(statuses, id).toEqual(statuses.map(() => 200));
     }
@@ -92,7 +119,7 @@ test.describe('updates', () => {
     request,
   }) => {
     await startAtHome(page);
-    const list = (await (await request.get('content/lists/fixture-three.json')).json()) as ListData;
+    const list = (await (await request.get(await listPath(request, 'fixture-three'))).json()) as ListData;
     const banner = page.getByRole('button', { name: /New words are ready/ });
     await expect(banner).toHaveCount(0);
 
@@ -123,10 +150,28 @@ test.describe('updates', () => {
     expect(await page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere)).toBeUndefined();
 
     // The new content now comes from the new cache, so it also works offline.
-    const served = await page.evaluate(
-      async () => ((await (await fetch('content/lists/fixture-three.json')).json()) as { title: string }).title,
-    );
+    const served = await page.evaluate(async () => {
+      const manifest = (await (await fetch('content/manifest.json')).json()) as {
+        subjects: Array<{ practiceTypes: Array<{ lists: Array<{ id: string; file: string }> }> }>;
+      };
+      const entry = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists)).find((l) => l.id === 'fixture-three')!;
+      return ((await (await fetch(`content/${entry.file}`)).json()) as { title: string }).title;
+    });
     expect(served).toBe(NEW_TITLE);
+  });
+
+  test('after a deploy but before the update is applied, a list opens with the data its manifest names', async ({
+    page,
+    site,
+  }) => {
+    await startAtHome(page);
+    await site.deployNewVersion();
+
+    // The manifest is network-first, so a reload sees the new title; list data must agree with it.
+    await page.reload();
+    await page.getByRole('link', { name: new RegExp(NEW_TITLE) }).click();
+
+    await expect(page.getByRole('heading', { name: NEW_TITLE, exact: true })).toBeAttached();
   });
 
   test('the banner is not shown when nothing new was published', async ({ page }) => {

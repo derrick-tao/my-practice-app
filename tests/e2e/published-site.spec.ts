@@ -1,6 +1,6 @@
 // Smoke test of the production build (real content/, the artifact that gets deployed to Pages).
 import { REAL_BASE_URL } from './servers.ts';
-import { expect, test } from './harness.ts';
+import { expect, listPath, test } from './harness.ts';
 import { setUpLearner } from './parent-driver.ts';
 
 test.use({ baseURL: REAL_BASE_URL });
@@ -60,7 +60,7 @@ test('the service worker precaches the shell, the content manifest, every list a
       'index.html',
       'manifest.webmanifest',
       'content/manifest.json',
-      'content/lists/fall-2026-assessment.json',
+      await listPath(page.request, 'fall-2026-assessment'),
     ]),
   );
   expect(precache.urls).toEqual(expect.arrayContaining(audio.map((ref) => `content/${ref}`)));

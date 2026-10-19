@@ -62,8 +62,14 @@ export async function createWorkspace(files: Record<string, string> = {}): Promi
     },
     manifest: async () =>
       JSON.parse(await readFile(path.join(outDir, 'manifest.json'), 'utf8')) as Manifest,
-    list: async (id) =>
-      JSON.parse(await readFile(path.join(outDir, 'lists', `${id}.json`), 'utf8')) as ListData,
+    list: async (id) => {
+      const manifest = JSON.parse(await readFile(path.join(outDir, 'manifest.json'), 'utf8')) as Manifest;
+      const summary = manifest.subjects
+        .flatMap((s) => s.practiceTypes.flatMap((t) => t.lists))
+        .find((l) => l.id === id);
+      if (!summary) throw new Error(`list ${id} is not in the manifest`);
+      return JSON.parse(await readFile(path.join(outDir, summary.file), 'utf8')) as ListData;
+    },
     outputAudio: async () => {
       try {
         return (await readdir(path.join(outDir, 'audio'))).sort();

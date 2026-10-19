@@ -9,6 +9,7 @@ import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchList } from '../../content/client.ts';
 import type { ItemData, ListData } from '../../content/types.ts';
+import { formatDate } from '../../format-date.ts';
 import { usePublishedLists } from '../../content/use-lists.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
@@ -35,9 +36,6 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
 };
 
 const characters = (count: number): string => `${count} ${count === 1 ? 'character' : 'characters'}`;
-
-const formatDate = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
@@ -71,18 +69,18 @@ function useListView(listId: string): Loadable<ListView | 'unknown'> {
 
 function PlayableCharacter({
   player,
-  id,
+  target,
   item,
 }: {
   player: AudioPlayer;
-  id: string;
+  target: string;
   item: ItemData | undefined;
 }) {
   if (!item) {
     return (
       <span class="progress-char progress-char--removed">
         <span class="progress-char__glyph" lang="zh-Hans">
-          {id}
+          {target}
         </span>{' '}
         <span class="progress-char__note">(removed)</span>
       </span>
@@ -92,11 +90,11 @@ function PlayableCharacter({
     <button
       type="button"
       class="progress-char progress-char__button"
-      aria-label={`Hear ${id}`}
+      aria-label={`Hear ${target}`}
       onClick={() => void player.play(item.audio.normal)}
     >
       <span class="progress-char__glyph" lang="zh-Hans" aria-hidden="true">
-        {id}
+        {target}
       </span>
     </button>
   );
@@ -183,9 +181,9 @@ function ListProgressPage({ listId }: { listId: string }) {
               <>
                 <h3 class="progress-heading">Trickiest characters</h3>
                 <ol class="progress-list progress-tricky">
-                  {progress.trickiest.map(({ id, wrong }) => (
-                    <li key={id} class="progress-tricky__row" data-testid="tricky">
-                      <PlayableCharacter player={player} id={id} item={items.get(id)} />
+                  {progress.trickiest.map(({ target, wrong }) => (
+                    <li key={target} class="progress-tricky__row" data-testid="tricky">
+                      <PlayableCharacter player={player} target={target} item={items.get(target)} />
                       <span class="progress-tricky__count">
                         <span aria-hidden="true">❌ </span>
                         {wrong}
@@ -214,8 +212,8 @@ function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<
       </div>
       {round.missed.length > 0 && (
         <div class="progress-round__missed">
-          {round.missed.map((id) => (
-            <PlayableCharacter key={id} player={player} id={id} item={items.get(id)} />
+          {round.missed.map((target) => (
+            <PlayableCharacter key={target} player={player} target={target} item={items.get(target)} />
           ))}
         </div>
       )}

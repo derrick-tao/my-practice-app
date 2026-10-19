@@ -103,14 +103,15 @@ export const isRoundOver = (round: Round): boolean => round.position >= round.it
 export const currentItemId = (round: Round): string | undefined => round.itemIds[round.position];
 
 /**
- * Ids marked wrong in a round, in the order the round presented them. Given the ids the list still has,
- * misses on items the parent has since removed are left out (their marks stay in the round as history).
+ * Ids marked wrong in a round, in the order the round presented them. Misses on items the list no
+ * longer has (`listed` are the ids it has now) are left out: the parent removed them, and their marks
+ * stay in the round as history.
  */
-export const wrongItemIds = (round: Round, listed?: ReadonlySet<string>): string[] =>
-  round.itemIds.filter((id) => round.marks[id] === 'wrong' && (listed === undefined || listed.has(id)));
+export const wrongItemIds = (round: Round, listed: ReadonlySet<string>): string[] =>
+  round.itemIds.filter((id) => round.marks[id] === 'wrong' && listed.has(id));
 
 /** The finished round has misses to practice again (the session is still active). */
-export const canRetry = (session: Session, listed?: ReadonlySet<string>): boolean => {
+export const canRetry = (session: Session, listed: ReadonlySet<string>): boolean => {
   const round = currentRound(session);
   return session.status === 'active' && isRoundOver(round) && wrongItemIds(round, listed).length > 0;
 };
@@ -179,7 +180,9 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
   const entry: UndoEntry = { roundIndex: before.index, itemId, position: before.position };
   const previousMark = before.marks[itemId];
   if (previousMark) entry.previousMark = previousMark;
-  return finishIfClean({ ...marked, undo: entry, marksSinceBreak: marked.marksSinceBreak + 1 }, env);
+  const next = { ...marked, undo: entry, marksSinceBreak: marked.marksSinceBreak + 1 };
+  // Marking happens on the round as it is: every one of its items still counts.
+  return finishIfClean(next, env, new Set(currentRound(next).itemIds));
 }
 
 /** The last mark can be taken back: it is in the current round, and nothing has been marked since. */
@@ -237,7 +240,7 @@ export function resetBreakCount(session: Session): Session {
 }
 
 /** A round that ends with no misses to practice completes the session (no summary / retry step). */
-function finishIfClean(session: Session, env: PracticeEnv, listed?: ReadonlySet<string>): Session {
+function finishIfClean(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
   const round = currentRound(session);
   if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round, listed).length > 0) return session;
   return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now(), undo: null };
@@ -283,7 +286,7 @@ export function reconcileWithList(session: Session, listed: ReadonlySet<string>,
  * The new order differs from the order those items had in the previous round (when there are
  * at least two), so the child never sees the same sequence again.
  */
-export function startRetryRound(session: Session, env: PracticeEnv, listed?: ReadonlySet<string>): Session {
+export function startRetryRound(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
   if (!canRetry(session, listed)) return session;
   const previous = currentRound(session);
   const missed = wrongItemIds(previous, listed);

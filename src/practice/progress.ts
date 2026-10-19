@@ -19,7 +19,7 @@ export interface RoundSummary {
   itemCount: number;
   correct: number;
   wrong: number;
-  /** Ids marked wrong, in the order the round presented them. */
+  /** Targets marked wrong, in the order the round presented them. */
   missed: string[];
   /** All of the round's items have been marked. False for a round still going, or left half done. */
   finished: boolean;
@@ -37,7 +37,7 @@ export interface AttemptSummary {
 }
 
 export interface TrickyItem {
-  id: string;
+  target: string;
   /** Total wrong marks across all attempts. */
   wrong: number;
 }
@@ -63,7 +63,7 @@ function summarizeRound(round: Round): RoundSummary {
     itemCount: round.itemIds.length,
     correct,
     wrong,
-    missed: round.itemIds.filter((id) => round.marks[id] === 'wrong'),
+    missed: round.itemIds.filter((target) => round.marks[target] === 'wrong'),
     finished: isRoundOver(round),
   };
 }
@@ -82,10 +82,10 @@ export function summarizeAttempt(session: Session): AttemptSummary {
 }
 
 /**
- * Progress for one learner on one list. `listedIds` are the ids the list has now, in list order: they
+ * Progress for one learner on one list. `listedTargets` are the targets the list has now, in list order: they
  * order items with equal counts in the trickiest ranking (items the list no longer has come last).
  */
-export function listProgress(sessions: readonly Session[], listedIds: readonly string[]): ListProgress {
+export function listProgress(sessions: readonly Session[], listedTargets: readonly string[]): ListProgress {
   const attempts = sessions
     .map(summarizeAttempt)
     .sort((x, y) => y.startedAt.localeCompare(x.startedAt));
@@ -95,7 +95,7 @@ export function listProgress(sessions: readonly Session[], listedIds: readonly s
     attemptCount: attempts.length,
     best: bestScore(completed.map((a) => a.firstTry!)),
     trend: completed.map((a) => a.firstTry!.correct),
-    trickiest: trickiest(attempts, listedIds),
+    trickiest: trickiest(attempts, listedTargets),
   };
 }
 
@@ -108,19 +108,19 @@ function bestScore(scoresOldestFirst: Score[]): Score | null {
   return best;
 }
 
-function trickiest(attempts: readonly AttemptSummary[], listedIds: readonly string[]): TrickyItem[] {
+function trickiest(attempts: readonly AttemptSummary[], listedTargets: readonly string[]): TrickyItem[] {
   const totals = new Map<string, number>();
   for (const attempt of attempts) {
     for (const round of attempt.rounds) {
-      for (const id of round.missed) totals.set(id, (totals.get(id) ?? 0) + 1);
+      for (const target of round.missed) totals.set(target, (totals.get(target) ?? 0) + 1);
     }
   }
-  const place = (id: string): number => {
-    const at = listedIds.indexOf(id);
+  const place = (target: string): number => {
+    const at = listedTargets.indexOf(target);
     return at === -1 ? Number.POSITIVE_INFINITY : at;
   };
   return [...totals]
-    .map(([id, wrong]) => ({ id, wrong }))
-    .sort((x, y) => y.wrong - x.wrong || place(x.id) - place(y.id) || x.id.localeCompare(y.id))
+    .map(([target, wrong]) => ({ target, wrong }))
+    .sort((x, y) => y.wrong - x.wrong || place(x.target) - place(y.target) || x.target.localeCompare(y.target))
     .slice(0, TRICKIEST_LIMIT);
 }

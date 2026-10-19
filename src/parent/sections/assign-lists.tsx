@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { usePublishedLists } from '../../content/use-lists.ts';
 import { activeProfileOf, setListAssigned } from '../../profiles.ts';
+import { SaveFailed } from '../../save-failed.tsx';
 import { ListSwitches } from '../list-switches.tsx';
 import type { ParentSection } from '../sections.ts';
 
@@ -51,13 +52,7 @@ function AssignLists() {
           onToggle={(listId, on) => void save({ listId, on })}
         />
       )}
-      {failed && (
-        <div role="alert" class="save-failed">
-          <button type="button" class="btn btn--primary btn--bad" onClick={() => void save(failed)}>
-            <span aria-hidden="true">⚠️ </span>Couldn't save — tap to retry
-          </button>
-        </div>
-      )}
+      {failed && <SaveFailed onRetry={() => void save(failed)} />}
     </>
   );
 }

@@ -8,16 +8,17 @@ import {
   createBackup,
   dataToRestore,
   describeBackupAge,
-  formatDate,
   summarizeBackup,
   type BackupFile,
   type BackupSummary,
 } from '../../backup/backup-file.ts';
 import { saveBackupFile } from '../../backup/save-file.ts';
 import { fetchManifest } from '../../content/client.ts';
+import { formatDate } from '../../format-date.ts';
 import { NewerSchemaError, getStorage } from '../../storage/index.ts';
 import type { PersistenceStatus } from '../../storage/types.ts';
 import { useLoad } from '../../use-async.ts';
+import { useSave } from '../../use-save.ts';
 import { APP_VERSION } from '../../version.ts';
 import type { ParentSection } from '../sections.ts';
 import './backup.css';
@@ -65,31 +66,23 @@ function Status() {
 
 function Export() {
   const { update } = useAppRecord();
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const { busy, failed, run } = useSave();
 
-  const run = async (): Promise<void> => {
-    setBusy(true);
-    setFailed(false);
-    try {
+  const exportBackup = (): Promise<void> =>
+    run(async () => {
       const now = new Date();
       const data = await getStorage().exportAll();
       const result = await saveBackupFile(backupFileName(now), JSON.stringify(createBackup(data, now), null, 2));
       if (result === 'saved') {
         await update((app) => ({ ...app, parent: { ...app.parent, lastBackupAt: now.toISOString() } }));
       }
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  };
+    });
 
   return (
     <section class="backup__card" aria-labelledby="backup-export">
       <h2 id="backup-export">Export</h2>
       <p>Saves every learner and all their practice to one file. Keep it somewhere safe, like Files or iCloud Drive.</p>
-      <button type="button" class="btn btn--primary" disabled={busy} onClick={() => void run()}>
+      <button type="button" class="btn btn--primary" disabled={busy} onClick={() => void exportBackup()}>
         <span aria-hidden="true">📤 </span>Export a backup
       </button>
       {failed && (

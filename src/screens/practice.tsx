@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { fetchList, fetchManifest } from '../content/client.ts';
+import { fetchListWithVersion } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { Celebration } from '../practice/celebration.tsx';
@@ -35,6 +35,7 @@ import { ConfirmYesNo } from '../confirm.tsx';
 import { ParentGate } from '../parent/gate.tsx';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
+import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 
@@ -65,13 +66,7 @@ export function PracticeScreen({
   practiceType: PracticeTypeId;
   listId: string;
 }) {
-  const loaded = useLoad(
-    async () => {
-      const [list, manifest] = await Promise.all([fetchList(listId), fetchManifest()]);
-      return { list, contentVersion: manifest.contentVersion };
-    },
-    [listId],
-  );
+  const loaded = useLoad(() => fetchListWithVersion(listId), [listId]);
   if (loaded.status === 'ready') {
     const { list } = loaded.value;
     // Checked before anything is opened, so a wrong address can never stop the saved practice.
@@ -103,16 +98,6 @@ const realEnv = (): PracticeEnv => ({
   newId: () => crypto.randomUUID(),
 });
 
-export function SaveFailed({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div role="alert" class="save-failed">
-      <button type="button" class="btn btn--primary btn--bad" onClick={onRetry}>
-        <span aria-hidden="true">⚠️ </span>Couldn't save — tap to retry
-      </button>
-    </div>
-  );
-}
-
 /** Continues the saved session for this list, or starts and saves a new one, before showing practice. */
 function OpenPractice({
   list,
@@ -133,11 +118,12 @@ function OpenPractice({
       const storage = getStorage();
       const { breakEvery, shuffle, sounds } = await currentSettings(storage);
       const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return 'blockedBy' in result ? result : { ...result, breakEvery, sounds };
+      return result.kind === 'blocked' ? result : { ...result, breakEvery, sounds };
     },
     [openTries, stopActive],
   );
-  if (opened.status === 'ready' && 'blockedBy' in opened.value) {
+  const result = opened.status === 'ready' ? opened.value : undefined;
+  if (result?.kind === 'blocked') {
     return (
       <main class="screen">
         <HomeButton />
@@ -154,8 +140,8 @@ function OpenPractice({
       </main>
     );
   }
-  if (opened.status === 'ready') {
-    const { session, resumed, breakEvery, sounds } = opened.value as Exclude<typeof opened.value, { blockedBy: unknown }>;
+  if (result) {
+    const { session, resumed, breakEvery, sounds } = result;
     return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (
@@ -327,7 +313,7 @@ function PracticeRun({
     <main class="screen practice">
       <header class="practice__top">
         <HomeButton />
-        {canUndo(session) && !onBreakPrompt && (
+        {canUndo(session) && (
           <button type="button" class="btn btn--chip" onClick={onUndo}>
             <span aria-hidden="true">↩️ </span>Undo
           </button>

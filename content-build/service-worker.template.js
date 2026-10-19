@@ -1,6 +1,6 @@
 // Service worker template. content-build/pwa-plugin.ts fills in PRECACHE at build time and writes the
 // result to <site>/sw.js. Nothing here is hand-maintained per release:
-//  - PRECACHE.urls is derived from the build output (app shell + content manifest + every list + every
+//  - PRECACHE.urls is derived from the build output (app shell + content manifest + font subset + every list + every
 //    audio file the lists reference), as paths relative to the worker's scope.
 //  - PRECACHE.buildId is a hash of those files' contents, so any change to the app or the content gives
 //    the worker (and its cache) a new identity. That is the cache busting.

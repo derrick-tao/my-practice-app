@@ -11,7 +11,7 @@ import { FONT_REF, buildFontSubset } from './font.ts';
 export interface BuildOptions extends AudioOptions {
   /** Folder of list files, grouped by subject: `<contentDir>/<subject>/<list-id>.yaml`. */
   contentDir: string;
-  /** Output folder (becomes `<site>/content/`): manifest.json, lists/<id>.json, audio/<hash>.<ext>. */
+  /** Output folder (becomes `<site>/content/`): manifest.json, lists/<id>.<hash>.json, audio/<hash>.<ext>. */
   outDir: string;
 }
 
@@ -60,14 +60,20 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
   lists.sort((a, b) => a.id.localeCompare(b.id));
 
   const contentVersion = hash(JSON.stringify(lists)).slice(0, 12);
-  const manifest = buildManifest(lists, contentVersion);
+  // A list file is named by its content, so a name never refers to two versions of a list and the
+  // service worker can cache list data forever; the (network-first) manifest says which file is current.
+  const listFiles = new Map(
+    lists.map((list) => {
+      const body = JSON.stringify(list, null, 2);
+      return [list.id, { body, ref: `lists/${list.id}.${hash(body).slice(0, 12)}.json` }] as const;
+    }),
+  );
+  const manifest = buildManifest(lists, contentVersion, (id) => listFiles.get(id)!.ref);
 
   await rm(options.outDir, { recursive: true, force: true });
   await mkdir(path.join(options.outDir, 'lists'), { recursive: true });
   await mkdir(path.join(options.outDir, 'audio'), { recursive: true });
-  for (const list of lists) {
-    await writeFile(path.join(options.outDir, 'lists', `${list.id}.json`), JSON.stringify(list, null, 2));
-  }
+  for (const { body, ref } of listFiles.values()) await writeFile(path.join(options.outDir, ref), body);
   for (const [ref, file] of audioFiles) await copyFile(file, path.join(options.outDir, ref));
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
@@ -81,7 +87,7 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
   return { contentVersion, warnings: [...warnings, ...font.warnings], audio: resolved.stats };
 }
 
-function buildManifest(lists: ListData[], contentVersion: string): Manifest {
+function buildManifest(lists: ListData[], contentVersion: string, fileOf: (listId: string) => string): Manifest {
   const subjects = new Map<string, Map<string, ListSummary[]>>();
   for (const list of lists) {
     const types = subjects.get(list.subject) ?? new Map<string, ListSummary[]>();
@@ -91,6 +97,7 @@ function buildManifest(lists: ListData[], contentVersion: string): Manifest {
       types.set(type, summaries);
       summaries.push({
         id: list.id,
+        file: fileOf(list.id),
         title: list.title,
         script: list.script,
         ...(list.testDates !== undefined && { testDates: list.testDates }),
