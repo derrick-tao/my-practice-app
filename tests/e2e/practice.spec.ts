@@ -329,7 +329,7 @@ test.describe('practice: layout', () => {
     await expectSize(practice.check, 96);
   });
 
-  test('revealed screen: very large target and all controls fit and are finger-sized', async ({
+  test('revealed screen: very large target and all controls fit and are finger-sized', { tag: '@layout' }, async ({
     page,
     audio,
     loadList,
@@ -490,7 +490,7 @@ test.describe('practice: retry rounds and completion', () => {
     });
   }
 
-  test('the retry button and the completion screen fit on screen and are finger-sized', async ({
+  test('the retry button and the completion screen fit on screen and are finger-sized', { tag: '@layout' }, async ({
     page,
     audio,
     loadList,

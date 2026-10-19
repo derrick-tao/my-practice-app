@@ -168,7 +168,7 @@ const allClear = (screens: Record<string, string[]>): Record<string, string[]> =
   Object.fromEntries(Object.keys(screens).map((name) => [name, []]));
 
 test.describe('touch targets', () => {
-  test('every control on the kid screens is at least 64 pt, primary actions 96 pt, on this device and orientation', async ({
+  test('every control on the kid screens is at least 64 pt, primary actions 96 pt, on this device and orientation', { tag: '@layout' }, async ({
     page,
     audio,
     loadList,

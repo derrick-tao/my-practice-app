@@ -1,6 +1,6 @@
 name: CI
 
-# Pull requests: validate lists, typecheck, run both test seams, and build.
+# Pull requests: validate lists, typecheck, run both test seams, and build. Seam 1 is sharded across three runners.
 # No secrets, no audio generation, no deploy: this workflow does not reference any repository secret, so
 # pull-request code can never read the Azure key. Audio comes from the committed audio/ folder; anything a PR
 # adds that has no committed audio yet gets silent placeholder audio (FAKE_AUDIO below), which is never
@@ -16,9 +16,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # validate -> typecheck -> Seam 2 -> build. Seam 1 runs in the sharded e2e job below, in parallel.
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    env:
+      FAKE_AUDIO: '1' # explicit opt-in to placeholder audio for new items (see content-build/cli.ts)
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run typecheck
+      - run: npm run test:content
+      - run: npm run build
+
+  # Seam 1, split across three runners. Public repo, so standard runners are free.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      FAKE_AUDIO: '1'
     steps:
       - uses: actions/checkout@v5
 
@@ -32,8 +59,15 @@ jobs:
       - name: Install WebKit for Playwright (Seam 1)
         run: npx playwright install --with-deps webkit
 
-      # validate -> typecheck -> test:content (Seam 2) -> build -> test:e2e (Seam 1)
-      - name: Check
-        env:
-          FAKE_AUDIO: '1' # explicit opt-in to placeholder audio for new items (see content-build/cli.ts)
-        run: npm run check
+      - name: App tests in WebKit (Seam 1, shard ${{ matrix.shard }}/3)
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+
+      - name: Keep the report and traces of a failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

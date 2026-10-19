@@ -16,7 +16,16 @@ interface Workflow {
   permissions?: Record<string, string>;
   env?: Record<string, string>;
   concurrency?: { group: string; 'cancel-in-progress': boolean };
-  jobs: Record<string, { permissions?: Record<string, string>; env?: Record<string, string>; needs?: string; steps: Step[] }>;
+  jobs: Record<
+    string,
+    {
+      permissions?: Record<string, string>;
+      env?: Record<string, string>;
+      needs?: string | string[];
+      strategy?: { matrix: { shard: number[] } };
+      steps: Step[];
+    }
+  >;
 }
 
 async function load(file: string): Promise<{ text: string; workflow: Workflow }> {
@@ -33,14 +42,19 @@ describe('pull-request workflow (ci.yml)', () => {
     expect(Object.keys(workflow.on)).toEqual(['pull_request']);
   });
 
-  it('is read-only, and opts in to placeholder audio explicitly for the check step only', async () => {
+  it('is read-only, and opts in to placeholder audio explicitly per job, never workflow-wide', async () => {
     const { workflow } = await load('ci.yml');
     expect(workflow.permissions).toEqual({ contents: 'read' });
-    const steps = workflow.jobs.check!.steps;
-    const check = steps.find((s) => s.run === 'npm run check')!;
-    expect(check.env).toEqual({ FAKE_AUDIO: '1' });
     expect(workflow.env).toBeUndefined();
-    expect(workflow.jobs.check!.env).toBeUndefined();
+    expect(workflow.jobs.check!.env).toEqual({ FAKE_AUDIO: '1' });
+    expect(workflow.jobs.e2e!.env).toEqual({ FAKE_AUDIO: '1' });
+  });
+
+  it('runs Seam 1 as three shards that together cover the whole suite', async () => {
+    const { workflow } = await load('ci.yml');
+    const e2e = workflow.jobs.e2e!;
+    expect(e2e.strategy!.matrix.shard).toEqual([1, 2, 3]);
+    expect(e2e.steps.some((s) => s.run === 'npx playwright test --shard=${{ matrix.shard }}/3')).toBe(true);
   });
 });
 
@@ -68,13 +82,17 @@ describe('main workflow (deploy.yml)', () => {
     expect(order('audio:generate')).toBeLessThan(order('git commit'));
     expect(order('git commit')).toBeLessThan(order('npm run test:content'));
     expect(order('git commit')).toBeLessThan(order('npm run build'));
-    expect(order('npm run build')).toBeLessThan(order('npm run test:e2e'));
-    expect(order('npm run test:e2e')).toBeLessThan(order('upload-pages-artifact'));
+    expect(order('npm run build')).toBeLessThan(order('upload-pages-artifact'));
 
     const commit = build.steps[order('git commit')]!;
     expect(commit.run).toContain('[skip ci]');
     expect(build.permissions).toEqual({ contents: 'write' });
-    expect(workflow.jobs.deploy!.needs).toBe('build');
+    // Seam 1 runs as three shard jobs after build; nothing deploys until every shard has passed.
+    const e2e = workflow.jobs.e2e!;
+    expect(e2e.needs).toBe('build');
+    expect(e2e.strategy!.matrix.shard).toEqual([1, 2, 3]);
+    expect(e2e.steps.some((s) => s.run === 'npx playwright test --shard=${{ matrix.shard }}/3')).toBe(true);
+    expect(workflow.jobs.deploy!.needs).toEqual(['build', 'e2e']);
     expect(workflow.jobs.deploy!.permissions).toEqual({ pages: 'write', 'id-token': 'write' });
   });
 
