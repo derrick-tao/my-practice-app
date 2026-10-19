@@ -46,7 +46,7 @@ export const OTHER_LEARNER = { name: 'Leo', avatar: '🦊' } as const;
  */
 export async function addOtherLearner(page: Page): Promise<string> {
   await openProfiles(page);
-  await addLearner(page, { ...OTHER_LEARNER, lists: ['fixture-three'] });
+  await addLearner(page, { ...OTHER_LEARNER, lessons: ['fixture-three'] });
   await page.getByRole('link', { name: 'Home' }).click();
   let otherId = '';
   await editSavedData(page, (saved) => {
@@ -56,17 +56,18 @@ export async function addOtherLearner(page: Page): Promise<string> {
       profileId: otherId,
       subject: 'chinese',
       practiceType: 'dictation',
-      listId: 'fixture-three',
+      lessonId: 'fixture-three',
       contentVersion: 'saved-before',
       status: 'completed',
       startedAt: '2026-10-01T09:00:00.000Z',
       completedAt: '2026-10-01T09:01:00.000Z',
+      updatedAt: '2026-10-01T09:01:00.000Z',
       rounds: [
         {
           index: 1,
           itemIds: ['点', '分', '找'],
           position: 3,
-          phase: 'listening',
+          phase: 'prompt',
           heardCurrent: false,
           marks: { 点: 'correct', 分: 'correct', 找: 'correct' },
           startedAt: '2026-10-01T09:00:00.000Z',

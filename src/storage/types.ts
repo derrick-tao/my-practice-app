@@ -4,7 +4,7 @@
 import type { Session } from '../practice/session.ts';
 
 /** Bump when the stored shape changes, and add the step to migrations.ts. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export interface ProfileSettings {
   shuffle: boolean;
@@ -24,7 +24,7 @@ export interface Profile {
   /** ISO-8601. */
   createdAt: string;
   settings: ProfileSettings;
-  assignedListIds: string[];
+  assignedLessonIds: string[];
 }
 
 export interface ParentMetadata {
@@ -41,7 +41,8 @@ export interface AppRecord {
 }
 
 export interface SessionFilter {
-  listId?: string;
+  lessonId?: string;
+  practiceType?: Session['practiceType'];
   status?: Session['status'];
 }
 
@@ -64,9 +65,9 @@ export interface StorageAdapter {
   saveApp(app: AppRecord): Promise<void>;
 
   getSession(id: string): Promise<Session | undefined>;
-  /** A profile's sessions, oldest first, optionally narrowed to one list and/or status. */
+  /** A profile's sessions, oldest first, optionally narrowed to one lesson, practice type and/or status. */
   listSessions(profileId: string, filter?: SessionFilter): Promise<Session[]>;
-  /** Insert or replace. Resolves only once the write is durable. */
+  /** Insert or replace, stamping the saved copy's `updatedAt` with the save time. Resolves only once the write is durable. */
   putSession(session: Session): Promise<void>;
   deleteSessionsByProfile(profileId: string): Promise<void>;
 

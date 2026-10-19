@@ -1,4 +1,4 @@
-// Learner profiles and their assigned lists, on top of the StorageAdapter's app record. Names and
+// Learner profiles and their assigned lessons, on top of the StorageAdapter's app record. Names and
 // avatars live only in the on-device app record (and backup files): nothing here touches the network.
 import { DEFAULT_PROFILE_ID } from './practice/session.ts';
 import { getStorage } from './storage/index.ts';
@@ -18,7 +18,7 @@ export function activeProfileOf(app: AppRecord): Profile | undefined {
 export interface NewProfile {
   name: string;
   avatar: string;
-  assignedListIds: string[];
+  assignedLessonIds: string[];
 }
 
 /** Pure: the app record with one more profile. The first profile becomes the active one. */
@@ -29,19 +29,19 @@ export function addProfile(app: AppRecord, input: NewProfile, id: string, now: s
     avatar: input.avatar,
     createdAt: now,
     settings: { ...DEFAULT_SETTINGS },
-    assignedListIds: [...input.assignedListIds],
+    assignedLessonIds: [...input.assignedLessonIds],
   };
   return { ...app, profiles: [...app.profiles, profile], activeProfileId: app.activeProfileId ?? id };
 }
 
-/** Pure: assign or unassign one list for one profile. */
-export function setListAssigned(app: AppRecord, profileId: string, listId: string, assigned: boolean): AppRecord {
+/** Pure: assign or unassign one lesson for one profile. */
+export function setLessonAssigned(app: AppRecord, profileId: string, lessonId: string, assigned: boolean): AppRecord {
   return {
     ...app,
     profiles: app.profiles.map((p) => {
       if (p.id !== profileId) return p;
-      const rest = p.assignedListIds.filter((id) => id !== listId);
-      return { ...p, assignedListIds: assigned ? [...rest, listId] : rest };
+      const rest = p.assignedLessonIds.filter((id) => id !== lessonId);
+      return { ...p, assignedLessonIds: assigned ? [...rest, lessonId] : rest };
     }),
   };
 }

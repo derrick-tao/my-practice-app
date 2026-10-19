@@ -4,7 +4,7 @@
 //   {
 //     "appId": "my-practice-app",       which app wrote it
 //     "kind": "backup",                 what sort of file it is (room for other kinds later)
-//     "schemaVersion": 1,               the schema of `data` (same number as data.app.schemaVersion)
+//     "schemaVersion": 2,               the schema of `data` (same number as data.app.schemaVersion)
 //     "exportedAt": "2026-10-18T12:00:00.000Z",
 //     "data": { "app": <AppRecord>, "sessions": [<Session>, ...] }
 //   }
@@ -12,7 +12,11 @@
 // `data` is exactly what the StorageAdapter exports and imports, passed through untouched, so a field
 // added to the app record or a session in a later ticket travels in a backup with no change here.
 // Device-specific facts (the persistent-storage answer) are not part of the data.
+//
+// A file written by an older schema is accepted: checkBackup migrates its data to the current schema
+// (src/storage/migrations.ts) before checking it, so everything after that sees one shape.
 import { isPracticeTypeId } from '../content/types.ts';
+import { migrate } from '../storage/migrations.ts';
 import { SCHEMA_VERSION, type StoredData } from '../storage/types.ts';
 
 export const BACKUP_APP_ID = 'my-practice-app';
@@ -68,14 +72,14 @@ const isOptionalDate = (value: unknown): boolean => value === undefined || isDat
 
 function isProfile(value: unknown): boolean {
   if (!isObject(value) || !isString(value.id) || !isString(value.name) || !isString(value.avatar)) return false;
-  const { settings, assignedListIds } = value;
+  const { settings, assignedLessonIds } = value;
   return (
     isObject(settings) &&
     typeof settings.shuffle === 'boolean' &&
     typeof settings.sounds === 'boolean' &&
     [0, 5, 10, 15].includes(settings.breakEvery as number) &&
-    Array.isArray(assignedListIds) &&
-    assignedListIds.every(isString)
+    Array.isArray(assignedLessonIds) &&
+    assignedLessonIds.every(isString)
   );
 }
 
@@ -88,7 +92,7 @@ function isRound(value: unknown): boolean {
     itemIds.every(isString) &&
     isNonNegativeInteger(value.position) &&
     value.position <= itemIds.length &&
-    (value.phase === 'listening' || value.phase === 'revealed') &&
+    (value.phase === 'prompt' || value.phase === 'revealed') &&
     typeof value.heardCurrent === 'boolean' &&
     isObject(marks) &&
     Object.values(marks).every(isMark) &&
@@ -114,13 +118,14 @@ function isSession(value: unknown): boolean {
     isString(value.id) &&
     isString(value.profileId) &&
     isString(value.subject) &&
-    isString(value.listId) &&
+    isString(value.lessonId) &&
     isString(value.contentVersion) &&
     isString(value.practiceType) &&
     isPracticeTypeId(value.practiceType) &&
     (value.status === 'active' || value.status === 'completed' || value.status === 'stopped') &&
     isDate(value.startedAt) &&
     isOptionalDate(value.completedAt) &&
+    isDate(value.updatedAt) &&
     Array.isArray(value.rounds) &&
     value.rounds.length > 0 &&
     value.rounds.every(isRound) &&
@@ -129,7 +134,10 @@ function isSession(value: unknown): boolean {
   );
 }
 
-/** Is `text` a backup this app can restore? Rejects anything else, naming the reason in plain words. */
+/**
+ * Is `text` a backup this app can restore? Rejects anything else, naming the reason in plain words. A backup
+ * from an older schema comes back migrated to the current one (so `backup.schemaVersion` is the current version).
+ */
 export function checkBackup(text: string): BackupCheck {
   let file: unknown;
   try {
@@ -149,10 +157,17 @@ export function checkBackup(text: string): BackupCheck {
   if (app.schemaVersion !== schemaVersion) return malformed();
   if (!Array.isArray(app.profiles) || !(app.activeProfileId === null || isString(app.activeProfileId))) return malformed();
   if (!isObject(app.parent)) return malformed();
-  if (!app.profiles.every(isProfile)) return malformed();
-  if (!sessions.every(isSession)) return malformed();
 
-  return { ok: true, backup: file as unknown as BackupFile };
+  let current: StoredData;
+  try {
+    current = migrate({ app, sessions } as unknown as StoredData);
+  } catch {
+    return malformed();
+  }
+  if (!current.app.profiles.every(isProfile)) return malformed();
+  if (!current.sessions.every(isSession)) return malformed();
+
+  return { ok: true, backup: { ...(file as unknown as BackupFile), schemaVersion: SCHEMA_VERSION, data: current } };
 }
 
 export interface BackupSummary {

@@ -11,8 +11,8 @@
 //     Component: SettingsSection,
 //   };
 //
-// Suggested `order` values (the spec's order): Profiles 10, Assign lists 20, Settings 30, Progress 40,
-// List preview 50, Backup 60, Danger zone 70.
+// Suggested `order` values (the spec's order): Profiles 10, Assign lessons 20, Settings 30, Progress 40,
+// Lesson preview 50, Backup 60, Danger zone 70.
 //
 // A section reads and changes the app record with `useAppRecord()` (src/app-context.tsx). The gate is
 // already passed and the idle timer is managed by the parent area; a section does nothing about locking.

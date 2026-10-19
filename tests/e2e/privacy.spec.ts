@@ -21,18 +21,18 @@ const test = base.extend<{ outsideRequests: string[] }>({
 test("across first run, the gate, the parent area, practice and resuming, every request goes to the app's own origin", async ({
   page,
   audio,
-  loadList,
+  loadLesson,
   outsideRequests,
 }) => {
-  const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+  const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
 
-  // First run (welcome, gate, profile with a name, assigning lists) is part of the walk: the child's name is typed
+  // First run (welcome, gate, profile with a name, assigning lessons) is part of the walk: the child's name is typed
   // here, and it must stay on the device.
   await setUpLearner(page);
 
   // A full practice: one wrong word, the round summary, the retry round, and the completion screen.
-  await expect(practice.listCard()).toBeVisible();
-  await practice.listCard().click();
+  await expect(practice.lessonCard()).toBeVisible();
+  await practice.lessonCard().click();
   await practice.playRound((_, index) => index !== 0);
   await expect(practice.summary).toBeVisible();
   await practice.playRetryRound(() => true);
@@ -66,7 +66,7 @@ test("across first run, the gate, the parent area, practice and resuming, every 
 
   // A reload: reading saved data on the device is just as local.
   await page.reload();
-  await expect(practice.listCard()).toBeVisible();
+  await expect(practice.lessonCard()).toBeVisible();
 
   expect(outsideRequests).toEqual([]);
 });

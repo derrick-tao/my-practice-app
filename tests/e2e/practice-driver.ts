@@ -1,7 +1,7 @@
 // Seam 1 helpers for driving the practice screens the way a child does (taps and visible text only).
 // Later tickets (04 retries, 05 resume, 06 undo/breaks) reuse these.
 import type { Locator, Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
+import type { LessonData } from '../../src/content/types.ts';
 import { expect, type AudioProbe } from './harness.ts';
 
 declare global {
@@ -59,7 +59,7 @@ export class PracticeScreen {
   constructor(
     readonly page: Page,
     readonly audio: AudioProbe,
-    readonly list: ListData,
+    readonly lesson: LessonData,
   ) {
     this.listen = page.getByRole('button', { name: 'Listen' });
     this.slow = page.getByRole('button', { name: 'Slow' });
@@ -80,15 +80,15 @@ export class PracticeScreen {
     this.keepGoing = page.getByRole('link', { name: /Keep going/ });
   }
 
-  /** The list's card on the home screen (not the Keep going card, which also names the list). */
-  listCard(): Locator {
-    return this.page.getByRole('link', { name: new RegExp(this.list.title) }).filter({ hasNotText: 'Keep going' });
+  /** The lesson's card on the home screen (not the Keep going card, which also names the lesson). */
+  lessonCard(): Locator {
+    return this.page.getByRole('link', { name: new RegExp(this.lesson.title) }).filter({ hasNotText: 'Keep going' });
   }
 
-  /** Home screen -> tap the list's card. */
+  /** Home screen -> tap the lesson's card. */
   async open(): Promise<void> {
     await this.page.goto('./');
-    await this.listCard().click();
+    await this.lessonCard().click();
   }
 
   /** Close and reopen the app (a fresh load of the home screen), then tap Keep going. */
@@ -105,13 +105,13 @@ export class PracticeScreen {
 
   /** Item whose normal audio was most recently requested (what the child just heard). */
   async lastHeardTarget(): Promise<string | undefined> {
-    const played = await this.audio.played(this.list);
+    const played = await this.audio.played(this.lesson);
     return played.at(-1)?.target;
   }
 
   /** How many times item audio has been requested so far. */
   async itemAudioCount(): Promise<number> {
-    return (await this.audio.played(this.list)).length;
+    return (await this.audio.played(this.lesson)).length;
   }
 
   /**

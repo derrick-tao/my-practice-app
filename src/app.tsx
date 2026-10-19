@@ -4,7 +4,7 @@ import { lockParentArea } from './parent/gate-state.ts';
 import { ParentArea } from './parent/area.tsx';
 import { FirstRun } from './screens/first-run.tsx';
 import { HomeScreen } from './screens/home.tsx';
-import { ListNotFound, PracticeScreen } from './screens/practice.tsx';
+import { LessonNotFound, PracticeScreen } from './screens/practice.tsx';
 import { useRoute } from './router.ts';
 
 export function App() {
@@ -44,12 +44,12 @@ export function App() {
 
 function screenFor(route: ReturnType<typeof useRoute>) {
   switch (route.name) {
-    case 'list':
-      return <PracticeScreen subject={route.subject} practiceType={route.practiceType} listId={route.listId} />;
+    case 'lesson':
+      return <PracticeScreen subject={route.subject} practiceType={route.practiceType} lessonId={route.lessonId} />;
     case 'parent':
       return <ParentArea path={route.path} />;
     case 'not-found':
-      return <ListNotFound />;
+      return <LessonNotFound />;
     case 'home':
       return <HomeScreen />;
   }

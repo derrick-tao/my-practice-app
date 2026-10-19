@@ -1,45 +1,48 @@
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../app-context.tsx';
 import { ConfirmYesNo } from '../confirm.tsx';
-import type { ListSummary, PracticeTypeId } from '../content/types.ts';
-import { usePublishedLists } from '../content/use-lists.ts';
+import type { LessonSummary } from '../content/types.ts';
+import { usePublishedLessons } from '../content/use-lessons.ts';
 import { findActiveSession, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
-import { listHref, parentHref } from '../router.ts';
+import { lessonHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-function ListCard({ subject, practiceType, list }: { subject: string; practiceType: PracticeTypeId; list: ListSummary }) {
+/** A lesson's card opens its first practice type (dictation is the only one so far). */
+function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
+  const [first] = lesson.practiceTypes;
+  if (!first) return null;
   return (
-    <a class="list-card" href={listHref(subject, practiceType, list.id)}>
-      <span class="list-card__title">{list.title}</span>
-      {list.testDates && (
-        <span class="list-card__meta">
-          <span aria-hidden="true">📅 </span>Test: {list.testDates}
+    <a class="lesson-card" href={lessonHref(subject, first.id, lesson.id)}>
+      <span class="lesson-card__title">{lesson.title}</span>
+      {lesson.testDates && (
+        <span class="lesson-card__meta">
+          <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
         </span>
       )}
-      <span class="list-card__meta">
+      <span class="lesson-card__meta">
         <span aria-hidden="true">✏️ </span>
-        {list.itemCount} {list.itemCount === 1 ? 'character' : 'characters'}
+        {first.itemCount} {first.itemCount === 1 ? 'character' : 'characters'}
       </span>
     </a>
   );
 }
 
 /** Resume the active session exactly where it was left, or (after a confirmation) start it over. */
-function KeepGoingCard({ session, list }: { session: Session; list: ListSummary }) {
+function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSummary }) {
   const round = currentRound(session);
-  const href = listHref(session.subject, session.practiceType, session.listId);
+  const href = lessonHref(session.subject, session.practiceType, session.lessonId);
   const [asking, setAsking] = useState(false);
   const { busy: saving, failed, run } = useSave();
 
-  // Yes: the current session is stopped (kept in history) and saved; opening the list then starts a
-  // fresh, freshly ordered one, exactly like tapping the list's card with nothing in progress.
+  // Yes: the current session is stopped (kept in history) and saved; opening the lesson then starts a
+  // fresh, freshly ordered one, exactly like tapping the lesson's card with nothing in progress.
   const startOver = (): Promise<void> =>
     run(
       () => stopSession(getStorage(), session),
@@ -53,7 +56,7 @@ function KeepGoingCard({ session, list }: { session: Session; list: ListSummary 
           <span class="keep-going__label">
             <span aria-hidden="true">▶️ </span>Keep going
           </span>
-          <span class="keep-going__title">{list.title}</span>
+          <span class="keep-going__title">{lesson.title}</span>
           <span class="keep-going__progress">
             <RoundBadge index={round.index} />
             <StarBar done={round.position} total={round.itemIds.length} />
@@ -112,16 +115,16 @@ function ProfileSwitcher() {
 export function HomeScreen() {
   const { app } = useAppRecord();
   const profile = activeProfileOf(app)!;
-  const published = usePublishedLists();
+  const published = usePublishedLessons();
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
   const updateReady = useUpdateReady();
   const session = resume.status === 'ready' ? resume.value : undefined;
   const all = published.status === 'ready' ? published.value : [];
-  const assigned = new Set(profile.assignedListIds);
-  const shown = all.filter(({ list }) => assigned.has(list.id));
-  // The practice in progress stays reachable even when its list has since been unassigned.
-  const resumeList = session && all.find(({ list }) => list.id === session.listId)?.list;
+  const assigned = new Set(profile.assignedLessonIds);
+  const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
+  // The practice in progress stays reachable even when its lesson has since been unassigned.
+  const resumeLesson = session && all.find(({ lesson }) => lesson.id === session.lessonId)?.lesson;
   return (
     <main class="screen">
       <header class="home__top">
@@ -139,15 +142,15 @@ export function HomeScreen() {
         </button>
       )}
       {published.status === 'loading' && <p class="notice">Loading…</p>}
-      {published.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
-      {session && resumeList && <KeepGoingCard session={session} list={resumeList} />}
-      {published.status === 'ready' && shown.length === 0 && !resumeList && (
-        <p class="notice">No lists yet. Ask a grown-up to pick some!</p>
+      {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
+      {session && resumeLesson && <KeepGoingCard session={session} lesson={resumeLesson} />}
+      {published.status === 'ready' && shown.length === 0 && !resumeLesson && (
+        <p class="notice">No lessons yet. Ask a grown-up to pick some!</p>
       )}
       {shown.length > 0 && (
         <section class="cards">
-          {shown.map(({ subject, practiceType, list }) => (
-            <ListCard key={list.id} subject={subject} practiceType={practiceType} list={list} />
+          {shown.map(({ subject, lesson }) => (
+            <LessonCard key={lesson.id} subject={subject} lesson={lesson} />
           ))}
         </section>
       )}

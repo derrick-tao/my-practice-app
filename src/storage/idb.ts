@@ -136,7 +136,8 @@ export function createIdbStorage(): StorageAdapter {
       return all
         .filter(
           (s) =>
-            (filter.listId === undefined || s.listId === filter.listId) &&
+            (filter.lessonId === undefined || s.lessonId === filter.lessonId) &&
+            (filter.practiceType === undefined || s.practiceType === filter.practiceType) &&
             (filter.status === undefined || s.status === filter.status),
         )
         .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
@@ -146,7 +147,7 @@ export function createIdbStorage(): StorageAdapter {
       const db = await database();
       const tx = db.transaction(SESSIONS, 'readwrite');
       const done = finished(tx);
-      tx.objectStore(SESSIONS).put(session);
+      tx.objectStore(SESSIONS).put({ ...session, updatedAt: new Date().toISOString() });
       await done;
     },
 

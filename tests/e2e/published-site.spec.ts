@@ -1,12 +1,12 @@
 // Smoke test of the production build (real content/, the artifact that gets deployed to Pages).
 import { REAL_BASE_URL } from './servers.ts';
-import { expect, listPath, test } from './harness.ts';
+import { expect, lessonPath, test } from './harness.ts';
 import { setUpLearner } from './parent-driver.ts';
 
 test.use({ baseURL: REAL_BASE_URL });
 
 test('the Fall 2026 Assessment card shows its test dates and 37 characters', { tag: '@layout' }, async ({ page }) => {
-  await setUpLearner(page); // against the real manifest, with every published list assigned
+  await setUpLearner(page); // against the real manifest, with every published lesson assigned
   const card = page.getByRole('link', { name: /Fall 2026 Assessment/ });
   await expect(card).toBeVisible();
   await expect(card).toContainText('Test: 2026-10-26 to 2026-10-30');
@@ -33,34 +33,34 @@ test('the deployed app carries no test-only hooks (seeded random, forced storage
 
 test('every one of the 37 items has normal and slow audio references that resolve', async ({
   page,
-  loadList,
+  loadLesson,
 }) => {
-  const list = await loadList('fall-2026-assessment');
-  expect(list.items).toHaveLength(37);
-  for (const item of list.items) {
+  const lesson = await loadLesson('fall-2026-assessment');
+  expect(lesson.lists.dictation!).toHaveLength(37);
+  for (const item of lesson.lists.dictation!) {
     for (const ref of [item.audio.normal, item.audio.slow]) {
       expect((await page.request.get(`content/${ref}`)).status(), `${item.target} ${ref}`).toBe(200);
     }
   }
 });
 
-test('the service worker precaches the shell, the content manifest, every list and all 74 audio files', async ({
+test('the service worker precaches the shell, the content manifest, every lesson and all 74 audio files', async ({
   page,
-  loadList,
+  loadLesson,
 }) => {
-  const list = await loadList('fall-2026-assessment');
+  const lesson = await loadLesson('fall-2026-assessment');
   const source = await (await page.request.get('sw.js')).text();
   const precache = JSON.parse(/const PRECACHE = (\{.*\});/.exec(source)![1]!) as { buildId: string; urls: string[] };
   expect(precache.buildId).toMatch(/^[0-9a-f]{12}$/);
 
-  const audio = list.items.flatMap((item) => [item.audio.normal, item.audio.slow]);
+  const audio = lesson.lists.dictation!.flatMap((item) => [item.audio.normal, item.audio.slow]);
   expect(audio).toHaveLength(74);
   expect(precache.urls).toEqual(
     expect.arrayContaining([
       'index.html',
       'manifest.webmanifest',
       'content/manifest.json',
-      await listPath(page.request, 'fall-2026-assessment'),
+      await lessonPath(page.request, 'fall-2026-assessment'),
     ]),
   );
   expect(precache.urls).toEqual(expect.arrayContaining(audio.map((ref) => `content/${ref}`)));

@@ -35,13 +35,13 @@ export interface ProfileJson {
   avatar: string;
   createdAt: string;
   settings: { shuffle: boolean; breakEvery: 0 | 5 | 10 | 15; sounds: boolean };
-  assignedListIds: string[];
+  assignedLessonIds: string[];
 }
 
 export interface SessionJson {
   id: string;
   profileId: string;
-  listId: string;
+  lessonId: string;
   status: string;
   startedAt: string;
   [field: string]: unknown;

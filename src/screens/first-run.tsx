@@ -1,16 +1,16 @@
-// First run: "Ask a grown-up" -> parent gate -> create the learner profile -> assign lists -> home.
+// First run: "Ask a grown-up" -> parent gate -> create the learner profile -> assign lessons -> home.
 // Nothing is saved until the last step, so quitting half way leaves the device as it was.
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../app-context.tsx';
-import { usePublishedLists } from '../content/use-lists.ts';
+import { usePublishedLessons } from '../content/use-lessons.ts';
 import { ParentGate } from '../parent/gate.tsx';
-import { ListSwitches } from '../parent/list-switches.tsx';
+import { LessonSwitches } from '../parent/lesson-switches.tsx';
 import { ProfileFields } from '../parent/profile-fields.tsx';
 import { addProfile, AVATARS } from '../profiles.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-type Step = 'welcome' | 'gate' | 'profile' | 'lists';
+type Step = 'welcome' | 'gate' | 'profile' | 'lessons';
 
 export function FirstRun() {
   const [step, setStep] = useState<Step>('welcome');
@@ -41,12 +41,12 @@ export function FirstRun() {
           avatar={avatar}
           onName={setName}
           onAvatar={setAvatar}
-          onNext={() => setStep('lists')}
+          onNext={() => setStep('lessons')}
         />
       );
-    case 'lists':
+    case 'lessons':
       return (
-        <ListsStep
+        <LessonsStep
           name={name.trim()}
           avatar={avatar}
           assigned={assigned}
@@ -83,15 +83,15 @@ function ProfileStep(props: {
   );
 }
 
-function ListsStep(props: {
+function LessonsStep(props: {
   name: string;
   avatar: string;
   assigned: ReadonlySet<string>;
-  onToggle: (listId: string, on: boolean) => void;
+  onToggle: (lessonId: string, on: boolean) => void;
   onBack: () => void;
 }) {
   const { update } = useAppRecord();
-  const lists = usePublishedLists();
+  const lessons = usePublishedLessons();
   const { busy: saving, failed: saveFailed, run } = useSave();
 
   const done = (): Promise<void> =>
@@ -99,25 +99,25 @@ function ListsStep(props: {
       update((current) =>
         addProfile(
           current,
-          { name: props.name, avatar: props.avatar, assignedListIds: [...props.assigned] },
+          { name: props.name, avatar: props.avatar, assignedLessonIds: [...props.assigned] },
           crypto.randomUUID(),
           new Date().toISOString(),
         ),
       ),
     );
 
-  // A list is needed to practice: finishing with none picked would leave the child an empty home.
-  const needsPick = lists.status === 'ready' && lists.value.length > 0 && props.assigned.size === 0;
+  // A lesson is needed to practice: finishing with none picked would leave the child an empty home.
+  const needsPick = lessons.status === 'ready' && lessons.value.length > 0 && props.assigned.size === 0;
   return (
     <main class="screen first-run">
       <h1 class="screen__title">
-        {props.avatar} {props.name}'s lists
+        {props.avatar} {props.name}'s lessons
       </h1>
-      <p class="notice">Pick the lists to practice.</p>
-      {lists.status === 'loading' && <p class="notice">Loading…</p>}
-      {lists.status === 'error' && <p class="notice">Couldn't load the lists. Check the internet and try again.</p>}
-      {lists.status === 'ready' && (
-        <ListSwitches lists={lists.value} assigned={props.assigned} onToggle={props.onToggle} />
+      <p class="notice">Pick the lessons to practice.</p>
+      {lessons.status === 'loading' && <p class="notice">Loading…</p>}
+      {lessons.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
+      {lessons.status === 'ready' && (
+        <LessonSwitches lessons={lessons.value} assigned={props.assigned} onToggle={props.onToggle} />
       )}
       {saveFailed && <SaveFailed />}
       <div class="row">
