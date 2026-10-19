@@ -5,7 +5,11 @@
 //  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
 //    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
 import { expect, test as base, type APIRequestContext, type Page } from '@playwright/test';
-import { listEntries, type LessonData, type Manifest, type PracticeTypeId, type Rendition } from '../../src/content/types.ts';
+import type { ItemData, LessonData, Manifest, PracticeTypeId, Rendition } from '../../src/content/types.ts';
+
+/** A lesson's lists as [practice type, items] pairs (the lesson data's own format: one key per list it offers). */
+const listsOf = (lesson: LessonData | undefined): Array<[PracticeTypeId, ItemData[]]> =>
+  Object.entries(lesson?.lists ?? {}) as Array<[PracticeTypeId, ItemData[]]>;
 
 /** Where the served site keeps a lesson's data (its file name carries a content hash), read from the served manifest. */
 export async function lessonPath(request: APIRequestContext, id: string): Promise<string> {
@@ -55,7 +59,7 @@ function audioProbe(page: Page): AudioProbe {
       const urls = (await page.evaluate(() => window.__audioPlays)).filter((url) => url.includes('/content/'));
       return urls.map((url) => {
         const ref = url.slice(url.indexOf('/content/') + '/content/'.length);
-        const hit = listEntries(lesson?.lists ?? {})
+        const hit = listsOf(lesson)
           .flatMap(([practiceType, items]) =>
             items.flatMap((item) => [
               { item, practiceType, rendition: 'normal' as const, audioRef: item.audio.normal },
