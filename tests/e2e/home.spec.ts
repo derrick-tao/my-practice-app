@@ -16,7 +16,7 @@ test.describe('home screen', () => {
     await expect(noDates).not.toContainText('Test:');
   });
 
-  test('fits every card inside the screen in this orientation', async ({ page }) => {
+  test('fits every card inside the screen in this orientation', { tag: '@layout' }, async ({ page }) => {
     await setUpLearner(page);
     const viewport = page.viewportSize()!;
     for (const name of [/Fixture Three/, /Fixture Five/]) {

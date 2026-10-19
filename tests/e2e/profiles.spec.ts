@@ -108,7 +108,7 @@ test.describe('profiles: switching', () => {
     await expect(switcher(page)).toHaveCount(0);
   });
 
-  test('the avatar buttons are finger-sized and fit on screen', async ({ page }) => {
+  test('the avatar buttons are finger-sized and fit on screen', { tag: '@layout' }, async ({ page }) => {
     await setUpLearner(page);
     await addLearnerFromHome(page, { name: 'Leo', avatar: '🦊' });
     const viewport = page.viewportSize()!;

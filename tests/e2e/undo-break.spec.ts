@@ -283,7 +283,7 @@ test.describe('break prompt', () => {
     await expect(practice.breakPrompt).toBeVisible();
   });
 
-  test('the prompt and the Undo chip fit on screen with finger-sized controls', async ({ page, audio, loadList }) => {
+  test('the prompt and the Undo chip fit on screen with finger-sized controls', { tag: '@layout' }, async ({ page, audio, loadList }) => {
     const { practice } = await start({ page, audio, loadList }, 'fixture-twelve');
     await practice.markMany(9);
     const inside = async (control: Locator, minHeight: number): Promise<void> => {

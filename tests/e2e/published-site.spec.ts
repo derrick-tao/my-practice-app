@@ -5,7 +5,7 @@ import { setUpLearner } from './parent-driver.ts';
 
 test.use({ baseURL: REAL_BASE_URL });
 
-test('the Fall 2026 Assessment card shows its test dates and 37 characters', async ({ page }) => {
+test('the Fall 2026 Assessment card shows its test dates and 37 characters', { tag: '@layout' }, async ({ page }) => {
   await setUpLearner(page); // against the real manifest, with every published list assigned
   const card = page.getByRole('link', { name: /Fall 2026 Assessment/ });
   await expect(card).toBeVisible();

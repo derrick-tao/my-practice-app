@@ -22,11 +22,14 @@ export default defineConfig({
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
   },
+  // iphone-portrait runs every test. The other three profiles only run the tests tagged @layout (sizes, fit on
+  // screen, touch targets), because everything else behaves the same at any screen size. Tag a test
+  // `{ tag: '@layout' }` if its outcome depends on the viewport.
   projects: [
     { name: 'iphone-portrait', use: { ...devices['iPhone 15'] } },
-    { name: 'iphone-landscape', use: { ...devices['iPhone 15 landscape'] } },
-    { name: 'ipad-portrait', use: { ...devices['iPad (gen 11)'] } },
-    { name: 'ipad-landscape', use: { ...devices['iPad (gen 11) landscape'] } },
+    { name: 'iphone-landscape', use: { ...devices['iPhone 15 landscape'] }, grep: /@layout/ },
+    { name: 'ipad-portrait', use: { ...devices['iPad (gen 11)'] }, grep: /@layout/ },
+    { name: 'ipad-landscape', use: { ...devices['iPad (gen 11) landscape'] }, grep: /@layout/ },
   ],
   webServer: [
     {

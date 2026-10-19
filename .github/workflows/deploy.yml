@@ -1,7 +1,7 @@
 name: Deploy
 
 # Pushes to main: validate -> generate audio -> commit new audio back ([skip ci]) -> typecheck -> Seam 2 -> build
-# -> Seam 1 -> deploy to Pages, all in this one run.
+# -> sharded Seam 1 (parallel jobs) -> deploy to Pages, all in this one run.
 # Live site: https://derrick-tao.github.io/my-practice-app/
 on:
   push:
@@ -71,20 +71,52 @@ jobs:
       - name: Build site
         run: npm run build
 
-      - name: Install WebKit for Playwright (Seam 1)
-        run: npx playwright install --with-deps webkit
-
-      - name: App tests in WebKit (Seam 1)
-        run: npm run test:e2e
-
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
-  deploy:
+  # Seam 1, split across three runners, against the tip of main (including audio the build job committed).
+  # Deploy waits for all three.
+  e2e:
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install WebKit for Playwright (Seam 1)
+        run: npx playwright install --with-deps webkit
+
+      - name: App tests in WebKit (Seam 1, shard ${{ matrix.shard }}/3)
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+
+      - name: Keep the report and traces of a failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  deploy:
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     permissions:
       pages: write
