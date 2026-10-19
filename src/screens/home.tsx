@@ -4,7 +4,7 @@ import { usePublishedLists } from '../content/use-lists.ts';
 import { findActiveSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
-import { activeProfileOf } from '../profiles.ts';
+import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { listHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
@@ -53,11 +53,35 @@ async function loadResume(): Promise<Session | undefined> {
   }
 }
 
+/** Avatar buttons to switch learner: only shown when several learners share the device. */
+function ProfileSwitcher() {
+  const { app, update } = useAppRecord();
+  const active = activeProfileOf(app);
+  if (app.profiles.length < 2) return null;
+  return (
+    <div class="profile-switcher" role="group" aria-label="Who is practicing?">
+      {app.profiles.map((p) => (
+        <button
+          type="button"
+          key={p.id}
+          class="profile-switcher__button"
+          aria-label={p.name}
+          aria-pressed={p.id === active?.id}
+          onClick={() => void update((current) => setActiveProfile(current, p.id)).catch(() => undefined)}
+        >
+          <span aria-hidden="true">{p.avatar}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function HomeScreen() {
   const { app } = useAppRecord();
   const profile = activeProfileOf(app)!;
   const published = usePublishedLists();
-  const resume = useLoad(loadResume, []);
+  // Each learner has their own practice in progress: look again whenever the learner changes.
+  const resume = useLoad(loadResume, [profile.id]);
   const updateReady = useUpdateReady();
   const session = resume.status === 'ready' ? resume.value : undefined;
   const all = published.status === 'ready' ? published.value : [];
@@ -75,6 +99,7 @@ export function HomeScreen() {
           <span aria-hidden="true">⚙️</span>
         </a>
       </header>
+      <ProfileSwitcher />
       {updateReady && (
         <button type="button" class="update-banner" onClick={applyUpdate}>
           New words are ready! <span aria-hidden="true">🔄</span>

@@ -58,6 +58,26 @@ export async function savedPersistence(page: Page): Promise<{ granted: boolean }
   );
 }
 
+/**
+ * The profile id of every saved session. Deleted data has no screen to look at (a deleted learner is gone
+ * from every list), so this is how a test sees that their practice history is really gone.
+ */
+export async function savedSessionProfileIds(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () =>
+      new Promise<string[]>((resolve, reject) => {
+        const open = indexedDB.open('my-practice-app', 1);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const all = db.transaction('sessions', 'readonly').objectStore('sessions').getAll();
+          all.onsuccess = () => (db.close(), resolve((all.result as Array<{ profileId: string }>).map((s) => s.profileId)));
+          all.onerror = () => reject(all.error);
+        };
+      }),
+  );
+}
+
 declare global {
   interface Window {
     /** Set by `stubPersistentStorage`: how many times the app asked for persistent storage on this page load. */
