@@ -340,14 +340,13 @@ test.describe('import', () => {
   });
 });
 
-test.describe('restoring on another device', () => {
-  test('export, then import on a device that has nothing of it, brings back the same home screen and progress', async ({
+test.describe('restoring on a device that was erased', () => {
+  test('export, erase everything, set up as someone else, then import: the same home screen and progress come back', async ({
     page,
-    browser,
     audio,
     loadList,
-  }, testInfo) => {
-    // Device A: a learner part way through a retry round.
+  }) => {
+    // Before: a learner part way through a retry round.
     await setUpLearner(page, { name: 'Mia', avatar: '🐼' });
     const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
     await practice.open();
@@ -362,27 +361,30 @@ test.describe('restoring on another device', () => {
     const { text } = await exportBackup(page);
     const savedBefore = await savedNow(page);
 
-    // Device B: a different browser profile, set up as someone else.
-    const { baseURL, viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = testInfo.project.use;
-    const context = await browser.newContext({ baseURL, viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, serviceWorkers: 'block' });
-    try {
-      const other = await context.newPage();
-      await setUpLearner(other, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
-      expect(await other.locator('main').innerText()).not.toBe(homeBefore);
+    // Erase everything through the Danger zone: back to first run, nothing of Mia left.
+    await page.goto('./');
+    await openParentArea(page);
+    await openParentSection(page, 'Danger zone');
+    await page.getByRole('button', { name: 'Erase everything on this device' }).click();
+    await page.getByRole('button', { name: 'Yes, continue' }).click();
+    await page.getByRole('textbox', { name: /ERASE/ }).fill('ERASE');
+    await page.getByRole('button', { name: 'Erase it all' }).click();
+    await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // first run
 
-      await openBackupSection(other);
-      await chooseBackupFile(other, text);
-      await expect(other.getByTestId('import-learners')).toHaveText('1');
-      await expect(other.getByTestId('import-attempts')).toHaveText('1');
-      await confirmImport(other);
-      await other.goto('./');
+    // The device now belongs to someone else.
+    await setUpLearner(page, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
+    expect(await page.locator('main').innerText()).not.toBe(homeBefore);
 
-      await expect(other.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-      await expect(other.getByRole('link', { name: /Keep going/ })).toBeVisible();
-      expect(await other.locator('main').innerText()).toBe(homeBefore);
-      expect(await savedNow(other)).toEqual(savedBefore);
-    } finally {
-      await context.close();
-    }
+    await openBackupSection(page);
+    await chooseBackupFile(page, text);
+    await expect(page.getByTestId('import-learners')).toHaveText('1');
+    await expect(page.getByTestId('import-attempts')).toHaveText('1');
+    await confirmImport(page);
+    await page.goto('./');
+
+    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Keep going/ })).toBeVisible();
+    expect(await page.locator('main').innerText()).toBe(homeBefore);
+    expect(await savedNow(page)).toEqual(savedBefore);
   });
 });
