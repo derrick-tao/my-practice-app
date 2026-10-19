@@ -4,12 +4,23 @@ import type { ListData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { addLearner, openProfiles, openSettings, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
-import { savedSessionProfileIds } from './saved-data.ts';
+import { exportBackup, openBackupSection } from './backup-driver.ts';
 
 interface Fixtures {
   page: Page;
   audio: AudioProbe;
   loadList: (id: string) => Promise<ListData>;
+}
+
+/**
+ * The profile id of every saved session, read the way a grown-up can: from a backup export of the device
+ * (deleted data has no screen to look at). Starts and ends on home.
+ */
+async function savedSessionProfileIds(page: Page): Promise<string[]> {
+  await openBackupSection(page);
+  const { backup } = await exportBackup(page);
+  await page.getByRole('link', { name: 'Home' }).click();
+  return backup.data.sessions.map((session) => session.profileId);
 }
 
 async function screenFor({ page, audio, loadList }: Fixtures, listId: string): Promise<PracticeScreen> {

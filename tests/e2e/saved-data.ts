@@ -1,7 +1,10 @@
-// Seam 1 helpers for the two places where a test has to touch what is saved on the device directly:
-//  - seeding a "saved-data fixture" (what an earlier visit left behind), which pins the persisted
-//    format: if the format changes, the fixture must still load, through a migration;
-//  - reading back the persistent-storage result, which has no screen until the parent area (ticket 13).
+// Seam 1 helpers for the one place where a test has to write what is saved on the device directly: states
+// that only an OLDER or NEWER app could have left behind, which a backup import cannot express because
+// import migrates (or refuses) them. Used for: sessions saved before profiles existed (adoption by the first
+// profile), a device that never stamped a schema version, and data from a newer schema (left untouched).
+//
+// Every other saved state goes in through backup import instead (backup-driver.ts: `editSavedData`,
+// `restoreSessions`), and the persistent-storage answer is read from the Backup section's status.
 // Everything else about saving is observed through the screens (reload, Keep going, retry banner).
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
@@ -38,43 +41,6 @@ export async function seedSavedData(page: Page, data: SavedData): Promise<void> 
         };
       }),
     data,
-  );
-}
-
-/** The saved persistent-storage request result, if the app has recorded one. */
-export async function savedPersistence(page: Page): Promise<{ granted: boolean } | undefined> {
-  return page.evaluate(
-    () =>
-      new Promise<{ granted: boolean } | undefined>((resolve, reject) => {
-        const open = indexedDB.open('my-practice-app', 1);
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const get = db.transaction('meta', 'readonly').objectStore('meta').get('device');
-          get.onsuccess = () => (db.close(), resolve(get.result));
-          get.onerror = () => reject(get.error);
-        };
-      }),
-  );
-}
-
-/**
- * The profile id of every saved session. Deleted data has no screen to look at (a deleted learner is gone
- * from every list), so this is how a test sees that their practice history is really gone.
- */
-export async function savedSessionProfileIds(page: Page): Promise<string[]> {
-  return page.evaluate(
-    () =>
-      new Promise<string[]>((resolve, reject) => {
-        const open = indexedDB.open('my-practice-app', 1);
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const all = db.transaction('sessions', 'readonly').objectStore('sessions').getAll();
-          all.onsuccess = () => (db.close(), resolve((all.result as Array<{ profileId: string }>).map((s) => s.profileId)));
-          all.onerror = () => reject(all.error);
-        };
-      }),
   );
 }
 

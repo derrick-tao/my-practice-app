@@ -1,0 +1,68 @@
+/* Backup section (src/parent/sections/backup.tsx). */
+.backup__card {
+  margin: 0 0 16px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  font-size: 1.2rem;
+}
+
+.backup__card h2,
+.backup__card h3 {
+  margin: 0 0 8px;
+}
+
+.backup__card p {
+  margin: 8px 0;
+}
+
+.backup__nudge {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 2px 12px;
+  border-radius: 16px;
+  background: var(--bad);
+  color: #fff;
+  font-weight: 800;
+}
+
+.backup__choose {
+  /* The real file input is visually hidden inside this label. */
+  position: relative;
+}
+
+.backup__choose:focus-within {
+  outline: 4px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.backup__problem {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.backup__summary dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 8px 0;
+}
+
+.backup__summary dt {
+  font-weight: 700;
+}
+
+.backup__summary dd {
+  margin: 0;
+}
+
+.backup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.backup__done {
+  font-weight: 800;
+}
