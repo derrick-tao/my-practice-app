@@ -1,7 +1,12 @@
 // Seam 1: the parent's Lesson preview (ticket 12). Public surface only: the parent gate, the parent
 // area's screens, and the audio requests the app makes (the stubbed play() in harness.ts).
 import { expect, test } from './harness.ts';
+import type { Page } from '@playwright/test';
 import { openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
+
+/** One practice type's section of a lesson preview, by its heading ("Write", "Say"). */
+const previewSection = (page: Page, heading: string) =>
+  page.getByTestId('preview-section').filter({ has: page.getByRole('heading', { name: heading }) });
 
 test.describe('lesson preview', () => {
   test('lessons every item of a lesson with target, pinyin and clue, in list order, under a header with the lesson facts', async ({
@@ -91,7 +96,7 @@ test.describe('lesson preview', () => {
       await expect(page.getByRole('link', { name: new RegExp(title) })).toBeVisible();
     }
     await page.getByRole('link', { name: /Fixture Five/ }).click();
-    await expect(page.getByTestId('preview-item')).toHaveCount(5);
+    await expect(previewSection(page, 'Write').getByTestId('preview-item')).toHaveCount(5);
 
     await page.goto('./#/parent/lesson-preview/no-such-list'); // same page, still unlocked
     await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
@@ -109,5 +114,77 @@ test.describe('lesson preview', () => {
 
     await passGate(page);
     await expect(page.getByTestId('preview-item')).toHaveCount(3);
+  });
+
+  test('a lesson with two lists has a section per practice type, in order, each with its items and pinyin', async ({
+    page,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    await openParentArea(page);
+    await openParentSection(page, 'Lesson preview');
+    await expect(page.getByRole('link', { name: /Fixture Five/ })).toContainText('5 characters');
+    await expect(page.getByRole('link', { name: /Fixture Five/ })).toContainText('6 phrases');
+    await page.getByRole('link', { name: /Fixture Five/ }).click();
+
+    const header = page.getByTestId('preview-header');
+    await expect(header).toContainText('5 characters');
+    await expect(header).toContainText('6 phrases');
+
+    const sections = page.getByTestId('preview-section');
+    await expect(sections).toHaveCount(2);
+    await expect(sections.nth(0).getByRole('heading')).toContainText('Write');
+    await expect(sections.nth(1).getByRole('heading')).toContainText('Say');
+
+    const lesson = await loadLesson('fixture-five');
+    const write = sections.nth(0).getByTestId('preview-item');
+    await expect(write).toHaveCount(5);
+    for (const [index, item] of lesson.lists.dictation!.entries()) {
+      await expect(write.nth(index)).toContainText(item.target);
+      await expect(write.nth(index)).toContainText(item.pinyin);
+      await expect(write.nth(index)).toContainText(item.clue ?? '');
+    }
+
+    // Phrases: the fixture's own order, each with its pinyin and no clue.
+    const say = sections.nth(1).getByTestId('preview-item');
+    await expect(say).toHaveCount(6);
+    const phrases = ['猫', '三只猫', '书包', '收拾房间', '四只仓鼠', '一只狗'];
+    for (const [index, phrase] of phrases.entries()) {
+      await expect(say.nth(index)).toContainText(phrase);
+      await expect(say.nth(index)).toContainText(lesson.lists['phrase-recognition']![index]!.pinyin);
+    }
+    // The literal readings, independent of the build output.
+    await expect(say.nth(1)).toContainText('sān zhī māo');
+    await expect(say.nth(2)).toContainText('shū bāo');
+    await expect(say.nth(3)).toContainText('fáng jiān');
+    await expect(say.nth(0)).not.toContainText('小猫');
+  });
+
+  test('a phrase\'s normal and slow buttons request that phrase\'s own rendition, apart from the same target in the other list', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    await page.goto('./#/parent/lesson-preview/fixture-five');
+    await passGate(page);
+    const lesson = await loadLesson('fixture-five');
+    const say = previewSection(page, 'Say').getByTestId('preview-item');
+    const write = previewSection(page, 'Write').getByTestId('preview-item');
+    await expect(say).toHaveCount(6);
+    expect(await audio.played(lesson)).toEqual([]);
+
+    await say.nth(1).getByRole('button', { name: /^Normal/ }).click();
+    await say.nth(1).getByRole('button', { name: /^Slow/ }).click();
+    await say.nth(0).getByRole('button', { name: /^Slow/ }).click(); // 猫 as a phrase
+    await write.nth(0).getByRole('button', { name: /^Normal/ }).click(); // 猫 as a dictation character
+
+    const played = await audio.played(lesson);
+    expect(played.map(({ target, practiceType, rendition }) => [target, practiceType, rendition])).toEqual([
+      ['三只猫', 'phrase-recognition', 'normal'],
+      ['三只猫', 'phrase-recognition', 'slow'],
+      ['猫', 'phrase-recognition', 'slow'],
+      ['猫', 'dictation', 'normal'],
+    ]);
   });
 });

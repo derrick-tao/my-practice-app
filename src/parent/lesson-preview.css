@@ -83,3 +83,12 @@
   font-size: 1.1rem;
   font-weight: 700;
 }
+
+.preview-section {
+  margin: 0 0 20px;
+}
+
+.preview-section__title {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+}
