@@ -1,7 +1,9 @@
+import { useState } from 'preact/hooks';
 import { useAppRecord } from '../app-context.tsx';
+import { ConfirmYesNo } from '../confirm.tsx';
 import type { ListSummary, PracticeTypeId } from '../content/types.ts';
 import { usePublishedLists } from '../content/use-lists.ts';
-import { findActiveSession } from '../practice/resume.ts';
+import { findActiveSession, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
@@ -9,6 +11,7 @@ import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { listHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
+import { SaveFailed } from './practice.tsx';
 
 function ListCard({ subject, practiceType, list }: { subject: string; practiceType: PracticeTypeId; list: ListSummary }) {
   return (
@@ -27,20 +30,56 @@ function ListCard({ subject, practiceType, list }: { subject: string; practiceTy
   );
 }
 
-/** Resume the active session exactly where it was left. */
+/** Resume the active session exactly where it was left, or (after a confirmation) start it over. */
 function KeepGoingCard({ session, list }: { session: Session; list: ListSummary }) {
   const round = currentRound(session);
+  const href = listHref(session.subject, session.practiceType, session.listId);
+  const [asking, setAsking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Yes: the current session is stopped (kept in history) and saved; opening the list then starts a
+  // fresh, freshly ordered one, exactly like tapping the list's card with nothing in progress.
+  const startOver = async (): Promise<void> => {
+    setSaving(true);
+    setFailed(false);
+    try {
+      await stopSession(getStorage(), session);
+      location.hash = href;
+    } catch {
+      setFailed(true);
+      setSaving(false);
+    }
+  };
+
   return (
-    <a class="keep-going" href={listHref(session.subject, session.practiceType, session.listId)}>
-      <span class="keep-going__label">
-        <span aria-hidden="true">▶️ </span>Keep going
-      </span>
-      <span class="keep-going__title">{list.title}</span>
-      <span class="keep-going__progress">
-        <RoundBadge index={round.index} />
-        <StarBar done={round.position} total={round.itemIds.length} />
-      </span>
-    </a>
+    <>
+      <div class="keep-going-card">
+        <a class="keep-going" href={href}>
+          <span class="keep-going__label">
+            <span aria-hidden="true">▶️ </span>Keep going
+          </span>
+          <span class="keep-going__title">{list.title}</span>
+          <span class="keep-going__progress">
+            <RoundBadge index={round.index} />
+            <StarBar done={round.position} total={round.itemIds.length} />
+          </span>
+        </a>
+        <button type="button" class="btn keep-going-card__restart" onClick={() => setAsking(true)}>
+          <span aria-hidden="true">🔄</span>
+          <span class="sr-only">Start over</span>
+        </button>
+      </div>
+      {asking && !failed && (
+        <ConfirmYesNo
+          question="Start again from the beginning?"
+          busy={saving}
+          onYes={() => void startOver()}
+          onNo={() => setAsking(false)}
+        />
+      )}
+      {failed && <SaveFailed onRetry={() => void startOver()} />}
+    </>
   );
 }
 
