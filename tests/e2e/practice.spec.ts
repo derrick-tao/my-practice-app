@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
-import { allowAudioPlayback, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
+import { allowAudioPlayback, lessonGroup, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
 import { setUpLearner } from './parent-driver.ts';
 
 interface Fixtures {
@@ -419,7 +419,7 @@ test.describe('practice: retry rounds and completion', () => {
     await expect(practice.summary).toBeHidden();
 
     await practice.home.click();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 
   test('a round with no misses goes straight to completion with no retry button', async ({

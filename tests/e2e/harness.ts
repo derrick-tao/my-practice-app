@@ -5,7 +5,7 @@
 //  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
 //    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
 import { expect, test as base, type APIRequestContext, type Page } from '@playwright/test';
-import type { LessonData, Manifest, Rendition } from '../../src/content/types.ts';
+import { listEntries, type LessonData, type Manifest, type PracticeTypeId, type Rendition } from '../../src/content/types.ts';
 
 /** Where the served site keeps a lesson's data (its file name carries a content hash), read from the served manifest. */
 export async function lessonPath(request: APIRequestContext, id: string): Promise<string> {
@@ -20,6 +20,8 @@ export interface PlayedAudio {
   ref: string;
   /** Resolved against the lesson data: which item and rendition it is, when known. */
   target?: string;
+  /** The list the item belongs to (the same target can be in two lists). */
+  practiceType?: PracticeTypeId;
   rendition?: Rendition;
 }
 
@@ -53,13 +55,15 @@ function audioProbe(page: Page): AudioProbe {
       const urls = (await page.evaluate(() => window.__audioPlays)).filter((url) => url.includes('/content/'));
       return urls.map((url) => {
         const ref = url.slice(url.indexOf('/content/') + '/content/'.length);
-        const hit = lesson?.lists.dictation
-          ?.flatMap((item) => [
-            { item, rendition: 'normal' as const, audioRef: item.audio.normal },
-            { item, rendition: 'slow' as const, audioRef: item.audio.slow },
-          ])
+        const hit = listEntries(lesson?.lists ?? {})
+          .flatMap(([practiceType, items]) =>
+            items.flatMap((item) => [
+              { item, practiceType, rendition: 'normal' as const, audioRef: item.audio.normal },
+              { item, practiceType, rendition: 'slow' as const, audioRef: item.audio.slow },
+            ]),
+          )
           .find((entry) => entry.audioRef === ref);
-        return hit ? { ref, target: hit.item.target, rendition: hit.rendition } : { ref };
+        return hit ? { ref, target: hit.item.target, practiceType: hit.practiceType, rendition: hit.rendition } : { ref };
       });
     },
     async effects() {

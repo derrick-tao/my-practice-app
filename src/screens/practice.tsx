@@ -55,14 +55,40 @@ export function LessonNotFound() {
   );
 }
 
-export function PracticeScreen({
+/** What a practice screen is given by its route. */
+export interface PracticeRouteProps {
+  subject: string;
+  lessonId: string;
+}
+
+export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
+export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
+  <PracticeScreen {...props} practiceType="phrase-recognition" />
+);
+
+/**
+ * What differs between practice types on the practice screen; everything else (rounds, retries, breaks, Undo,
+ * sounds, saving) is shared.
+ */
+interface PracticeFlow {
+  /**
+   * The child hears the item first and writes it: its audio plays on arrival and after each mark, and Check waits
+   * until it has been requested. Without it (the child reads the item and says it) nothing plays until Check.
+   */
+  audioFirst: boolean;
+}
+
+const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
+  dictation: { audioFirst: true },
+  'phrase-recognition': { audioFirst: false },
+};
+
+function PracticeScreen({
   subject,
   practiceType,
   lessonId,
-}: {
-  subject: string;
+}: PracticeRouteProps & {
   practiceType: PracticeTypeId;
-  lessonId: string;
 }) {
   const loaded = useLoad(() => fetchLessonWithVersion(lessonId), [lessonId]);
   if (loaded.status === 'ready') {
@@ -166,6 +192,7 @@ function PracticeRun({
   /** Play sound effects on ✅, ❌ and finishing (the profile's setting). Character audio ignores it. */
   sounds: boolean;
 }) {
+  const flow = FLOWS[practiceType];
   const player = useMemo(createAudioPlayer, []);
   const effects = useMemo(() => createEffects(sounds), []);
   const itemsById = useMemo(
@@ -221,7 +248,7 @@ function PracticeRun({
 
   // First item of a new session: auto-play on arrival (not when resuming).
   useEffect(() => {
-    if (item && !resumed) requestAudio(item, 'normal', true, placeOf(session));
+    if (flow.audioFirst && item && !resumed) requestAudio(item, 'normal', true, placeOf(session));
   }, []);
 
   // Preload the current item's audio and the next item's.
@@ -256,7 +283,11 @@ function PracticeRun({
     if (next) requestAudio(next, 'normal', true, placeOf(after));
   };
 
-  const onCheck = (): void => void advance(reveal);
+  const onCheck = (): void => {
+    const after = advance((s) => reveal(s, flow.audioFirst));
+    // Reading first: Check is what plays the item. This is the tap handler, so iOS allows the audio.
+    if (after && !flow.audioFirst) autoplayCurrent(after);
+  };
 
   const onMark = (result: Mark): void => {
     const after = advance((s) => mark(s, result, env));
@@ -267,6 +298,8 @@ function PracticeRun({
     }
     const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
     cancelHeldAudio();
+    // Reading first: the next item's audio would give its answer away, so nothing plays until Check.
+    if (!flow.audioFirst) return;
     if (effectMs === 0) {
       autoplayCurrent(after); // the sounds setting is off: nothing to wait for
       return;
@@ -280,7 +313,7 @@ function PracticeRun({
     const after = advance((s) => startRetryRound(s, env, listedIds));
     if (!after) return;
     setBlockedAt(null);
-    autoplayCurrent(after);
+    if (flow.audioFirst) autoplayCurrent(after);
   };
 
   const onUndo = (): void => {
@@ -347,11 +380,13 @@ function PracticeRun({
         <section class="practice__body">
           <div class="practice__stage">
             {round.phase === 'revealed' ? (
-              <Reveal item={item} />
-            ) : (
+              <Reveal item={item} fit={!flow.audioFirst} />
+            ) : flow.audioFirst ? (
               <p class="prompt">
                 <span aria-hidden="true">✏️ </span>Write it!
               </p>
+            ) : (
+              <PhrasePrompt item={item} />
             )}
           </div>
           <div class="practice__controls">
@@ -362,24 +397,26 @@ function PracticeRun({
                 </p>
               )}
             </div>
-            <div class="row">
-              <button
-                type="button"
-                class={`btn btn--audio${pulse ? ' pulse' : ''}`}
-                onClick={() => requestAudio(item, 'normal', false, place)}
-              >
-                <span aria-hidden="true">🔊 </span>Listen
-              </button>
-              <button
-                type="button"
-                class="btn btn--audio"
-                onClick={() => requestAudio(item, 'slow', false, place)}
-              >
-                <span aria-hidden="true">🐢 </span>Slow
-              </button>
-            </div>
+            {(flow.audioFirst || round.phase === 'revealed') && (
+              <div class="row">
+                <button
+                  type="button"
+                  class={`btn btn--audio${pulse ? ' pulse' : ''}`}
+                  onClick={() => requestAudio(item, 'normal', false, place)}
+                >
+                  <span aria-hidden="true">🔊 </span>Listen
+                </button>
+                <button
+                  type="button"
+                  class="btn btn--audio"
+                  onClick={() => requestAudio(item, 'slow', false, place)}
+                >
+                  <span aria-hidden="true">🐢 </span>Slow
+                </button>
+              </div>
+            )}
             <div class="row row--primary">
-              {round.phase === 'prompt' && round.heardCurrent && (
+              {round.phase === 'prompt' && (!flow.audioFirst || round.heardCurrent) && (
                 <button type="button" class="btn btn--primary btn--check" onClick={onCheck}>
                   <span aria-hidden="true">👀 </span>Check
                 </button>
@@ -479,14 +516,25 @@ function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: numbe
   );
 }
 
-function Reveal({ item }: { item: ItemData }) {
+/** The phrase to say aloud: in the handwriting font, as large as fits on one line (see .phrase in practice.css). */
+function PhrasePrompt({ item }: { item: ItemData }) {
+  return (
+    <div class="reveal">
+      <div class="reveal__target phrase" data-testid="prompt-phrase" lang="zh-CN" style={{ '--chars': [...item.target].length }}>
+        {item.target}
+      </div>
+    </div>
+  );
+}
+
+function Reveal({ item, fit }: { item: ItemData; /** Fit the target on one line (phrases) rather than shrinking it by its length. */ fit: boolean }) {
   return (
     <div class="reveal">
       <div
-        class="reveal__target"
+        class={fit ? 'reveal__target phrase' : 'reveal__target'}
         data-testid="target"
         lang="zh-CN"
-        style={{ '--scale': Math.max(1, [...item.target].length / 2) }}
+        style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
       >
         {item.target}
       </div>

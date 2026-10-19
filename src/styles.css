@@ -39,15 +39,30 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  min-height: 120px;
+  gap: 10px;
   padding: 20px;
   border-radius: 24px;
   background: var(--card);
   border: 4px solid var(--accent);
   color: inherit;
-  text-decoration: none;
   box-shadow: 0 4px 0 var(--accent);
+}
+
+/* One big button per practice type: icon, label and how many items. */
+.lesson-card__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 96px;
+  padding: 0 16px;
+  border-radius: 48px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
 }
 
 .lesson-card__title {

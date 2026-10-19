@@ -1,0 +1,38 @@
+// The practice-type registry: everything the app knows about each kind of practice. A kid-facing label and icon
+// ("✏️ Write"), the noun for its items ("37 characters"), and the screen that practices it. Being a Record
+// keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
+import type { ComponentType } from 'preact';
+import type { PracticeTypeId } from '../content/types.ts';
+import { DictationScreen, PhraseRecognitionScreen, type PracticeRouteProps } from '../screens/practice.tsx';
+
+export interface PracticeType {
+  id: PracticeTypeId;
+  /** What the child sees on its button and Keep going card. */
+  label: string;
+  icon: string;
+  /** What its items are called. */
+  itemNoun: { singular: string; plural: string };
+  /** The practice screen, given the lesson to practice. */
+  screen: ComponentType<PracticeRouteProps>;
+}
+
+export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
+  dictation: {
+    id: 'dictation',
+    label: 'Write',
+    icon: '✏️',
+    itemNoun: { singular: 'character', plural: 'characters' },
+    screen: DictationScreen,
+  },
+  'phrase-recognition': {
+    id: 'phrase-recognition',
+    label: 'Say',
+    icon: '🗣️',
+    itemNoun: { singular: 'phrase', plural: 'phrases' },
+    screen: PhraseRecognitionScreen,
+  },
+};
+
+/** "37 characters", "1 phrase". */
+export const countLabel = (type: PracticeType, count: number): string =>
+  `${count} ${count === 1 ? type.itemNoun.singular : type.itemNoun.plural}`;

@@ -1,6 +1,6 @@
 // Seam 1: parent gate, first-run setup, and assigned lessons (ticket 07).
 import { expect, test } from './harness.ts';
-import { PracticeScreen } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import {
   failGate,
   gateFactors,
@@ -34,10 +34,10 @@ test.describe('first run', () => {
     await page.getByRole('button', { name: 'Done' }).click();
 
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-    const card = page.getByRole('link', { name: /Fixture Three/ });
+    const card = lessonGroup(page, 'Fixture Three');
     await expect(card).toContainText('Test: 2026-11-02 to 2026-11-06');
     await expect(card).toContainText('3 characters');
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
 
     // The profile is saved on the device: a fresh load goes straight to home.
     await page.reload();
@@ -51,7 +51,7 @@ test.describe('first run', () => {
     await setUpLearner(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-five'] });
 
     await expect(page.getByRole('heading', { name: 'Hi 🦊 Leo!' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toHaveCount(0);
   });
 
@@ -245,7 +245,7 @@ test.describe('parent gate', () => {
 test.describe('assigned lessons', () => {
   test('unassigning a lesson hides its card on home; assigning it brings it back', async ({ page }) => {
     await setUpLearner(page);
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
 
     await openParentArea(page);
     await openParentSection(page, /Assign lessons/);
@@ -257,10 +257,10 @@ test.describe('assigned lessons', () => {
     await page.getByRole('link', { name: 'Home' }).click();
 
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
     await page.reload(); // saved on the device
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
 
     await openParentArea(page);
     await openParentSection(page, /Assign lessons/);
@@ -268,7 +268,7 @@ test.describe('assigned lessons', () => {
     await five.click();
     await expect(five).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 
   test('an active session on a lesson that gets unassigned still shows Keep going', async ({ page, audio, loadLesson }) => {
