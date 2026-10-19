@@ -3,7 +3,8 @@ import { useAppRecord } from '../app-context.tsx';
 import { ConfirmYesNo } from '../confirm.tsx';
 import type { LessonSummary } from '../content/types.ts';
 import { usePublishedLessons } from '../content/use-lessons.ts';
-import { findActiveSession, stopSession } from '../practice/resume.ts';
+import { PRACTICE_TYPE_DISPLAY } from '../practice/practice-type-display.ts';
+import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
@@ -34,15 +35,16 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
   );
 }
 
-/** Resume the active session exactly where it was left, or (after a confirmation) start it over. */
+/** Resume one session in progress exactly where it was left, or (after a confirmation) start only that one over. */
 function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSummary }) {
   const round = currentRound(session);
   const href = lessonHref(session.subject, session.practiceType, session.lessonId);
+  const type = PRACTICE_TYPE_DISPLAY[session.practiceType];
   const [asking, setAsking] = useState(false);
   const { busy: saving, failed, run } = useSave();
 
-  // Yes: the current session is stopped (kept in history) and saved; opening the lesson then starts a
-  // fresh, freshly ordered one, exactly like tapping the lesson's card with nothing in progress.
+  // Yes: this session is stopped (kept in history) and saved, and no other; opening the list then starts a
+  // fresh, freshly ordered one, exactly like tapping the lesson's button with nothing in progress.
   const startOver = (): Promise<void> =>
     run(
       () => stopSession(getStorage(), session),
@@ -51,12 +53,16 @@ function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSu
 
   return (
     <>
-      <div class="keep-going-card">
+      <div class="keep-going-card" role="group" aria-label={`Keep going: ${lesson.title}, ${type.label}`}>
         <a class="keep-going" href={href}>
           <span class="keep-going__label">
             <span aria-hidden="true">▶️ </span>Keep going
           </span>
           <span class="keep-going__title">{lesson.title}</span>
+          <span class="keep-going__type">
+            <span aria-hidden="true">{type.icon} </span>
+            {type.label}
+          </span>
           <span class="keep-going__progress">
             <RoundBadge index={round.index} />
             <StarBar done={round.position} total={round.itemIds.length} />
@@ -80,12 +86,12 @@ function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSu
   );
 }
 
-/** The profile's active session, if any. Home still works when saved sessions can't be read. */
-async function loadResume(): Promise<Session | undefined> {
+/** The profile's sessions in progress, most recently used first. Home still works when saved sessions can't be read. */
+async function loadResume(): Promise<Session[]> {
   try {
-    return await findActiveSession(getStorage());
+    return await findSessionsInProgress(getStorage());
   } catch {
-    return undefined;
+    return [];
   }
 }
 
@@ -119,12 +125,15 @@ export function HomeScreen() {
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
   const updateReady = useUpdateReady();
-  const session = resume.status === 'ready' ? resume.value : undefined;
+  const sessions = resume.status === 'ready' ? resume.value : [];
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedLessonIds);
   const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
-  // The practice in progress stays reachable even when its lesson has since been unassigned.
-  const resumeLesson = session && all.find(({ lesson }) => lesson.id === session.lessonId)?.lesson;
+  // Practice in progress stays reachable even when its lesson has since been unassigned.
+  const resumable = sessions.flatMap((session) => {
+    const lesson = all.find((p) => p.lesson.id === session.lessonId)?.lesson;
+    return lesson ? [{ session, lesson }] : [];
+  });
   return (
     <main class="screen">
       <header class="home__top">
@@ -143,8 +152,10 @@ export function HomeScreen() {
       )}
       {published.status === 'loading' && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
-      {session && resumeLesson && <KeepGoingCard session={session} lesson={resumeLesson} />}
-      {published.status === 'ready' && shown.length === 0 && !resumeLesson && (
+      {resumable.map(({ session, lesson }) => (
+        <KeepGoingCard key={session.id} session={session} lesson={lesson} />
+      ))}
+      {published.status === 'ready' && shown.length === 0 && resumable.length === 0 && (
         <p class="notice">No lessons yet. Ask a grown-up to pick some!</p>
       )}
       {shown.length > 0 && (
