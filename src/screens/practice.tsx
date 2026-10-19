@@ -118,11 +118,10 @@ function OpenPractice({
   const env = useMemo(realEnv, []);
   const [openTries, setOpenTries] = useState(0);
   const opened = useLoad(
-    // Shuffle is on by default; the setting to turn it off arrives with ticket 08.
     async () => {
       const storage = getStorage();
-      const { breakEvery } = await currentSettings(storage);
-      return { ...(await openSession(storage, list, { practiceType, contentVersion, shuffle: true }, env)), breakEvery };
+      const { breakEvery, shuffle } = await currentSettings(storage);
+      return { ...(await openSession(storage, list, { practiceType, contentVersion, shuffle }, env)), breakEvery };
     },
     [openTries],
   );

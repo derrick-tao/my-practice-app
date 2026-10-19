@@ -100,3 +100,38 @@ export async function setUpLearner(page: Page, options: LearnerOptions = {}): Pr
 
   await expect(page.getByRole('heading', { name: `Hi ${avatar} ${name}!` })).toBeVisible();
 }
+
+/** Home -> gear -> gate -> Settings (the active learner's shuffle, break and sound settings). */
+export async function openSettings(page: Page): Promise<void> {
+  await openParentArea(page);
+  await openParentSection(page, 'Settings');
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+}
+
+/**
+ * On the Profiles section: add a learner through the form and wait for them to be listed. The active
+ * learner does not change. `lists` are list ids (default: none assigned).
+ */
+export async function addLearner(
+  page: Page,
+  { name, avatar, lists = [] }: { name: string; avatar: string; lists?: string[] },
+): Promise<void> {
+  const titles = await listTitles(page);
+  await page.getByRole('button', { name: 'Add a learner' }).click();
+  await page.getByRole('textbox', { name: 'Name' }).fill(name);
+  await page.getByRole('button', { name: avatar, exact: true }).click();
+  for (const id of lists) {
+    const title = titles.get(id);
+    if (title === undefined) throw new Error(`addLearner: no published list with id "${id}"`);
+    await page.getByRole('switch', { name: new RegExp(title) }).click();
+  }
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('button', { name: `Edit ${name}` })).toBeVisible();
+}
+
+/** Home -> gear -> gate -> Profiles (add, edit, delete and switch learners). */
+export async function openProfiles(page: Page): Promise<void> {
+  await openParentArea(page);
+  await openParentSection(page, 'Profiles');
+  await expect(page.getByRole('heading', { name: 'Profiles', exact: true })).toBeVisible();
+}

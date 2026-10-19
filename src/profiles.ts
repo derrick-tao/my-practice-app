@@ -2,7 +2,7 @@
 // avatars live only in the on-device app record (and backup files): nothing here touches the network.
 import { DEFAULT_PROFILE_ID } from './practice/session.ts';
 import { getStorage } from './storage/index.ts';
-import type { AppRecord, Profile, StorageAdapter } from './storage/types.ts';
+import type { AppRecord, Profile, ProfileSettings, StorageAdapter } from './storage/types.ts';
 import { DEFAULT_SETTINGS } from './storage/types.ts';
 
 /** Emoji a grown-up can pick as a learner's avatar. */
@@ -43,6 +43,36 @@ export function setListAssigned(app: AppRecord, profileId: string, listId: strin
       const rest = p.assignedListIds.filter((id) => id !== listId);
       return { ...p, assignedListIds: assigned ? [...rest, listId] : rest };
     }),
+  };
+}
+
+/** Pure: rename a profile and/or change its avatar. */
+export function editProfile(app: AppRecord, profileId: string, input: { name: string; avatar: string }): AppRecord {
+  return {
+    ...app,
+    profiles: app.profiles.map((p) =>
+      p.id === profileId ? { ...p, name: input.name.trim(), avatar: input.avatar } : p,
+    ),
+  };
+}
+
+/** Pure: make a profile the one the child practices as (unknown ids change nothing). */
+export function setActiveProfile(app: AppRecord, profileId: string): AppRecord {
+  return app.profiles.some((p) => p.id === profileId) ? { ...app, activeProfileId: profileId } : app;
+}
+
+/** Pure: the app record without a profile. If it was the active one, the first remaining profile is. */
+export function removeProfile(app: AppRecord, profileId: string): AppRecord {
+  const profiles = app.profiles.filter((p) => p.id !== profileId);
+  const stillActive = profiles.some((p) => p.id === app.activeProfileId);
+  return { ...app, profiles, activeProfileId: stillActive ? app.activeProfileId : (profiles[0]?.id ?? null) };
+}
+
+/** Pure: change some of one profile's settings. */
+export function setSettings(app: AppRecord, profileId: string, change: Partial<ProfileSettings>): AppRecord {
+  return {
+    ...app,
+    profiles: app.profiles.map((p) => (p.id === profileId ? { ...p, settings: { ...p.settings, ...change } } : p)),
   };
 }
 

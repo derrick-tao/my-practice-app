@@ -5,7 +5,8 @@ import { useAppRecord } from '../app-context.tsx';
 import { usePublishedLists } from '../content/use-lists.ts';
 import { ParentGate } from '../parent/gate.tsx';
 import { ListSwitches } from '../parent/list-switches.tsx';
-import { addProfile, AVATARS, NAME_MAX_LENGTH } from '../profiles.ts';
+import { ProfileFields } from '../parent/profile-fields.tsx';
+import { addProfile, AVATARS } from '../profiles.ts';
 
 type Step = 'welcome' | 'gate' | 'profile' | 'lists';
 
@@ -72,36 +73,7 @@ function ProfileStep(props: {
   return (
     <main class="screen first-run">
       <h1 class="screen__title">Who is learning?</h1>
-      <label class="field">
-        <span class="field__label">Name</span>
-        <input
-          class="field__input"
-          type="text"
-          value={props.name}
-          maxLength={NAME_MAX_LENGTH}
-          autoComplete="off"
-          onInput={(e) => props.onName(e.currentTarget.value)}
-        />
-      </label>
-      <div class="field">
-        <span class="field__label" id="avatar-label">
-          Avatar
-        </span>
-        <div class="avatars" role="group" aria-labelledby="avatar-label">
-          {AVATARS.map((emoji) => (
-            <button
-              type="button"
-              key={emoji}
-              class={`avatar${emoji === props.avatar ? ' avatar--chosen' : ''}`}
-              aria-label={emoji}
-              aria-pressed={emoji === props.avatar}
-              onClick={() => props.onAvatar(emoji)}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ProfileFields name={props.name} avatar={props.avatar} onName={props.onName} onAvatar={props.onAvatar} />
       <button type="button" class="btn btn--primary" disabled={!ready} onClick={props.onNext}>
         Next<span aria-hidden="true"> ➡️</span>
       </button>
