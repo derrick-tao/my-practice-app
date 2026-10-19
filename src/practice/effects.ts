@@ -7,12 +7,16 @@ export type EffectName = 'chime' | 'gentle' | 'fanfare';
 
 const EFFECTS: readonly EffectName[] = ['chime', 'gentle', 'fanfare'];
 
+/** How long each file in public/sounds/ lasts, in ms (re-measure if scripts/generate-sounds.ts changes them). */
+const LENGTH_MS: Record<EffectName, number> = { chime: 700, gentle: 750, fanfare: 1700 };
+
 export interface Effects {
-  play(name: EffectName): void;
+  /** Start the effect. Returns how long it will be heard for, in ms: 0 when the sounds setting is off. */
+  play(name: EffectName): number;
 }
 
 export function createEffects(enabled: boolean): Effects {
-  if (!enabled) return { play: () => undefined };
+  if (!enabled) return { play: () => 0 };
   const elements = new Map<EffectName, HTMLAudioElement>();
   const elementFor = (name: EffectName): HTMLAudioElement => {
     let element = elements.get(name);
@@ -36,6 +40,7 @@ export function createEffects(enabled: boolean): Effects {
       } catch {
         // Not playable right now.
       }
+      return LENGTH_MS[name];
     },
   };
 }

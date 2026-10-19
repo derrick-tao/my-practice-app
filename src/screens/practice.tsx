@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { fetchListWithVersion } from '../content/client.ts';
 import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
@@ -91,6 +91,12 @@ export function PracticeScreen({
 
 /** Failed audio requests in a row before the "turn up the volume" hint appears. */
 const VOLUME_HINT_AFTER = 2;
+
+/**
+ * Silence between the end of the ✅/❌ sound and the next word. The whole wait must stay at or under 1 s:
+ * WebKit only lets a timer that short inherit the tap, which is what lets iOS play the word without one.
+ */
+const AFTER_EFFECT_GAP_MS = 100;
 
 const realEnv = (): PracticeEnv => ({
   random: createRandomSource(),
@@ -188,6 +194,11 @@ function PracticeRun({
   const [blockedAt, setBlockedAt] = useState<Place | null>(null);
   /** Character-audio requests in a row that the browser refused; any success starts the count again. */
   const [audioFailures, setAudioFailures] = useState(0);
+  /** The next word's auto-play, waiting for the ✅/❌ sound to finish (see onMark). */
+  const heldAudio = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cancelHeldAudio = (): void => clearTimeout(heldAudio.current);
+  // Leaving the screen drops it, so it never plays over another one.
+  useEffect(() => cancelHeldAudio, []);
 
   const round = currentRound(session);
   const itemId = currentItemId(round);
@@ -201,7 +212,10 @@ function PracticeRun({
    *  - for auto-play, only once playback actually starts, so a browser-blocked auto-play does not.
    */
   const requestAudio = (target: ItemData, rendition: Rendition, autoplay: boolean, place: Place): void => {
-    if (!autoplay) sync.dispatch((s) => markHeard(s, place));
+    if (!autoplay) {
+      cancelHeldAudio(); // the child asked for it now: it is not played twice
+      sync.dispatch((s) => markHeard(s, place));
+    }
     void player.play(target.audio[rendition]).then((started) => {
       setAudioFailures((count) => (started ? 0 : count + 1));
       if (started) {
@@ -255,8 +269,14 @@ function PracticeRun({
   const onMark = (result: Mark): void => {
     const after = advance((s) => mark(s, result, env));
     if (!after) return;
-    effects.play(after.status === 'completed' ? 'fanfare' : result === 'correct' ? 'chime' : 'gentle');
-    autoplayCurrent(after);
+    if (after.status === 'completed') {
+      effects.play('fanfare');
+      return;
+    }
+    const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
+    // The next word follows the ✅/❌ sound instead of playing over it; with the sounds setting off it plays now.
+    if (effectMs === 0) autoplayCurrent(after);
+    else heldAudio.current = setTimeout(() => autoplayCurrent(after), effectMs + AFTER_EFFECT_GAP_MS);
   };
 
   const onRetry = (): void => {
@@ -267,7 +287,9 @@ function PracticeRun({
   };
 
   const onUndo = (): void => {
-    if (advance(undo)) setBlockedAt(null);
+    if (!advance(undo)) return;
+    cancelHeldAudio();
+    setBlockedAt(null);
   };
 
   const onKeepGoing = (): void => void advance(resetBreakCount);

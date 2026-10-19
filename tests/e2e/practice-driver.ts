@@ -109,6 +109,14 @@ export class PracticeScreen {
     return played.at(-1)?.target;
   }
 
+  /**
+   * Wait until `count` words have been requested in all. After a mark the next word waits for the ✅/❌
+   * sound to finish, and leaving the screen before then drops it.
+   */
+  async nextWordPlayed(count: number): Promise<void> {
+    await expect.poll(async () => (await this.audio.played(this.list)).length).toBe(count);
+  }
+
   /** On the listening screen: tap Check and return the revealed target. */
   async reveal(): Promise<string> {
     await this.check.click();

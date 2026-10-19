@@ -277,3 +277,91 @@ test.describe('sound effects', () => {
     expect((await audio.played(practice.list)).length).toBeGreaterThan(0);
   });
 });
+
+// #30: the ✅/❌ sound is heard before the next word, not on top of it.
+test.describe('the next word waits for the sound effect', () => {
+  /** Lengths of public/sounds/chime.wav and gentle.wav. */
+  const CHIME_MS = 700;
+  const GENTLE_MS = 750;
+
+  /** Like `start`, with the page clock installed first; it is paused once the first word has played. */
+  async function startWithClock(fixtures: Fixtures, sounds = true): Promise<PracticeScreen> {
+    await fixtures.page.clock.install();
+    await setUpLearner(fixtures.page);
+    if (!sounds) await setSoundEffects(fixtures.page, false);
+    const practice = new PracticeScreen(fixtures.page, fixtures.audio, await fixtures.loadList('fixture-three'));
+    await practice.open();
+    await expect(practice.check).toBeVisible();
+    await fixtures.page.clock.pauseAt(Date.now() + 1_000);
+    return practice;
+  }
+
+  const heardCount = async (practice: PracticeScreen): Promise<number> =>
+    (await practice.audio.played(practice.list)).length;
+
+  for (const [correct, effect, length] of [
+    [true, 'chime', CHIME_MS],
+    [false, 'gentle', GENTLE_MS],
+  ] as const) {
+    test(`after ${correct ? '✅' : '❌'} the next word is requested only once the ${effect} has ended`, async ({
+      page,
+      audio,
+      loadList,
+    }) => {
+      const practice = await startWithClock({ page, audio, loadList });
+      await practice.markNext(correct);
+      await expect.poll(() => audio.effects()).toEqual([effect]);
+
+      await page.clock.runFor(length - 10);
+      expect(await heardCount(practice)).toBe(1);
+      await page.clock.runFor(250);
+      await expect.poll(() => practice.audio.played(practice.list)).toEqual([
+        expect.anything(),
+        expect.objectContaining({ rendition: 'normal' }),
+      ]);
+      await expect(practice.check).toBeVisible();
+    });
+  }
+
+  test('with the sounds setting off, the next word is requested right after the mark', async ({
+    page,
+    audio,
+    loadList,
+  }) => {
+    const practice = await startWithClock({ page, audio, loadList }, false);
+    await practice.markNext(true);
+    // The clock is paused: nothing waits for a timer.
+    await expect.poll(() => heardCount(practice)).toBe(2);
+    expect(await audio.effects()).toEqual([]);
+  });
+
+  test('tapping Undo before the next word plays means it never plays', async ({ page, audio, loadList }) => {
+    const practice = await startWithClock({ page, audio, loadList });
+    await practice.markNext(true);
+    await practice.undo.click();
+    await expect(practice.gotIt).toBeVisible(); // back on the marked word
+    await page.clock.runFor(2_000);
+    expect(await heardCount(practice)).toBe(1);
+  });
+
+  test('tapping Home before the next word plays means it never plays', async ({ page, audio, loadList }) => {
+    const practice = await startWithClock({ page, audio, loadList });
+    await practice.markNext(true);
+    await practice.home.click();
+    await expect(page.getByRole('heading', { name: /Hi/ })).toBeVisible();
+    await page.clock.runFor(2_000);
+    expect(await heardCount(practice)).toBe(1);
+  });
+
+  test('if the browser rejects the held-back word, the Listen button pulses', async ({ page, audio, loadList }) => {
+    const practice = await startWithClock({ page, audio, loadList });
+    // From here on the browser refuses every play(), as iOS does when a play is not started by a tap.
+    await page.evaluate(() => {
+      HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('Not allowed', 'NotAllowedError'));
+    });
+    await practice.markNext(true);
+    await expect(practice.listen).not.toHaveClass(/pulse/);
+    await page.clock.runFor(900);
+    await expect(practice.listen).toHaveClass(/pulse/);
+  });
+});
