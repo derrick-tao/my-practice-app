@@ -124,3 +124,12 @@
 .progress-char__note {
   font-size: 1.1rem;
 }
+
+.progress-part {
+  margin: 0 0 28px;
+}
+
+.progress-part__title {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}

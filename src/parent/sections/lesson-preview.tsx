@@ -3,17 +3,16 @@
 // #/parent/lesson-preview/<lessonId> is one lesson's preview.
 import { useMemo } from 'preact/hooks';
 import { fetchLesson } from '../../content/client.ts';
-import type { ItemData, LessonData, Rendition } from '../../content/types.ts';
-import { itemCountOf, usePublishedLessons } from '../../content/use-lessons.ts';
+import { listEntries, type ItemData, type LessonData, type LessonSummary, type Rendition } from '../../content/types.ts';
+import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { countLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
 import { useLoad } from '../../use-async.ts';
 import '../lesson-preview.css';
 import type { ParentSection } from '../sections.ts';
 
 const SCRIPT_LABEL = { simplified: 'Simplified', traditional: 'Traditional' } as const;
-
-const characters = (count: number): string => `${count} ${count === 1 ? 'character' : 'characters'}`;
 
 const LOAD_FAILED = "Couldn't load the lessons. Check the internet and try again.";
 
@@ -49,9 +48,25 @@ function PreviewItem({ player, item }: { player: AudioPlayer; item: ItemData }) 
   );
 }
 
+function PreviewSection({ player, type, items }: { player: AudioPlayer; type: PracticeType; items: ItemData[] }) {
+  return (
+    <section class="preview-section" data-testid="preview-section">
+      <h3 class="preview-section__title">
+        <span aria-hidden="true">{type.icon} </span>
+        {type.label}
+      </h3>
+      <ol class="preview-items">
+        {items.map((item) => (
+          <PreviewItem key={item.target} player={player} item={item} />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 function Preview({ lesson }: { lesson: LessonData }) {
   const player = useMemo(createAudioPlayer, []);
-  const items = lesson.lists.dictation ?? [];
+  const lists = listEntries(lesson.lists);
   return (
     <>
       <div class="preview-header" data-testid="preview-header">
@@ -63,14 +78,14 @@ function Preview({ lesson }: { lesson: LessonData }) {
               <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
             </span>
           )}
-          <span>{characters(items.length)}</span>
+          {lists.map(([id, items]) => (
+            <span key={id}>{countLabel(PRACTICE_TYPES[id], items.length)}</span>
+          ))}
         </div>
       </div>
-      <ol class="preview-items">
-        {items.map((item) => (
-          <PreviewItem key={item.target} player={player} item={item} />
-        ))}
-      </ol>
+      {lists.map(([id, items]) => (
+        <PreviewSection key={id} player={player} type={PRACTICE_TYPES[id]} items={items} />
+      ))}
     </>
   );
 }
@@ -91,6 +106,10 @@ function LessonPreview({ lessonId }: { lessonId: string }) {
   return <Preview lesson={lesson.value} />;
 }
 
+/** "5 characters · 6 phrases": the sizes of the lesson's lists. */
+const countsOf = (lesson: LessonSummary): string =>
+  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
+
 function Lessons() {
   const lessons = usePublishedLessons();
   if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
@@ -101,7 +120,7 @@ function Lessons() {
         <li key={lesson.id}>
           <a class="parent__entry" href={parentHref('lesson-preview', lesson.id)}>
             {lesson.title}
-            <span> · {characters(itemCountOf(lesson, 'dictation'))}</span>
+            <span> · {countsOf(lesson)}</span>
           </a>
         </li>
       ))}
