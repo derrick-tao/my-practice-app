@@ -11,6 +11,8 @@ import { FIXTURE_BASE_URL as BASE_URL, FIXTURE_PORT as PORT, REAL_BASE_URL, REAL
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
+  // Each worker is a WebKit browser; uncapped local runs (and parallel agents) exhaust the machine.
+  workers: process.env.CI ? undefined : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
