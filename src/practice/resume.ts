@@ -16,16 +16,25 @@ export async function currentSettings(storage: StorageAdapter): Promise<ProfileS
   return { ...DEFAULT_SETTINGS, ...profile?.settings };
 }
 
+/** When the session was last worked on (`updatedAt`; its start for a session saved without one). */
+const lastUsedAt = (session: Session): string => session.updatedAt || session.startedAt;
+
+/** The more recently used of two sessions (the later in the list when tied). */
+const moreRecentlyUsed = (a: Session, b: Session): Session => (lastUsedAt(a) > lastUsedAt(b) ? a : b);
+
 /**
  * The profile's sessions in progress, most recently used (`updatedAt`) first. There is at most one per
- * lesson and practice type; if data ever holds several for the same list, the newest wins.
+ * lesson and practice type; if data ever holds several for the same list, the most recently used wins.
  */
 export async function findSessionsInProgress(storage: StorageAdapter): Promise<Session[]> {
   const active = await storage.listSessions(await currentProfileId(storage), { status: 'active' });
   const newestPerList = new Map<string, Session>();
-  // Oldest first, so the newest overwrites.
-  for (const session of active) newestPerList.set(`${session.lessonId}/${session.practiceType}`, session);
-  return [...newestPerList.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  for (const session of active) {
+    const key = `${session.lessonId}/${session.practiceType}`;
+    const best = newestPerList.get(key);
+    newestPerList.set(key, best ? moreRecentlyUsed(best, session) : session);
+  }
+  return [...newestPerList.values()].sort((a, b) => lastUsedAt(b).localeCompare(lastUsedAt(a)));
 }
 
 export interface OpenedSession {
@@ -57,16 +66,14 @@ export async function openSession(
   const profileId = await currentProfileId(storage);
   const saved = (
     await storage.listSessions(profileId, { lessonId: lesson.id, practiceType: options.practiceType, status: 'active' })
-  ).at(-1);
+  ).reduce<Session | undefined>((best, session) => (best ? moreRecentlyUsed(best, session) : session), undefined);
   const items = lesson.lists[options.practiceType];
   if (saved) {
     // Reconcile with the lesson as it is now (the parent may have edited it since the session was saved).
     const settled = reconcileWithList(saved, new Set((items ?? []).map((item) => item.target)), env);
-    await storage.putSession(settled);
-    return { session: settled, resumed: true };
+    return { session: await storage.putSession(settled), resumed: true };
   }
   if (!items) return undefined;
   const session = createSession(lesson, { ...options, profileId }, env);
-  await storage.putSession(session);
-  return { session, resumed: false };
+  return { session: await storage.putSession(session), resumed: false };
 }

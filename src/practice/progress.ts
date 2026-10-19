@@ -44,7 +44,8 @@ export interface TrickyItem {
 
 export const TRICKIEST_LIMIT = 10;
 
-export interface LessonProgress {
+/** One learner's progress on one list (a lesson's items for one practice type). */
+export interface ListProgress {
   /** Every attempt (completed, in progress and stopped), newest first. */
   attempts: AttemptSummary[];
   attemptCount: number;
@@ -85,7 +86,7 @@ export function summarizeAttempt(session: Session): AttemptSummary {
  * Progress for one learner on one list. `listedTargets` are the targets the list has now, in list order: they
  * order items with equal counts in the trickiest ranking (items the list no longer has come last).
  */
-export function lessonProgress(sessions: readonly Session[], listedTargets: readonly string[]): LessonProgress {
+export function listProgress(sessions: readonly Session[], listedTargets: readonly string[]): ListProgress {
   const attempts = sessions
     .map(summarizeAttempt)
     .sort((x, y) => y.startedAt.localeCompare(x.startedAt));

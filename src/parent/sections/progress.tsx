@@ -10,16 +10,16 @@ import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
-import { PRACTICE_TYPE_IDS, type ItemData, type LessonData, type LessonSummary } from '../../content/types.ts';
+import { PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
 import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
-import { countLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
+import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
-  lessonProgress,
+  listProgress,
   type AttemptSummary,
-  type LessonProgress,
+  type ListProgress,
   type RoundSummary,
   type Score,
 } from '../../practice/progress.ts';
@@ -45,7 +45,7 @@ interface Part {
   type: PracticeType;
   items: ItemData[];
   sessions: Session[];
-  progress: LessonProgress;
+  progress: ListProgress;
 }
 
 interface LessonView {
@@ -68,7 +68,7 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
         const own = sessions.filter((session) => session.practiceType === id);
         const items = lesson.lists[id] ?? [];
         if (items.length === 0 && own.length === 0) return [];
-        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: lessonProgress(own, items.map((item) => item.target)) }];
+        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: listProgress(own, items.map((item) => item.target)) }];
       });
       return { lesson, parts };
     },
@@ -78,7 +78,7 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
   return loaded;
 }
 
-function PlayableCharacter({
+function PlayableItem({
   player,
   target,
   item,
@@ -191,7 +191,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
           <ol class="progress-list progress-tricky">
             {progress.trickiest.map(({ target, wrong }) => (
               <li key={target} class="progress-tricky__row" data-testid="tricky">
-                <PlayableCharacter player={player} target={target} item={items.get(target)} />
+                <PlayableItem player={player} target={target} item={items.get(target)} />
                 <span class="progress-tricky__count">
                   <span aria-hidden="true">❌ </span>
                   {wrong}
@@ -255,7 +255,7 @@ function RoundBlock({
       {round.missed.length > 0 && (
         <div class="progress-round__missed">
           {round.missed.map((target) => (
-            <PlayableCharacter key={target} player={player} target={target} item={items.get(target)} />
+            <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
           ))}
         </div>
       )}
@@ -298,10 +298,6 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
   );
 }
 
-/** "5 characters · 6 phrases": the sizes of the lesson's lists. */
-const countsOf = (lesson: LessonSummary): string =>
-  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
-
 function Lessons() {
   const lessons = usePublishedLessons();
   if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
@@ -314,7 +310,7 @@ function Lessons() {
           <li key={lesson.id}>
             <a class="parent__entry" href={parentHref('progress', lesson.id)}>
               {lesson.title}
-              <span> · {countsOf(lesson)}</span>
+              <span> · {listCountsLabel(lesson)}</span>
             </a>
           </li>
         ))}

@@ -67,8 +67,8 @@ export interface StorageAdapter {
   getSession(id: string): Promise<Session | undefined>;
   /** A profile's sessions, oldest first, optionally narrowed to one lesson, practice type and/or status. */
   listSessions(profileId: string, filter?: SessionFilter): Promise<Session[]>;
-  /** Insert or replace, stamping the saved copy's `updatedAt` with the save time. Resolves only once the write is durable. */
-  putSession(session: Session): Promise<void>;
+  /** Insert or replace, stamping the saved copy's `updatedAt` with the save time. Resolves, with the session as saved, only once the write is durable. */
+  putSession(session: Session): Promise<Session>;
   deleteSessionsByProfile(profileId: string): Promise<void>;
 
   /** Everything the backup holds. */

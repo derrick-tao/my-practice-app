@@ -174,11 +174,11 @@ test.describe('a session in progress for every list', () => {
     ]);
   });
 
-  test('if saved data holds several sessions for one list, the newest wins', async ({ page, audio, loadLesson }) => {
+  test('if saved data holds several sessions for one list, the most recently used wins, however early it was started', async ({ page, audio, loadLesson }) => {
     await setUpLearner(page);
     const lesson = await loadLesson('fixture-five');
     const ids = lesson.lists.dictation!.map((item) => item.target);
-    const saved = (id: string, startedAt: string, position: number): SessionJson => ({
+    const saved = (id: string, startedAt: string, updatedAt: string, position: number): SessionJson => ({
       id,
       profileId: 'replaced-on-restore',
       subject: 'chinese',
@@ -187,7 +187,7 @@ test.describe('a session in progress for every list', () => {
       contentVersion: 'saved-before',
       status: 'active',
       startedAt,
-      updatedAt: startedAt,
+      updatedAt,
       rounds: [
         {
           index: 1,
@@ -203,8 +203,9 @@ test.describe('a session in progress for every list', () => {
       marksSinceBreak: 0,
     });
     await restoreSessions(page, [
-      saved('older', '2026-10-01T12:00:00.000Z', 1),
-      saved('newer', '2026-10-02T12:00:00.000Z', 3),
+      // Started first but worked on last: this is the one to keep going with.
+      saved('started-first', '2026-10-01T12:00:00.000Z', '2026-10-03T12:00:00.000Z', 3),
+      saved('started-last', '2026-10-02T12:00:00.000Z', '2026-10-02T13:00:00.000Z', 1),
     ]);
 
     await expect(cards(page)).toHaveCount(1);

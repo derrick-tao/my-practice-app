@@ -51,13 +51,12 @@ export function createSessionSync(
         const next = queue[0]!(saved);
         if (next !== saved) {
           try {
-            await storage.putSession(next);
+            saved = await storage.putSession(next);
           } catch {
             saveFailed = true;
             report();
             return;
           }
-          saved = next;
         }
         queue.shift();
         report();
