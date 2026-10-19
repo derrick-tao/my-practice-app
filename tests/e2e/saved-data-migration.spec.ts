@@ -93,8 +93,11 @@ test.describe('saved data from the previous schema', () => {
     const learner = savedDataFixture('schema-v1-learner') as { sessions: Array<{ id: string; status: string }> };
     const active = learner.sessions.find((s) => s.status === 'active')!.id;
     const completed = learner.sessions.find((s) => s.status === 'completed')!.id;
+    const [stoppedAfterRound, stoppedWithoutTimes] = learner.sessions.filter((s) => s.status === 'stopped').map((s) => s.id);
     expect(stamped(active)).toBe('2026-10-01T09:02:30.000Z'); // the latest round start
     expect(stamped(completed)).toBe('2026-09-20T09:05:00.000Z'); // its completion
+    expect(stamped(stoppedAfterRound)).toBe('2026-10-05T09:04:00.000Z'); // no completion of its own: the round's completion, later than its start
+    expect(stamped(stoppedWithoutTimes)).toBe('2026-10-06T09:00:00.000Z'); // no round times either: its start
 
     // Practicing saves the session again, and the stamp moves to now.
     await page.goto('./');
