@@ -1,4 +1,4 @@
-# Seam 1 fixture: no test dates, pinyin auto-generated, one say override.
+# Seam 1 fixture: no test dates, pinyin auto-generated, one say override; also has a phrase-recognition list.
 id: fixture-five
 title: Fixture Five
 subject: chinese
@@ -14,3 +14,8 @@ dictation:
     clue: 今年
   - target: 只
     say: 一只鸟的只
+# Shares 猫 with the dictation list: the same target in two lists is two separate items.
+phrase-recognition:
+  - target: 猫
+  - target: 三只猫
+  - target: 书包

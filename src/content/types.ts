@@ -4,7 +4,7 @@
 export type Script = 'simplified' | 'traditional';
 
 /** The practice-type registry's id space. A lesson's data has a list for each of these it offers. */
-export const PRACTICE_TYPE_IDS = ['dictation'] as const;
+export const PRACTICE_TYPE_IDS = ['dictation', 'phrase-recognition'] as const;
 export type PracticeTypeId = (typeof PRACTICE_TYPE_IDS)[number];
 
 export const isPracticeTypeId = (value: string): value is PracticeTypeId =>

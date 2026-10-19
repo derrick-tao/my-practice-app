@@ -61,6 +61,20 @@ test.describe('home screen', () => {
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   });
 
+  test('ignores a practice type the app has no screen for yet', async ({ page }) => {
+    await setUpLearner(page);
+    // Fixture Five also has a phrase-recognition list: the card still counts and opens its characters.
+    const card = page.getByRole('link', { name: /Fixture Five/ });
+    await expect(card).toContainText('5 characters');
+    await expect(card).not.toContainText('phrase');
+    await card.click();
+    await expect(page).toHaveURL(/#\/chinese\/dictation\/fixture-five$/);
+
+    // Its address is not a screen yet.
+    await page.goto('./#/chinese/phrase-recognition/fixture-five');
+    await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
+  });
+
   test('loads everything from the app origin under the base path, with no failures', async ({ page, baseURL }) => {
     const origin = new URL(baseURL!).origin;
     const failures: string[] = [];
