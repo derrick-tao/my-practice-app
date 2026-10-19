@@ -72,6 +72,8 @@
 }
 
 .practice__stage {
+  /* A phrase sizes itself to the width the stage gets (see .phrase). */
+  container-type: inline-size;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,6 +186,12 @@
   font-family: 'Practice Kai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'PingFang SC', system-ui, serif;
 }
 
+/* A phrase is as large as fits on one line: its share of the stage's width, but no larger than a single character. */
+.reveal__target.phrase {
+  font-size: min(calc(96cqw / var(--chars, 1)), 40vmin);
+  white-space: nowrap;
+}
+
 .reveal__pinyin {
   font-size: 2rem;
   font-weight: 700;
@@ -275,6 +283,11 @@
 
 .keep-going__title {
   font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.keep-going__type {
+  font-size: 1.2rem;
   font-weight: 700;
 }
 

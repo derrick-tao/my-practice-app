@@ -1,18 +1,21 @@
-// Parent area section: how practice is going, per list, for the active learner.
-//   #/parent/progress                      the lists
-//   #/parent/progress/<listId>             header, attempts (newest first), trickiest characters, first-try trend
-//   #/parent/progress/<listId>/<sessionId> one attempt: every round, its counts and the missed characters
-// The numbers come from src/practice/progress.ts. Missed and tricky characters are buttons that play the
-// character's normal audio; a character the list no longer has is labeled "(removed)" and has no audio.
+// Parent area section: how practice is going, per lesson, for the active learner.
+//   #/parent/progress                      the lessons
+//   #/parent/progress/<lessonId>             header, then a part per practice type: its attempts (newest first),
+//                                            first-try trend, best score and trickiest items
+//   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
+//                                            its counts and the missed items
+// The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
+// normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
-import { fetchList } from '../../content/client.ts';
-import type { ItemData, ListData } from '../../content/types.ts';
+import { fetchLesson } from '../../content/client.ts';
+import { PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
 import { formatDate } from '../../format-date.ts';
-import { usePublishedLists } from '../../content/use-lists.ts';
+import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
   listProgress,
   type AttemptSummary,
@@ -35,39 +38,47 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
   stopped: { icon: '⏹️', label: 'Stopped' },
 };
 
-const characters = (count: number): string => `${count} ${count === 1 ? 'character' : 'characters'}`;
-
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
-interface ListView {
-  list: ListData;
+/** One practice type's part of a lesson: its list now, the learner's sessions of it, and the numbers worked out from them. */
+interface Part {
+  type: PracticeType;
+  items: ItemData[];
   sessions: Session[];
   progress: ListProgress;
 }
 
-/** The list, the active learner's saved attempts at it, and the numbers worked out from them. */
-function useListView(listId: string): Loadable<ListView | 'unknown'> {
+interface LessonView {
+  lesson: LessonData;
+  /** A part per practice type the lesson offers (or has saved sessions for), in registry order. */
+  parts: Part[];
+}
+
+/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them. */
+function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
   const { app } = useAppRecord();
   const profileId = activeProfileOf(app)?.id;
-  const published = usePublishedLists();
-  const known = published.status === 'ready' && published.value.some((p) => p.list.id === listId);
+  const published = usePublishedLessons();
+  const known = published.status === 'ready' && published.value.some((p) => p.lesson.id === lessonId);
   const loaded = useLoad(
-    async (): Promise<ListView | 'unknown'> => {
+    async (): Promise<LessonView | 'unknown'> => {
       if (!known || profileId === undefined) return 'unknown';
-      const [list, sessions] = await Promise.all([
-        fetchList(listId),
-        getStorage().listSessions(profileId, { listId }),
-      ]);
-      const ids = list.items.map((item) => item.target);
-      return { list, sessions, progress: listProgress(sessions, ids) };
+      const [lesson, sessions] = await Promise.all([fetchLesson(lessonId), getStorage().listSessions(profileId, { lessonId })]);
+      const parts = PRACTICE_TYPE_IDS.flatMap((id): Part[] => {
+        const own = sessions.filter((session) => session.practiceType === id);
+        const items = lesson.lists[id] ?? [];
+        if (items.length === 0 && own.length === 0) return [];
+        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: listProgress(own, items.map((item) => item.target)) }];
+      });
+      return { lesson, parts };
     },
-    [listId, known, profileId],
+    [lessonId, known, profileId],
   );
   if (published.status !== 'ready') return published;
   return loaded;
 }
 
-function PlayableCharacter({
+function PlayableItem({
   player,
   target,
   item,
@@ -110,19 +121,25 @@ function Who() {
   ) : null;
 }
 
-function Page({ view, children }: { view: Loadable<ListView | 'unknown'>; children: (v: ListView) => ComponentChildren }) {
+function Page({
+  view,
+  children,
+}: {
+  view: Loadable<LessonView | 'unknown'>;
+  children: (v: LessonView) => ComponentChildren;
+}) {
   if (view.status === 'loading') return <p class="notice">Loading…</p>;
   if (view.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
-  if (view.value === 'unknown') return <p class="notice">We couldn't find this list.</p>;
+  if (view.value === 'unknown') return <p class="notice">We couldn't find this lesson.</p>;
   return <>{children(view.value)}</>;
 }
 
-function AttemptRow({ listId, attempt }: { listId: string; attempt: AttemptSummary }) {
+function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptSummary }) {
   const status = STATUS[attempt.status];
   const done = attempt.status === 'completed';
   return (
     <li>
-      <a class="progress-attempt" data-testid="attempt" href={parentHref('progress', listId, attempt.id)}>
+      <a class="progress-attempt" data-testid="attempt" href={parentHref('progress', lessonId, attempt.id)}>
         <span class="progress-attempt__date">{formatDate(attempt.startedAt)}</span>
         <span class="progress-attempt__status">
           <span aria-hidden="true">{status.icon} </span>
@@ -137,75 +154,100 @@ function AttemptRow({ listId, attempt }: { listId: string; attempt: AttemptSumma
   );
 }
 
-function ListProgressPage({ listId }: { listId: string }) {
-  const view = useListView(listId);
+function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part; player: AudioPlayer }) {
+  const { type, items: listed, progress } = part;
+  const items = new Map(listed.map((item) => [item.target, item]));
+  return (
+    <section class="progress-part" data-testid={`progress-part-${type.id}`}>
+      <h3 class="progress-part__title">
+        <span aria-hidden="true">{type.icon} </span>
+        {type.label}
+      </h3>
+      <div class="progress-header__facts" data-testid="progress-facts">
+        <span>{countLabel(type, listed.length)}</span>
+        <span>Attempts: {progress.attemptCount}</span>
+        <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
+      </div>
+
+      <h4 class="progress-heading">First-try trend</h4>
+      <p class="progress-trend" data-testid="trend">
+        {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
+      </p>
+
+      <h4 class="progress-heading">Attempts</h4>
+      {progress.attempts.length === 0 ? (
+        <p class="notice">No attempts yet</p>
+      ) : (
+        <ul class="progress-list">
+          {progress.attempts.map((attempt) => (
+            <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
+          ))}
+        </ul>
+      )}
+
+      {progress.trickiest.length > 0 && (
+        <>
+          <h4 class="progress-heading">Trickiest {type.itemNoun.plural}</h4>
+          <ol class="progress-list progress-tricky">
+            {progress.trickiest.map(({ target, wrong }) => (
+              <li key={target} class="progress-tricky__row" data-testid="tricky">
+                <PlayableItem player={player} target={target} item={items.get(target)} />
+                <span class="progress-tricky__count">
+                  <span aria-hidden="true">❌ </span>
+                  {wrong}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </section>
+  );
+}
+
+function LessonProgressPage({ lessonId }: { lessonId: string }) {
+  const view = useLessonView(lessonId);
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ list, progress }) => {
-        const items = new Map(list.items.map((item) => [item.target, item]));
-        return (
-          <>
-            <Who />
-            <div class="progress-header" data-testid="progress-header">
-              <h2 class="progress-header__title">{list.title}</h2>
-              <div class="progress-header__facts">
-                {list.testDates && (
-                  <span>
-                    <span aria-hidden="true">📅 </span>Test: {list.testDates}
-                  </span>
-                )}
-                <span>{characters(list.items.length)}</span>
-                <span>Attempts: {progress.attemptCount}</span>
-                <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
-              </div>
+      {({ lesson, parts }) => (
+        <>
+          <Who />
+          <div class="progress-header" data-testid="progress-header">
+            <h2 class="progress-header__title">{lesson.title}</h2>
+            <div class="progress-header__facts">
+              {lesson.testDates && (
+                <span>
+                  <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
+                </span>
+              )}
             </div>
-
-            <h3 class="progress-heading">First-try trend</h3>
-            <p class="progress-trend" data-testid="trend">
-              {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
-            </p>
-
-            <h3 class="progress-heading">Attempts</h3>
-            {progress.attempts.length === 0 ? (
-              <p class="notice">No attempts yet</p>
-            ) : (
-              <ul class="progress-list">
-                {progress.attempts.map((attempt) => (
-                  <AttemptRow key={attempt.id} listId={listId} attempt={attempt} />
-                ))}
-              </ul>
-            )}
-
-            {progress.trickiest.length > 0 && (
-              <>
-                <h3 class="progress-heading">Trickiest characters</h3>
-                <ol class="progress-list progress-tricky">
-                  {progress.trickiest.map(({ target, wrong }) => (
-                    <li key={target} class="progress-tricky__row" data-testid="tricky">
-                      <PlayableCharacter player={player} target={target} item={items.get(target)} />
-                      <span class="progress-tricky__count">
-                        <span aria-hidden="true">❌ </span>
-                        {wrong}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </>
-            )}
-          </>
-        );
-      }}
+          </div>
+          {parts.map((part) => (
+            <PartProgress key={part.type.id} lessonId={lessonId} part={part} player={player} />
+          ))}
+        </>
+      )}
     </Page>
   );
 }
 
-function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<string, ItemData>; player: AudioPlayer }) {
+function RoundBlock({
+  round,
+  type,
+  items,
+  player,
+}: {
+  round: RoundSummary;
+  type: PracticeType;
+  items: Map<string, ItemData>;
+  player: AudioPlayer;
+}) {
   return (
     <li class="progress-round" data-testid="round">
       <div class="progress-round__facts">
         <strong>Round {round.index}</strong>
-        <span>{characters(round.itemCount)}</span>
+        <span>{countLabel(type, round.itemCount)}</span>
         <span>✅ {round.correct}</span>
         <span>❌ {round.wrong}</span>
         {!round.finished && <span>(so far)</span>}
@@ -213,7 +255,7 @@ function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<
       {round.missed.length > 0 && (
         <div class="progress-round__missed">
           {round.missed.map((target) => (
-            <PlayableCharacter key={target} player={player} target={target} item={items.get(target)} />
+            <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
           ))}
         </div>
       )}
@@ -221,32 +263,32 @@ function RoundBlock({ round, items, player }: { round: RoundSummary; items: Map<
   );
 }
 
-function AttemptPage({ listId, attemptId }: { listId: string; attemptId: string }) {
-  const view = useListView(listId);
+function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: string }) {
+  const view = useLessonView(lessonId);
   const player = useMemo(createAudioPlayer, []);
   return (
     <Page view={view}>
-      {({ list, sessions, progress }) => {
-        const attempt = progress.attempts.find((a) => a.id === attemptId);
-        if (!attempt || !sessions.some((s) => s.id === attemptId)) {
-          return <p class="notice">We couldn't find this attempt.</p>;
-        }
-        const items = new Map(list.items.map((item) => [item.target, item]));
+      {({ lesson, parts }) => {
+        const part = parts.find((p) => p.sessions.some((s) => s.id === attemptId));
+        const attempt = part?.progress.attempts.find((a) => a.id === attemptId);
+        if (!part || !attempt) return <p class="notice">We couldn't find this attempt.</p>;
+        const items = new Map(part.items.map((item) => [item.target, item]));
         const status = STATUS[attempt.status];
         return (
           <>
-            <a class="parent__entry progress-back" href={parentHref('progress', listId)}>
+            <a class="parent__entry progress-back" href={parentHref('progress', lessonId)}>
               <span aria-hidden="true">⬅️ </span>
-              {list.title}
+              {lesson.title}
             </a>
             <h2 class="progress-header__title">
-              {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
+              <span aria-hidden="true">{part.type.icon} </span>
+              {part.type.label} · {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
               {status.label}
             </h2>
             <p>First try: {scoreText(attempt.firstTry)}</p>
             <ol class="progress-list">
               {attempt.rounds.map((round) => (
-                <RoundBlock key={round.index} round={round} items={items} player={player} />
+                <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
               ))}
             </ol>
           </>
@@ -256,19 +298,19 @@ function AttemptPage({ listId, attemptId }: { listId: string; attemptId: string 
   );
 }
 
-function Lists() {
-  const lists = usePublishedLists();
-  if (lists.status === 'loading') return <p class="notice">Loading…</p>;
-  if (lists.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
+function Lessons() {
+  const lessons = usePublishedLessons();
+  if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
+  if (lessons.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
   return (
     <>
       <Who />
       <ul class="progress-list">
-        {lists.value.map(({ list }) => (
-          <li key={list.id}>
-            <a class="parent__entry" href={parentHref('progress', list.id)}>
-              {list.title}
-              <span> · {characters(list.itemCount)}</span>
+        {lessons.value.map(({ lesson }) => (
+          <li key={lesson.id}>
+            <a class="parent__entry" href={parentHref('progress', lesson.id)}>
+              {lesson.title}
+              <span> · {listCountsLabel(lesson)}</span>
             </a>
           </li>
         ))}
@@ -278,10 +320,10 @@ function Lists() {
 }
 
 function ProgressSection({ path }: { path: string[] }) {
-  const [listId, attemptId] = path;
-  if (listId === undefined) return <Lists />;
-  if (attemptId === undefined) return <ListProgressPage listId={listId} />;
-  return <AttemptPage listId={listId} attemptId={attemptId} />;
+  const [lessonId, attemptId] = path;
+  if (lessonId === undefined) return <Lessons />;
+  if (attemptId === undefined) return <LessonProgressPage lessonId={lessonId} />;
+  return <AttemptPage lessonId={lessonId} attemptId={attemptId} />;
 }
 
 export const section: ParentSection = {

@@ -1,5 +1,5 @@
-// Finding and (re)opening the learner's session through the StorageAdapter.
-import type { ListData, PracticeTypeId } from '../content/types.ts';
+// Finding and (re)opening the learner's sessions through the StorageAdapter.
+import type { LessonData, PracticeTypeId } from '../content/types.ts';
 import { activeProfileOf } from '../profiles.ts';
 import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
 import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
@@ -16,17 +16,28 @@ export async function currentSettings(storage: StorageAdapter): Promise<ProfileS
   return { ...DEFAULT_SETTINGS, ...profile?.settings };
 }
 
-/** The profile's active session. There is at most one; if data ever holds several, the newest wins. */
-export async function findActiveSession(storage: StorageAdapter): Promise<Session | undefined> {
-  return activeSessionOf(storage, await currentProfileId(storage));
-}
+/** When the session was last worked on (`updatedAt`; its start for a session saved without one). */
+const lastUsedAt = (session: Session): string => session.updatedAt || session.startedAt;
 
-async function activeSessionOf(storage: StorageAdapter, profileId: string): Promise<Session | undefined> {
-  return (await storage.listSessions(profileId, { status: 'active' })).at(-1);
+/** The more recently used of two sessions (the later in the list when tied). */
+const moreRecentlyUsed = (a: Session, b: Session): Session => (lastUsedAt(a) > lastUsedAt(b) ? a : b);
+
+/**
+ * The profile's sessions in progress, most recently used (`updatedAt`) first. There is at most one per
+ * lesson and practice type; if data ever holds several for the same list, the most recently used wins.
+ */
+export async function findSessionsInProgress(storage: StorageAdapter): Promise<Session[]> {
+  const active = await storage.listSessions(await currentProfileId(storage), { status: 'active' });
+  const newestPerList = new Map<string, Session>();
+  for (const session of active) {
+    const key = `${session.lessonId}/${session.practiceType}`;
+    const best = newestPerList.get(key);
+    newestPerList.set(key, best ? moreRecentlyUsed(best, session) : session);
+  }
+  return [...newestPerList.values()].sort((a, b) => lastUsedAt(b).localeCompare(lastUsedAt(a)));
 }
 
 export interface OpenedSession {
-  kind: 'opened';
   session: Session;
   /** Continued from saved progress (so audio must not auto-play) rather than freshly started. */
   resumed: boolean;
@@ -37,39 +48,32 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
   await storage.putSession({ ...session, status: 'stopped' });
 }
 
-/** Another list's session is active and the learner has not yet been through the "stop it?" check. */
-export interface StopRequired {
-  kind: 'blocked';
-  blockedBy: Session;
-}
-
 /**
- * Open the list for practice: continue its active session, or start a new one. The new session is
- * saved before it is returned, so nothing is on screen that is not on disk. Starting a list while a
- * session on a different list is active replaces it (the old one is kept in history as stopped), but
- * only once the caller has been through the confirmation and the parent gate (`stopActive`); until then
- * nothing is changed and `StopRequired` comes back.
+ * Open a lesson's list for one practice type: continue its session in progress, or start a new one. Other
+ * lists' sessions are never touched. Whatever is returned is saved first, so nothing is on screen that is
+ * not on disk (and a continued session is saved again, which makes it the most recently used).
+ *
+ * A lesson that no longer offers the practice type counts as having lost every item: its saved session
+ * (reconciled per list, like any edit) is stopped. With no saved session either there is nothing to open
+ * and `undefined` comes back.
  */
 export async function openSession(
   storage: StorageAdapter,
-  list: Pick<ListData, 'id' | 'subject' | 'items'>,
-  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; stopActive?: boolean },
+  lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
+  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean },
   env: PracticeEnv,
-): Promise<OpenedSession | StopRequired> {
-  const { stopActive = false, ...sessionOptions } = options;
+): Promise<OpenedSession | undefined> {
   const profileId = await currentProfileId(storage);
-  const active = await activeSessionOf(storage, profileId);
-  if (active && active.listId === list.id && active.practiceType === options.practiceType) {
-    // Reconcile with the list as it is now (the parent may have edited it since the session was saved).
-    const settled = reconcileWithList(active, new Set(list.items.map((item) => item.target)), env);
-    if (settled !== active) await storage.putSession(settled);
-    return { kind: 'opened', session: settled, resumed: true };
+  const saved = (
+    await storage.listSessions(profileId, { lessonId: lesson.id, practiceType: options.practiceType, status: 'active' })
+  ).reduce<Session | undefined>((best, session) => (best ? moreRecentlyUsed(best, session) : session), undefined);
+  const items = lesson.lists[options.practiceType];
+  if (saved) {
+    // Reconcile with the lesson as it is now (the parent may have edited it since the session was saved).
+    const settled = reconcileWithList(saved, new Set((items ?? []).map((item) => item.target)), env);
+    return { session: await storage.putSession(settled), resumed: true };
   }
-  if (active) {
-    if (!stopActive) return { kind: 'blocked', blockedBy: active };
-    await stopSession(storage, active);
-  }
-  const session = createSession(list, { ...sessionOptions, profileId }, env);
-  await storage.putSession(session);
-  return { kind: 'opened', session, resumed: false };
+  if (!items) return undefined;
+  const session = createSession(lesson, { ...options, profileId }, env);
+  return { session: await storage.putSession(session), resumed: false };
 }

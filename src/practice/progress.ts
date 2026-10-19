@@ -44,6 +44,7 @@ export interface TrickyItem {
 
 export const TRICKIEST_LIMIT = 10;
 
+/** One learner's progress on one list (a lesson's items for one practice type). */
 export interface ListProgress {
   /** Every attempt (completed, in progress and stopped), newest first. */
   attempts: AttemptSummary[];

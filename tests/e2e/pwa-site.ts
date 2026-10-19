@@ -55,16 +55,16 @@ async function startSite(): Promise<{ site: PwaSite; server: Server }> {
       const read = async (rel: string) => readFile(path.join(DIST, rel), 'utf8');
       const manifest = JSON.parse(await read('content/manifest.json')) as {
         contentVersion: string;
-        subjects: Array<{ practiceTypes: Array<{ lists: Array<{ id: string; title: string; file: string }> }> }>;
+        subjects: Array<{ lessons: Array<{ id: string; title: string; file: string }> }>;
       };
-      const entries = manifest.subjects.flatMap((s) => s.practiceTypes.flatMap((t) => t.lists));
+      const entries = manifest.subjects.flatMap((s) => s.lessons);
       const entry = entries.find((e) => e.id === 'fixture-three')!;
 
-      // List files are named by their content, so a changed list is a new file next to the old one.
-      const list = JSON.parse(await read(`content/${entry.file}`)) as { title: string };
-      list.title = NEW_TITLE;
-      const newFile = 'lists/fixture-three.deployed-later.json';
-      overlay.set(`content/${newFile}`, JSON.stringify(list));
+      // Lesson files are named by their content, so a changed lesson is a new file next to the old one.
+      const lesson = JSON.parse(await read(`content/${entry.file}`)) as { title: string };
+      lesson.title = NEW_TITLE;
+      const newFile = 'lessons/fixture-three.deployed-later.json';
+      overlay.set(`content/${newFile}`, JSON.stringify(lesson));
 
       const oldFile = entry.file;
       manifest.contentVersion = 'deployed-later';
@@ -73,7 +73,7 @@ async function startSite(): Promise<{ site: PwaSite; server: Server }> {
       }
       overlay.set('content/manifest.json', JSON.stringify(manifest));
 
-      // A deploy with changed content produces a service worker with a different build id and precache list.
+      // A deploy with changed content produces a service worker with a different build id and precache lesson.
       const worker = await read('sw.js');
       expect(worker).toMatch(/"buildId":"[^"]*"/);
       expect(worker).toContain(`content/${oldFile}`);

@@ -1,64 +1,95 @@
 import { expect, test } from './harness.ts';
 import { setUpLearner } from './parent-driver.ts';
+import { lessonGroup } from './practice-driver.ts';
 
 test.describe('home screen', () => {
-  test('shows a card for each published list with title, test dates and character count', async ({ page }) => {
+  test('shows a card for each published lesson with title, test dates and a button per practice type with its count', async ({ page }) => {
     await setUpLearner(page);
 
-    const card = page.getByRole('link', { name: /Fixture Three/ });
+    const card = lessonGroup(page, 'Fixture Three');
     await expect(card).toBeVisible();
     await expect(card).toContainText('Test: 2026-11-02 to 2026-11-06');
-    await expect(card).toContainText('3 characters');
+    await expect(card.getByRole('link')).toHaveCount(1);
+    await expect(card.getByRole('link', { name: /Write · 3 characters/ })).toBeVisible();
 
-    const noDates = page.getByRole('link', { name: /Fixture Five/ });
-    await expect(noDates).toBeVisible();
-    await expect(noDates).toContainText('5 characters');
-    await expect(noDates).not.toContainText('Test:');
+    // Fixture Five has no test dates and offers two practice types: one button each.
+    const both = lessonGroup(page, 'Fixture Five');
+    await expect(both).toBeVisible();
+    await expect(both).not.toContainText('Test:');
+    await expect(both.getByRole('link')).toHaveCount(2);
+    await expect(both.getByRole('link', { name: /Write · 5 characters/ })).toBeVisible();
+    await expect(both.getByRole('link', { name: /Say · 6 phrases/ })).toBeVisible();
+    await expect(both.getByRole('link', { name: /Write/ })).toContainText('✏️');
+    await expect(both.getByRole('link', { name: /Say/ })).toContainText('🗣️');
   });
 
   test('fits every card inside the screen in this orientation', { tag: '@layout' }, async ({ page }) => {
     await setUpLearner(page);
     const viewport = page.viewportSize()!;
-    for (const name of [/Fixture Three/, /Fixture Five/]) {
-      const card = page.getByRole('link', { name });
+    for (const title of ['Fixture Three', 'Fixture Five']) {
+      const card = lessonGroup(page, title);
       await card.scrollIntoViewIfNeeded();
       const box = (await card.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
-      // Big, finger-friendly cards.
-      expect(box.height).toBeGreaterThanOrEqual(96);
+      // Big, finger-friendly buttons for each practice type.
+      for (const button of await card.getByRole('link').all()) {
+        const buttonBox = (await button.boundingBox())!;
+        expect(buttonBox.x).toBeGreaterThanOrEqual(0);
+        expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(viewport.width);
+        expect(buttonBox.height).toBeGreaterThanOrEqual(96);
+      }
     }
   });
 
-  test('tapping a card opens its list route under subject / practice type / list', async ({ page }) => {
+  test('each practice type button opens its own list under subject / practice type / lesson', async ({ page }) => {
     await setUpLearner(page);
-    await page.getByRole('link', { name: /Fixture Three/ }).click();
+    await lessonGroup(page, 'Fixture Five').getByRole('link', { name: /Say/ }).click();
+    await expect(page).toHaveURL(/#\/chinese\/phrase-recognition\/fixture-five$/);
+    await expect(page.getByRole('heading', { name: 'Fixture Five' })).toBeVisible();
+    await page.getByRole('link', { name: 'Home' }).click();
+
+    await lessonGroup(page, 'Fixture Five').getByRole('link', { name: /Write/ }).click();
+    await expect(page).toHaveURL(/#\/chinese\/dictation\/fixture-five$/);
+    await page.getByRole('link', { name: 'Home' }).click();
+
+    await lessonGroup(page, 'Fixture Three').getByRole('link', { name: /Write/ }).click();
 
     await expect(page).toHaveURL(/#\/chinese\/dictation\/fixture-three$/);
     await expect(page.getByRole('heading', { name: 'Fixture Three' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/#\/$/);
-    // The practice just started is waiting under Keep going, next to the list's own card.
-    await expect(page.getByRole('link', { name: /Keep going/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Three/ }).filter({ hasNotText: 'Keep going' })).toBeVisible();
+    // Each list started is waiting under Keep going with its own icon and label, next to the lesson's own card.
+    await expect(page.getByRole('group', { name: /^Keep going/ })).toHaveCount(3);
+    await expect(page.getByRole('group', { name: 'Keep going: Fixture Three, Write' })).toContainText('✏️');
+    await expect(page.getByRole('group', { name: 'Keep going: Fixture Five, Say' })).toContainText('🗣️');
+    await expect(page.getByRole('group', { name: 'Keep going: Fixture Five, Write' })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Three')).toBeVisible();
   });
 
-  test('opening a list route directly works', async ({ page }) => {
+  test('opening a lesson route directly works', async ({ page }) => {
     await setUpLearner(page);
     await page.goto('./#/chinese/dictation/fixture-five');
     await expect(page.getByRole('heading', { name: 'Fixture Five' })).toBeVisible();
   });
 
-  test('a route that is not a list falls back to home; an unknown list offers a way home', async ({ page }) => {
+  test('a route that is not a lesson falls back to home; an unknown lesson offers a way home', async ({ page }) => {
     await setUpLearner(page);
     await page.goto('./#/nowhere');
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
 
     await page.goto('./#/chinese/dictation/no-such-list');
-    await expect(page.getByText("We couldn't find this list.")).toBeVisible();
+    await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+  });
+
+  test('a practice type the lesson does not offer is not a screen', async ({ page }) => {
+    await setUpLearner(page);
+    // Fixture Three has no phrase-recognition list.
+    await page.goto('./#/chinese/phrase-recognition/fixture-three');
+    await expect(page.getByText("We couldn't find this lesson.")).toBeVisible();
   });
 
   test('loads everything from the app origin under the base path, with no failures', async ({ page, baseURL }) => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { fetchListWithVersion } from '../content/client.ts';
-import type { ItemData, ListData, PracticeTypeId, Rendition } from '../content/types.ts';
+import { fetchLessonWithVersion } from '../content/client.ts';
+import type { ItemData, LessonData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { createAudioPlayer } from '../practice/audio.ts';
 import { Celebration } from '../practice/celebration.tsx';
 import { createEffects } from '../practice/effects.ts';
@@ -31,8 +31,6 @@ import {
   type Place,
   type Session,
 } from '../practice/session.ts';
-import { ConfirmYesNo } from '../confirm.tsx';
-import { ParentGate } from '../parent/gate.tsx';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
@@ -47,40 +45,67 @@ function HomeButton() {
   );
 }
 
-/** The address named no list we have (unknown list, or a subject / practice type it does not belong to). */
-export function ListNotFound() {
+/** The address named no lesson we have (unknown lesson, or a subject / practice type it does not belong to). */
+export function LessonNotFound() {
   return (
     <main class="screen">
       <HomeButton />
-      <p class="notice">We couldn't find this list.</p>
+      <p class="notice">We couldn't find this lesson.</p>
     </main>
   );
 }
 
-export function PracticeScreen({
+/** What a practice screen is given by its route. */
+export interface PracticeRouteProps {
+  subject: string;
+  lessonId: string;
+}
+
+export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
+export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
+  <PracticeScreen {...props} practiceType="phrase-recognition" />
+);
+
+/**
+ * What differs between practice types on the practice screen; everything else (rounds, retries, breaks, Undo,
+ * sounds, saving) is shared.
+ */
+interface PracticeFlow {
+  /**
+   * The child hears the item first and writes it: its audio plays on arrival and after each mark, and Check waits
+   * until it has been requested. Without it (the child reads the item and says it) nothing plays until Check.
+   */
+  audioFirst: boolean;
+}
+
+const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
+  dictation: { audioFirst: true },
+  'phrase-recognition': { audioFirst: false },
+};
+
+function PracticeScreen({
   subject,
   practiceType,
-  listId,
-}: {
-  subject: string;
+  lessonId,
+}: PracticeRouteProps & {
   practiceType: PracticeTypeId;
-  listId: string;
 }) {
-  const loaded = useLoad(() => fetchListWithVersion(listId), [listId]);
+  const loaded = useLoad(() => fetchLessonWithVersion(lessonId), [lessonId]);
   if (loaded.status === 'ready') {
-    const { list } = loaded.value;
-    // Checked before anything is opened, so a wrong address can never stop the saved practice.
-    if (list.subject !== subject || !list.practiceTypes.includes(practiceType)) return <ListNotFound />;
+    const { lesson } = loaded.value;
+    // Checked before anything is opened, so a wrong address can never stop the saved practice. A lesson that has
+    // lost this practice type still opens: its saved session for it is stopped (see openSession).
+    if (lesson.subject !== subject) return <LessonNotFound />;
     return (
       <OpenPractice
-        key={listId}
-        list={list}
+        key={lessonId}
+        lesson={lesson}
         practiceType={practiceType}
         contentVersion={loaded.value.contentVersion}
       />
     );
   }
-  if (loaded.status === 'error') return <ListNotFound />;
+  if (loaded.status === 'error') return <LessonNotFound />;
   return (
     <main class="screen">
       <HomeButton />
@@ -108,51 +133,32 @@ const realEnv = (): PracticeEnv => ({
   newId: () => crypto.randomUUID(),
 });
 
-/** Continues the saved session for this list, or starts and saves a new one, before showing practice. */
+/** Continues the saved session for this lesson and practice type, or starts and saves a new one, before showing practice. */
 function OpenPractice({
-  list,
+  lesson,
   practiceType,
   contentVersion,
 }: {
-  list: ListData;
+  lesson: LessonData;
   practiceType: PracticeTypeId;
   contentVersion: string;
 }) {
   const env = useMemo(realEnv, []);
   const [openTries, setOpenTries] = useState(0);
-  // Another list's practice is active: the child confirms, then a grown-up passes the gate, before it is stopped.
-  const [stopStep, setStopStep] = useState<'ask' | 'gate' | 'done'>('ask');
-  const stopActive = stopStep === 'done';
   const opened = useLoad(
     async () => {
       const storage = getStorage();
       const { breakEvery, shuffle, sounds } = await currentSettings(storage);
-      const result = await openSession(storage, list, { practiceType, contentVersion, shuffle, stopActive }, env);
-      return result.kind === 'blocked' ? result : { ...result, breakEvery, sounds };
+      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle }, env);
+      return result && { ...result, breakEvery, sounds };
     },
-    [openTries, stopActive],
+    [openTries],
   );
+  if (opened.status === 'ready' && !opened.value) return <LessonNotFound />;
   const result = opened.status === 'ready' ? opened.value : undefined;
-  if (result?.kind === 'blocked') {
-    return (
-      <main class="screen">
-        <HomeButton />
-        {stopStep === 'gate' ? (
-          // A one-off check: it lets this practice be stopped and does not unlock the parent area.
-          <ParentGate onPassed={() => setStopStep('done')} />
-        ) : (
-          <ConfirmYesNo
-            question="Stop your current practice?"
-            onYes={() => setStopStep('gate')}
-            onNo={() => void (location.hash = HOME_HREF)}
-          />
-        )}
-      </main>
-    );
-  }
   if (result) {
     const { session, resumed, breakEvery, sounds } = result;
-    return <PracticeRun list={list} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
+    return <PracticeRun lesson={lesson} practiceType={practiceType} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
   }
   return (
     <main class="screen">
@@ -167,14 +173,16 @@ function OpenPractice({
 }
 
 function PracticeRun({
-  list,
+  lesson,
+  practiceType,
   env,
   initial,
   resumed,
   breakEvery,
   sounds,
 }: {
-  list: ListData;
+  lesson: LessonData;
+  practiceType: PracticeTypeId;
   env: PracticeEnv;
   initial: Session;
   /** Continuing saved progress: audio must wait for the child's tap (iOS gesture rules). */
@@ -184,9 +192,13 @@ function PracticeRun({
   /** Play sound effects on ✅, ❌ and finishing (the profile's setting). Character audio ignores it. */
   sounds: boolean;
 }) {
+  const flow = FLOWS[practiceType];
   const player = useMemo(createAudioPlayer, []);
   const effects = useMemo(() => createEffects(sounds), []);
-  const itemsById = useMemo(() => new Map(list.items.map((item) => [item.target, item])), [list]);
+  const itemsById = useMemo(
+    () => new Map((lesson.lists[practiceType] ?? []).map((item) => [item.target, item])),
+    [lesson, practiceType],
+  );
   const listedIds = useMemo(() => new Set(itemsById.keys()), [itemsById]);
 
   // What is shown is always what is saved: every change goes through `sync`, which saves it first.
@@ -236,7 +248,7 @@ function PracticeRun({
 
   // First item of a new session: auto-play on arrival (not when resuming).
   useEffect(() => {
-    if (item && !resumed) requestAudio(item, 'normal', true, placeOf(session));
+    if (flow.audioFirst && item && !resumed) requestAudio(item, 'normal', true, placeOf(session));
   }, []);
 
   // Preload the current item's audio and the next item's.
@@ -271,7 +283,11 @@ function PracticeRun({
     if (next) requestAudio(next, 'normal', true, placeOf(after));
   };
 
-  const onCheck = (): void => void advance(reveal);
+  const onCheck = (): void => {
+    const after = advance((s) => reveal(s, flow.audioFirst));
+    // Reading first: Check is what plays the item. This is the tap handler, so iOS allows the audio.
+    if (after && !flow.audioFirst) autoplayCurrent(after);
+  };
 
   const onMark = (result: Mark): void => {
     const after = advance((s) => mark(s, result, env));
@@ -282,6 +298,8 @@ function PracticeRun({
     }
     const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
     cancelHeldAudio();
+    // Reading first: the next item's audio would give its answer away, so nothing plays until Check.
+    if (!flow.audioFirst) return;
     if (effectMs === 0) {
       autoplayCurrent(after); // the sounds setting is off: nothing to wait for
       return;
@@ -295,7 +313,7 @@ function PracticeRun({
     const after = advance((s) => startRetryRound(s, env, listedIds));
     if (!after) return;
     setBlockedAt(null);
-    autoplayCurrent(after);
+    if (flow.audioFirst) autoplayCurrent(after);
   };
 
   const onUndo = (): void => {
@@ -316,14 +334,14 @@ function PracticeRun({
   }, [leaving, saveFailed, session.marksSinceBreak]);
 
   if (session.status === 'stopped') {
-    // Reconciling with the edited list found none of the session's words left: the session is saved as
-    // stopped, and the child starts fresh by picking a list.
+    // Reconciling with the edited lesson found none of the session's words left: the session is saved as
+    // stopped, and the child starts fresh by picking a lesson.
     return (
       <main class="screen practice">
         <HomeButton />
-        <h1 class="sr-only">{list.title}</h1>
-        <p class="notice" data-testid="list-changed">
-          <span aria-hidden="true">🌟 </span>This list changed — pick a list
+        <h1 class="sr-only">{lesson.title}</h1>
+        <p class="notice" data-testid="lesson-changed">
+          <span aria-hidden="true">🌟 </span>This lesson changed — pick a lesson
         </p>
       </main>
     );
@@ -332,7 +350,7 @@ function PracticeRun({
   if (session.status === 'completed') {
     return (
       <main class="screen practice">
-        <h1 class="sr-only">{list.title}</h1>
+        <h1 class="sr-only">{lesson.title}</h1>
         <Completion {...sessionResult(session)} />
       </main>
     );
@@ -356,17 +374,19 @@ function PracticeRun({
         <StarBar done={round.position} total={round.itemIds.length} />
       </header>
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
-      <h1 class="sr-only">{list.title}</h1>
+      <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
       {!onBreakPrompt && item && !isRoundOver(round) && (
         <section class="practice__body">
           <div class="practice__stage">
             {round.phase === 'revealed' ? (
-              <Reveal item={item} />
-            ) : (
+              <Reveal item={item} fit={!flow.audioFirst} />
+            ) : flow.audioFirst ? (
               <p class="prompt">
                 <span aria-hidden="true">✏️ </span>Write it!
               </p>
+            ) : (
+              <PhrasePrompt item={item} />
             )}
           </div>
           <div class="practice__controls">
@@ -377,24 +397,26 @@ function PracticeRun({
                 </p>
               )}
             </div>
-            <div class="row">
-              <button
-                type="button"
-                class={`btn btn--audio${pulse ? ' pulse' : ''}`}
-                onClick={() => requestAudio(item, 'normal', false, place)}
-              >
-                <span aria-hidden="true">🔊 </span>Listen
-              </button>
-              <button
-                type="button"
-                class="btn btn--audio"
-                onClick={() => requestAudio(item, 'slow', false, place)}
-              >
-                <span aria-hidden="true">🐢 </span>Slow
-              </button>
-            </div>
+            {(flow.audioFirst || round.phase === 'revealed') && (
+              <div class="row">
+                <button
+                  type="button"
+                  class={`btn btn--audio${pulse ? ' pulse' : ''}`}
+                  onClick={() => requestAudio(item, 'normal', false, place)}
+                >
+                  <span aria-hidden="true">🔊 </span>Listen
+                </button>
+                <button
+                  type="button"
+                  class="btn btn--audio"
+                  onClick={() => requestAudio(item, 'slow', false, place)}
+                >
+                  <span aria-hidden="true">🐢 </span>Slow
+                </button>
+              </div>
+            )}
             <div class="row row--primary">
-              {round.phase === 'listening' && round.heardCurrent && (
+              {round.phase === 'prompt' && (!flow.audioFirst || round.heardCurrent) && (
                 <button type="button" class="btn btn--primary btn--check" onClick={onCheck}>
                   <span aria-hidden="true">👀 </span>Check
                 </button>
@@ -494,17 +516,33 @@ function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: numbe
   );
 }
 
-function Reveal({ item }: { item: ItemData }) {
+/** An item's target in the handwriting font. `fit`: as large as fits on one line (phrases, see .phrase in practice.css) rather than shrunk by its length. */
+function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testId: string }) {
+  return (
+    <div
+      class={fit ? 'reveal__target phrase' : 'reveal__target'}
+      data-testid={testId}
+      lang="zh-CN"
+      style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
+    >
+      {item.target}
+    </div>
+  );
+}
+
+/** The phrase to say aloud. */
+function PhrasePrompt({ item }: { item: ItemData }) {
   return (
     <div class="reveal">
-      <div
-        class="reveal__target"
-        data-testid="target"
-        lang="zh-CN"
-        style={{ '--scale': Math.max(1, [...item.target].length / 2) }}
-      >
-        {item.target}
-      </div>
+      <TargetText item={item} fit testId="prompt-phrase" />
+    </div>
+  );
+}
+
+function Reveal({ item, fit }: { item: ItemData; /** Fit the target on one line (phrases) rather than shrinking it by its length. */ fit: boolean }) {
+  return (
+    <div class="reveal">
+      <TargetText item={item} fit={fit} testId="target" />
       <div class="reveal__pinyin">{item.pinyin}</div>
       {item.clue && <div class="reveal__clue">{item.clue}</div>}
     </div>

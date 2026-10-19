@@ -1,6 +1,6 @@
-// Seam 1: parent gate, first-run setup, and assigned lists (ticket 07).
+// Seam 1: parent gate, first-run setup, and assigned lessons (ticket 07).
 import { expect, test } from './harness.ts';
-import { PracticeScreen } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import {
   failGate,
   gateFactors,
@@ -13,7 +13,7 @@ import {
 import { savedDataFixture, seedSavedData } from './saved-data.ts';
 
 test.describe('first run', () => {
-  test('asks for a grown-up, then gate -> profile -> assign one of two lists -> home greets with the avatar and shows only that list', async ({
+  test('asks for a grown-up, then gate -> profile -> assign one of two lessons -> home greets with the avatar and shows only that lesson', async ({
     page,
   }) => {
     await page.goto('./');
@@ -34,10 +34,10 @@ test.describe('first run', () => {
     await page.getByRole('button', { name: 'Done' }).click();
 
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-    const card = page.getByRole('link', { name: /Fixture Three/ });
+    const card = lessonGroup(page, 'Fixture Three');
     await expect(card).toContainText('Test: 2026-11-02 to 2026-11-06');
     await expect(card).toContainText('3 characters');
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
 
     // The profile is saved on the device: a fresh load goes straight to home.
     await page.reload();
@@ -45,26 +45,48 @@ test.describe('first run', () => {
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   });
 
-  test('setUpLearner (the shared helper) gets to the home screen with the chosen name, avatar and lists', async ({
+  test('each lesson switch shows the size of every list the lesson has, in first-run set-up and in Assign lessons', async ({
     page,
   }) => {
-    await setUpLearner(page, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
+    await page.goto('./');
+    await page.getByRole('button', { name: /grown-up/i }).click();
+    await passGate(page);
+    await page.getByRole('textbox', { name: 'Name' }).fill('Mia');
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    const five = page.getByRole('switch', { name: /Fixture Five/ });
+    await expect(five).toContainText('5 characters · 6 phrases');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).toContainText('3 characters');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).not.toContainText('phrase');
+    await five.click();
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await openParentArea(page);
+    await openParentSection(page, /Assign lessons/);
+    await expect(page.getByRole('switch', { name: /Fixture Five/ })).toContainText('5 characters · 6 phrases');
+    await expect(page.getByRole('switch', { name: /Fixture Three/ })).toContainText('3 characters');
+  });
+
+  test('setUpLearner (the shared helper) gets to the home screen with the chosen name, avatar and lessons', async ({
+    page,
+  }) => {
+    await setUpLearner(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-five'] });
 
     await expect(page.getByRole('heading', { name: 'Hi 🦊 Leo!' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toHaveCount(0);
   });
 
   test('a practice in progress from before profiles existed is kept by the first profile', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     await page.goto('./');
     await seedSavedData(page, savedDataFixture('schema-v1') as Parameters<typeof seedSavedData>[1]);
     await setUpLearner(page, { name: 'Zoe', avatar: '🦁' });
 
-    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await expect(practice.keepGoing).toBeVisible();
     await expect(practice.keepGoing.getByTestId('round-badge')).toHaveAttribute('aria-label', 'Round 2');
     await practice.keepGoing.click();
@@ -93,7 +115,7 @@ test.describe('first run', () => {
     await expect(page.getByRole('heading', { name: /Ask a grown-up to set up/ })).toBeVisible();
   });
 
-  test('set-up needs a name and at least one list; a failed save of Done can be retried', async ({ page }) => {
+  test('set-up needs a name and at least one lesson; a failed save of Done can be retried', async ({ page }) => {
     await page.goto('./');
     await page.getByRole('button', { name: /grown-up/i }).click();
     await passGate(page);
@@ -117,18 +139,18 @@ test.describe('first run', () => {
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
   });
 
-  test('the name never appears in any network request, however it is used', async ({ page, audio, loadList }) => {
+  test('the name never appears in any network request, however it is used', async ({ page, audio, loadLesson }) => {
     const sent: string[] = [];
     page.on('request', (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`));
 
     await setUpLearner(page, { name: 'Zebulon Quimby' });
-    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await practice.open();
     await practice.reveal();
     await practice.gotIt.click();
     await practice.home.click();
     await openParentArea(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     await page.reload();
 
     expect(sent.length).toBeGreaterThan(5);
@@ -158,7 +180,7 @@ test.describe('parent gate', () => {
 
     await passGate(page);
     await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Assign lists/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Assign lessons/ })).toBeVisible();
   });
 
   test('asks only multiplications of 6 to 9, answered on an on-screen number pad that can delete', async ({
@@ -187,7 +209,7 @@ test.describe('parent gate', () => {
     page,
   }) => {
     await setUpLearner(page);
-    await page.goto('./#/parent/assign-lists');
+    await page.goto('./#/parent/assign-lessons');
     await expect(page.getByTestId('gate-question')).toBeVisible();
     await expect(page.getByRole('switch')).toHaveCount(0);
     await passGate(page);
@@ -204,9 +226,9 @@ test.describe('parent gate', () => {
     await expect(page.getByTestId('gate-question')).toBeVisible();
 
     await passGate(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     await expect(page.getByRole('switch', { name: /Fixture Three/ })).toBeVisible();
-    await page.goBack(); // to the section list: still inside the parent area
+    await page.goBack(); // to the section lesson: still inside the parent area
     await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
     await page.goBack(); // out to home
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
@@ -229,7 +251,7 @@ test.describe('parent gate', () => {
     await page.clock.fastForward('04:30');
     await expect(page.getByRole('heading', { name: 'Grown-ups', exact: true })).toBeVisible();
     // Using the parent area restarts the idle time...
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     await page.clock.fastForward('04:30');
     await expect(page.getByRole('switch', { name: /Fixture Three/ })).toBeVisible();
     // ...and 5 minutes without a tap locks it, wherever the parent was.
@@ -242,13 +264,13 @@ test.describe('parent gate', () => {
   });
 });
 
-test.describe('assigned lists', () => {
-  test('unassigning a list hides its card on home; assigning it brings it back', async ({ page }) => {
+test.describe('assigned lessons', () => {
+  test('unassigning a lesson hides its card on home; assigning it brings it back', async ({ page }) => {
     await setUpLearner(page);
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
 
     await openParentArea(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     const five = page.getByRole('switch', { name: /Fixture Five/ });
     await expect(five).toBeChecked();
     await five.click();
@@ -257,23 +279,23 @@ test.describe('assigned lists', () => {
     await page.getByRole('link', { name: 'Home' }).click();
 
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
     await page.reload(); // saved on the device
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toHaveCount(0);
+    await expect(lessonGroup(page, 'Fixture Five')).toHaveCount(0);
 
     await openParentArea(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     await expect(five).not.toBeChecked();
     await five.click();
     await expect(five).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
-    await expect(page.getByRole('link', { name: /Fixture Five/ })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 
-  test('an active session on a list that gets unassigned still shows Keep going', async ({ page, audio, loadList }) => {
+  test('an active session on a lesson that gets unassigned still shows Keep going', async ({ page, audio, loadLesson }) => {
     await setUpLearner(page);
-    const practice = new PracticeScreen(page, audio, await loadList('fixture-three'));
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await practice.open();
     await practice.reveal();
     await practice.gotIt.click();
@@ -283,13 +305,13 @@ test.describe('assigned lists', () => {
     await expect(practice.keepGoing).toBeVisible();
 
     await openParentArea(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     await page.getByRole('switch', { name: /Fixture Three/ }).click();
     await expect(page.getByRole('switch', { name: /Fixture Three/ })).not.toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
 
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-    await expect(practice.listCard()).toHaveCount(0); // no card to start it afresh...
+    await expect(practice.lessonCard()).toHaveCount(0); // no card to start it afresh...
     await expect(practice.keepGoing).toBeVisible(); // ...but the practice in progress is still there
     await expect(practice.keepGoing).toContainText('Fixture Three');
     await practice.keepGoing.click();
@@ -300,7 +322,7 @@ test.describe('assigned lists', () => {
   test('a failed save of a toggle says so and does not change it; retrying saves it', async ({ page }) => {
     await setUpLearner(page);
     await openParentArea(page);
-    await openParentSection(page, /Assign lists/);
+    await openParentSection(page, /Assign lessons/);
     const five = page.getByRole('switch', { name: /Fixture Five/ });
 
     await page.evaluate(() => void (window.__failStorageWrites = true));

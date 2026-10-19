@@ -2,7 +2,7 @@
 // (parent/sections/danger-zone.tsx).
 import { defaultAppRecord, type StorageAdapter } from './storage/types.ts';
 
-/** Delete one learner's sessions. The profile (name, avatar, settings, assigned lists) stays; other learners are untouched. */
+/** Delete one learner's sessions. The profile (name, avatar, settings, assigned lessons) stays; other learners are untouched. */
 export function eraseLearnerProgress(storage: StorageAdapter, profileId: string): Promise<void> {
   return storage.deleteSessionsByProfile(profileId);
 }

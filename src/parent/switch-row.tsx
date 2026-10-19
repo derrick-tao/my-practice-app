@@ -1,4 +1,4 @@
-// One on/off switch row (a list item): the markup shared by the Settings toggles and the per-list switches.
+// One on/off switch row (a list item): the markup shared by the Settings toggles and the per-lesson switches.
 
 export function SwitchRow({
   on,

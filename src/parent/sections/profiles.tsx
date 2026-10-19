@@ -3,14 +3,14 @@
 // a failed write leaves things as they were and says so.
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
-import { usePublishedLists } from '../../content/use-lists.ts';
+import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { addProfile, AVATARS, editProfile, removeProfile, setActiveProfile } from '../../profiles.ts';
 import { eraseLearnerProgress } from '../../erase.ts';
 import { SaveFailed } from '../../save-failed.tsx';
 import { getStorage } from '../../storage/index.ts';
 import type { Profile } from '../../storage/types.ts';
 import { useSave } from '../../use-save.ts';
-import { ListSwitches } from '../list-switches.tsx';
+import { LessonSwitches } from '../lesson-switches.tsx';
 import { ProfileFields } from '../profile-fields.tsx';
 import type { ParentSection } from '../sections.ts';
 
@@ -184,20 +184,20 @@ function AddForm({
   busy: boolean;
   failed: boolean;
   onCancel: () => void;
-  onSave: (input: { name: string; avatar: string; assignedListIds: string[] }) => void;
+  onSave: (input: { name: string; avatar: string; assignedLessonIds: string[] }) => void;
 }) {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string>(AVATARS[0]);
   const [assigned, setAssigned] = useState<ReadonlySet<string>>(new Set());
-  const lists = usePublishedLists();
+  const lessons = usePublishedLessons();
   return (
     <div class="first-run">
       <ProfileFields name={name} avatar={avatar} onName={setName} onAvatar={setAvatar} />
-      {lists.status === 'ready' && (
+      {lessons.status === 'ready' && (
         <>
-          <p class="notice">Lists to practice:</p>
-          <ListSwitches
-            lists={lists.value}
+          <p class="notice">Lessons to practice:</p>
+          <LessonSwitches
+            lessons={lessons.value}
             assigned={assigned}
             onToggle={(id, on) =>
               setAssigned((current) => {
@@ -214,7 +214,7 @@ function AddForm({
       <FormButtons
         canSave={name.trim() !== '' && !busy}
         onCancel={onCancel}
-        onSave={() => onSave({ name, avatar, assignedListIds: [...assigned] })}
+        onSave={() => onSave({ name, avatar, assignedLessonIds: [...assigned] })}
       />
     </div>
   );

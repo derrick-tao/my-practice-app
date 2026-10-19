@@ -1,6 +1,6 @@
 // Seam 1: per-learner Settings (ticket 08): shuffle, break cadence, sounds.
 import type { Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
+import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { openSettings, passGate, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen, seedRandom } from './practice-driver.ts';
@@ -8,38 +8,38 @@ import { PracticeScreen, seedRandom } from './practice-driver.ts';
 interface Fixtures {
   page: Page;
   audio: AudioProbe;
-  loadList: (id: string) => Promise<ListData>;
+  loadLesson: (id: string) => Promise<LessonData>;
 }
 
-/** Set up a learner, change settings in the parent area, then open the list from home. */
+/** Set up a learner, change settings in the parent area, then open the lesson from home. */
 async function startWith(
-  { page, audio, loadList }: Fixtures,
-  listId: string,
+  { page, audio, loadLesson }: Fixtures,
+  lessonId: string,
   change: (page: Page) => Promise<void>,
-): Promise<{ practice: PracticeScreen; list: ListData }> {
+): Promise<{ practice: PracticeScreen; lesson: LessonData }> {
   await setUpLearner(page);
   await openSettings(page);
   await change(page);
   await page.getByRole('link', { name: 'Home' }).click();
-  const list = await loadList(listId);
-  const practice = new PracticeScreen(page, audio, list);
+  const lesson = await loadLesson(lessonId);
+  const practice = new PracticeScreen(page, audio, lesson);
   await practice.open();
-  return { practice, list };
+  return { practice, lesson };
 }
 
 test.describe('settings: shuffle', () => {
   test('with shuffle off, round 1 follows list order and retry rounds are still reordered', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
     await seedRandom(page, 7);
-    const { practice, list } = await startWith({ page, audio, loadList }, 'fixture-five', async (p) => {
+    const { practice, lesson } = await startWith({ page, audio, loadLesson }, 'fixture-five', async (p) => {
       await expect(p.getByRole('switch', { name: 'Shuffle the first round' })).toBeChecked();
       await p.getByRole('switch', { name: 'Shuffle the first round' }).click();
       await expect(p.getByRole('switch', { name: 'Shuffle the first round' })).not.toBeChecked();
     });
-    const listOrder = list.items.map((x) => x.target);
+    const listOrder = lesson.lists.dictation!.map((x) => x.target);
 
     const first = await practice.playRound((_, i) => i < 2); // miss the last three
     expect(first).toEqual(listOrder);
@@ -72,13 +72,13 @@ test.describe('settings: saved per learner', () => {
     await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
   });
 
-  test('sounds off mutes effects only: the character audio still plays', async ({ page, audio, loadList }) => {
-    const { practice, list } = await startWith({ page, audio, loadList }, 'fixture-three', async (p) => {
+  test('sounds off mutes effects only: the character audio still plays', async ({ page, audio, loadLesson }) => {
+    const { practice, lesson } = await startWith({ page, audio, loadLesson }, 'fixture-three', async (p) => {
       await p.getByRole('switch', { name: 'Sound effects' }).click();
       await expect(p.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
     });
     await expect(practice.check).toBeVisible();
-    const played = await audio.played(list);
+    const played = await audio.played(lesson);
     expect(played.length).toBeGreaterThan(0);
     expect(played.every((p) => p.target !== undefined)).toBe(true);
   });

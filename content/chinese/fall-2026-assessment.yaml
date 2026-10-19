@@ -1,12 +1,11 @@
 # Fall 2026 Assessment (Chinese dictation).
-# To publish a new list, add another file next to this one. The file name must equal the id.
+# To publish a new lesson, add another file next to this one. The file name must equal the id.
 id: fall-2026-assessment
 title: Fall 2026 Assessment
 subject: chinese
-practiceTypes: [dictation]
 script: simplified
 testDates: 2026-10-26 to 2026-10-30
-items:
+dictation:
   - target: 找
     clue: 找东西
     pinyin: zhǎo
@@ -118,3 +117,56 @@ items:
   - target: 鸟
     clue: 小鸟
     pinyin: niǎo
+
+# Phrases the child reads aloud. Pinyin is generated unless written here: the generator gets these six wrong.
+phrase-recognition:
+  - target: 早上
+    pinyin: zǎo shang
+  - target: 薯条
+  - target: 书包
+  - target: 汉堡包
+  - target: 作业
+  - target: 喝水
+  - target: 校长
+  - target: 猫
+  - target: 衣服
+  - target: 狗
+  - target: 鞋子
+    pinyin: xié zi
+  - target: 鱼
+  - target: 袜子
+  - target: 仓鼠
+  - target: 做家务
+  - target: 兔子
+  - target: 倒垃圾
+    pinyin: dào lā jī
+  - target: 小鸟
+  - target: 擦桌子
+  - target: 马
+  - target: 喂小狗
+  - target: 牛
+  - target: 洗车
+  - target: 喜欢
+  - target: 收拾房间
+    pinyin: shōu shi fáng jiān
+  - target: 三只猫
+  - target: 买东西
+    pinyin: mǎi dōng xi
+  - target: 一只狗
+  - target: 玩游戏
+  - target: 四只仓鼠
+  - target: 起床
+  - target: 七条鱼
+  - target: 刷牙
+  - target: 洗脸
+  - target: 洗澡
+  - target: 早餐
+  - target: 游泳
+  - target: 浇花
+  - target: 晚安
+  - target: 看书
+  - target: 米饭
+  - target: 吃饭
+  - target: 包子
+    pinyin: bāo zi
+  - target: 面条

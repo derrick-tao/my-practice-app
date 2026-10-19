@@ -5,11 +5,12 @@
 // The shape is the spec's data model and is persisted as is through the StorageAdapter (see
 // session-sync.ts), so retry rounds, undo and breaks extend it instead of rewriting it. Changing
 // the persisted shape needs a schema migration (src/storage/migrations.ts).
-import type { ListData, PracticeTypeId } from '../content/types.ts';
+import type { LessonData, PracticeTypeId } from '../content/types.ts';
 import { shuffled, type RandomSource } from './random.ts';
 
 export type Mark = 'correct' | 'wrong';
-export type Phase = 'listening' | 'revealed';
+/** `prompt`: the item is being prompted (heard, for dictation); `revealed`: its target is showing. */
+export type Phase = 'prompt' | 'revealed';
 export type SessionStatus = 'active' | 'completed' | 'stopped';
 
 export interface Round {
@@ -41,11 +42,13 @@ export interface Session {
   profileId: string;
   subject: string;
   practiceType: PracticeTypeId;
-  listId: string;
+  lessonId: string;
   contentVersion: string;
   status: SessionStatus;
   startedAt: string;
   completedAt?: string;
+  /** When the session was last saved (the storage adapter stamps it on every save). */
+  updatedAt: string;
   rounds: Round[];
   /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
@@ -64,27 +67,28 @@ export interface PracticeEnv {
 export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(
-  list: Pick<ListData, 'id' | 'subject' | 'items'>,
+  lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
   options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; profileId?: string },
   env: PracticeEnv,
 ): Session {
-  const itemIds = list.items.map((item) => item.target);
+  const itemIds = (lesson.lists[options.practiceType] ?? []).map((item) => item.target);
   const now = env.now();
   return {
     id: env.newId(),
     profileId: options.profileId ?? DEFAULT_PROFILE_ID,
-    subject: list.subject,
+    subject: lesson.subject,
     practiceType: options.practiceType,
-    listId: list.id,
+    lessonId: lesson.id,
     contentVersion: options.contentVersion,
     status: 'active',
     startedAt: now,
+    updatedAt: now,
     rounds: [
       {
         index: 1,
         itemIds: options.shuffle ? shuffled(itemIds, env.random) : itemIds,
         position: 0,
-        phase: 'listening',
+        phase: 'prompt',
         heardCurrent: false,
         marks: {},
         startedAt: now,
@@ -151,10 +155,10 @@ export function markHeard(session: Session, place: Place): Session {
   );
 }
 
-/** Check: only available once the current item's audio has been heard. */
-export function reveal(session: Session): Session {
+/** Check: moves to the revealed phase. With `needsHeard` (dictation) it is only available once the current item's audio has been heard. */
+export function reveal(session: Session, needsHeard: boolean): Session {
   return withCurrentRound(session, (round) =>
-    isRoundOver(round) || round.phase !== 'listening' || !round.heardCurrent
+    isRoundOver(round) || round.phase !== 'prompt' || (needsHeard && !round.heardCurrent)
       ? round
       : { ...round, phase: 'revealed' },
   );
@@ -171,7 +175,7 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
       ...round,
       marks: { ...round.marks, [itemId]: result },
       position,
-      phase: 'listening',
+      phase: 'prompt',
       heardCurrent: false,
       ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
     };
@@ -274,7 +278,7 @@ export function reconcileWithList(session: Session, listed: ReadonlySet<string>,
     return {
       ...round,
       itemIds,
-      ...(currentGone ? { phase: 'listening' as const, heardCurrent: false } : {}),
+      ...(currentGone ? { phase: 'prompt' as const, heardCurrent: false } : {}),
       ...(round.position >= itemIds.length ? { completedAt: env.now() } : {}),
     };
   });
@@ -298,7 +302,7 @@ export function startRetryRound(session: Session, env: PracticeEnv, listed: Read
     index: previous.index + 1,
     itemIds,
     position: 0,
-    phase: 'listening',
+    phase: 'prompt',
     heardCurrent: false,
     marks: {},
     startedAt: env.now(),

@@ -1,5 +1,5 @@
-/* Parent area: List preview section (src/parent/sections/list-preview.tsx). */
-.preview-lists {
+/* Parent area: Lesson preview section (src/parent/sections/lesson-preview.tsx). */
+.preview-lessons {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -82,4 +82,13 @@
   font: inherit;
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+.preview-section {
+  margin: 0 0 20px;
+}
+
+.preview-section__title {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
 }

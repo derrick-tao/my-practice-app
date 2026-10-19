@@ -1,6 +1,6 @@
 // Seam 1: several learners on one device (ticket 08): add / edit / delete / switch profiles.
 import type { Page } from '@playwright/test';
-import type { ListData } from '../../src/content/types.ts';
+import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { addLearner, openProfiles, openSettings, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
@@ -9,7 +9,7 @@ import { exportBackup, openBackupSection } from './backup-driver.ts';
 interface Fixtures {
   page: Page;
   audio: AudioProbe;
-  loadList: (id: string) => Promise<ListData>;
+  loadLesson: (id: string) => Promise<LessonData>;
 }
 
 /**
@@ -23,8 +23,8 @@ async function savedSessionProfileIds(page: Page): Promise<string[]> {
   return backup.data.sessions.map((session) => session.profileId);
 }
 
-async function screenFor({ page, audio, loadList }: Fixtures, listId: string): Promise<PracticeScreen> {
-  return new PracticeScreen(page, audio, await loadList(listId));
+async function screenFor({ page, audio, loadLesson }: Fixtures, lessonId: string): Promise<PracticeScreen> {
+  return new PracticeScreen(page, audio, await loadLesson(lessonId));
 }
 
 /** Grown-up adds a learner from the home screen and comes back to the child's home. */
@@ -37,45 +37,45 @@ async function addLearnerFromHome(page: Page, learner: Parameters<typeof addLear
 const switcher = (page: Page) => page.getByRole('group', { name: 'Who is practicing?' });
 
 test.describe('profiles: switching', () => {
-  test('two learners keep separate lists and in-progress sessions; the avatar row switches between them', async ({
+  test('two learners keep separate lessons and in-progress sessions; the avatar row switches between them', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
-    await setUpLearner(page, { name: 'Mia', avatar: '🐼', lists: ['fixture-three'] });
-    const three = await screenFor({ page, audio, loadList }, 'fixture-three');
-    const five = await screenFor({ page, audio, loadList }, 'fixture-five');
+    await setUpLearner(page, { name: 'Mia', avatar: '🐼', lessons: ['fixture-three'] });
+    const three = await screenFor({ page, audio, loadLesson }, 'fixture-three');
+    const five = await screenFor({ page, audio, loadLesson }, 'fixture-five');
 
     // Mia is half way through fixture-three.
-    await three.listCard().click();
+    await three.lessonCard().click();
     await three.markNext(true);
     await expect(three.progressText()).toHaveText('1 / 3');
     await three.home.click();
     await expect(three.keepGoing).toBeVisible();
 
-    await addLearnerFromHome(page, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
+    await addLearnerFromHome(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-five'] });
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible(); // adding does not switch
     await expect(switcher(page).getByRole('button')).toHaveCount(2);
 
-    // Leo: his own lists, no Keep going.
+    // Leo: his own lessons, no Keep going.
     await switcher(page).getByRole('button', { name: 'Leo' }).click();
     await expect(page.getByRole('heading', { name: 'Hi 🦊 Leo!' })).toBeVisible();
-    await expect(five.listCard()).toBeVisible();
-    await expect(three.listCard()).toHaveCount(0);
+    await expect(five.lessonCard()).toBeVisible();
+    await expect(three.lessonCard()).toHaveCount(0);
     await expect(three.keepGoing).toHaveCount(0);
 
     // Leo practices fixture-five.
-    await five.listCard().click();
+    await five.lessonCard().click();
     await five.markMany(2);
     await expect(five.progressText()).toHaveText('2 / 5');
     await five.home.click();
     await expect(five.keepGoing).toContainText('Fixture Five');
 
-    // Back to Mia: her card, her list, her place.
+    // Back to Mia: her card, her lesson, her place.
     await switcher(page).getByRole('button', { name: 'Mia' }).click();
     await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
     await expect(three.keepGoing).toContainText('Fixture Three');
-    await expect(five.listCard()).toHaveCount(0);
+    await expect(five.lessonCard()).toHaveCount(0);
     await three.keepGoing.click();
     await expect(three.progressText()).toHaveText('1 / 3');
   });
@@ -165,18 +165,18 @@ test.describe('profiles: delete', () => {
   test('needs the learner\'s name typed, then removes only that learner and their sessions', async ({
     page,
     audio,
-    loadList,
+    loadLesson,
   }) => {
-    await setUpLearner(page, { name: 'Mia', avatar: '🐼', lists: ['fixture-three'] });
-    const three = await screenFor({ page, audio, loadList }, 'fixture-three');
-    const five = await screenFor({ page, audio, loadList }, 'fixture-five');
-    await three.listCard().click();
+    await setUpLearner(page, { name: 'Mia', avatar: '🐼', lessons: ['fixture-three'] });
+    const three = await screenFor({ page, audio, loadLesson }, 'fixture-three');
+    const five = await screenFor({ page, audio, loadLesson }, 'fixture-five');
+    await three.lessonCard().click();
     await three.markNext(true);
     await three.home.click();
 
-    await addLearnerFromHome(page, { name: 'Leo', avatar: '🦊', lists: ['fixture-five'] });
+    await addLearnerFromHome(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-five'] });
     await switcher(page).getByRole('button', { name: 'Leo' }).click();
-    await five.listCard().click();
+    await five.lessonCard().click();
     await five.markNext(true);
     await five.home.click();
     expect(await savedSessionProfileIds(page)).toHaveLength(2);
