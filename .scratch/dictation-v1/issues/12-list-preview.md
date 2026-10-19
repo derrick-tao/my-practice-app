@@ -6,8 +6,12 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: the preview lists every fixture item with target, pinyin, and clue in list order
 - [ ] Normal and slow buttons request the right audio rendition for that item
 - [ ] Reachable only through the parent gate
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 77a67f7, review fixes 4033da1).

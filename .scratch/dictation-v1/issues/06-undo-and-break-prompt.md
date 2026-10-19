@@ -8,7 +8,7 @@ Every 10 marks (the default; configurable in 08), a "Great job! Take a break?" p
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: mark ✅, tap Undo → the same item is revealed again with no mark; marking ❌ then records ❌ and the counts reflect it
 - [ ] Undo from a round summary created by the last mark returns to that last item; the summary is recomputed after re-marking
@@ -16,3 +16,7 @@ Every 10 marks (the default; configurable in 08), a "Great job! Take a break?" p
 - [ ] Undo is still available after reloading on the screen right after a mark
 - [ ] With a 12-item list, the break prompt appears after the 10th mark and not at the round end; Keep going continues; Break returns home and Keep going resumes at the right item
 - [ ] Break prompts don't change round results or the first-try score
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 9dac89b, review fixes 4033da1). Review fix: Undo is now also offered on the break prompt (d3a556a).

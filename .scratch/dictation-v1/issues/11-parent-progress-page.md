@@ -13,7 +13,7 @@ Stopped attempts are listed but excluded from trend and best. There are no chart
 
 **Blocked by:** 09, 10
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: after a scripted sequence (one completed attempt over 3 rounds, one stopped attempt, a second completed attempt), the attempts list, statuses, first-try scores, and rounds-to-complete all match
 - [ ] Attempt detail shows the correct per-round ✅/❌ counts and missed characters; tapping a character requests its audio
@@ -21,3 +21,7 @@ Stopped attempts are listed but excluded from trend and best. There are no chart
 - [ ] The trend and best score exclude the stopped attempt
 - [ ] An in-progress attempt shows as ⏳ with its rounds so far
 - [ ] Removed items show as "(removed)" in attempt detail
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 45a1a50, review fixes 4033da1). Review fix: progress edge cases moved from a tests/unit seam into Seam 1 progress.spec.ts (9ac8965), per the two-seam rule.

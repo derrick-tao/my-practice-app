@@ -11,7 +11,7 @@ A **Profiles** section lets the parent add more learners, edit name and avatar, 
 
 **Blocked by:** 06, 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: shuffle off → round 1 follows list order; retry rounds are still reordered
 - [ ] Break every 5 → prompt after 5 marks; Off → no prompt
@@ -19,3 +19,7 @@ A **Profiles** section lets the parent add more learners, edit name and avatar, 
 - [ ] Two profiles: each keeps separate assigned lists, settings, and an in-progress session; switching via avatar shows the right Keep going card
 - [ ] Deleting a profile requires typing its name and removes only that profile's data
 - [ ] With a single profile, no avatar switcher row is shown
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 5624599, review fixes 4033da1). Open owner decision: Delete is hidden when only one profile exists (ticket doesn't say this).

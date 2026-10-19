@@ -11,7 +11,7 @@
 
 **Blocked by:** 04, 08
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 2: the font subset covers every character present in the content
 - [ ] Seam 1: the revealed character renders with the subset font
@@ -19,3 +19,7 @@
 - [ ] Confetti runs on completion; with reduced motion emulated, a fade is used instead
 - [ ] Two consecutive audio failures show the volume hint
 - [ ] All kid-screen controls meet the minimum touch-target size on iPhone and iPad in both orientations
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 689214a, review fixes 4033da1). Open owner decision: clue characters are included in the font subset though the clue isn't set in Kai.

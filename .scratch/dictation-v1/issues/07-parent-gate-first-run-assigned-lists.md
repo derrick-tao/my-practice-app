@@ -6,7 +6,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: first run → gate → create profile → assign one of two fixture lists → home shows the greeting with avatar and only the assigned list
 - [ ] A wrong gate answer shows a new question; a right answer opens the parent area
@@ -14,3 +14,7 @@
 - [ ] Unassigning a list hides its card on home; an active session on an unassigned list still shows Keep going
 - [ ] An existing in-progress session from before profiles existed is kept on the first profile
 - [ ] No profile name appears in any network request
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge eead40f, review fixes 4033da1).

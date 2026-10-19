@@ -9,7 +9,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: Start over requires confirmation; ❌ No keeps the session; ✅ Yes starts a fresh session at item 1 of round 1
 - [ ] The stopped session is retained in history with status stopped (shown on the progress page in 11)
@@ -17,3 +17,7 @@
 - [ ] Erasing one learner's progress leaves other learners' data untouched and keeps the profile
 - [ ] Erase everything returns the app to first run with no profiles or sessions
 - [ ] No destructive action is reachable with a single tap
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 540b734, review fixes 4033da1).

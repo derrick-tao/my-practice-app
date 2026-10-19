@@ -11,7 +11,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1 (fixture content swapped between page loads): an edited clue/pinyin shows the new value on the current item's reveal
 - [ ] Removing the current item → resume lands on the next remaining item
@@ -20,3 +20,7 @@
 - [ ] Adding an item → absent from the active session; present when a new session starts
 - [ ] Removing all items → session stopped and the friendly message shown
 - [ ] Marks for removed items in finished rounds are retained and flagged as removed in session history
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge b3c99bd, review fixes 4033da1).

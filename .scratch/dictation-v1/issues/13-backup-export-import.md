@@ -9,7 +9,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [ ] Seam 1: export → erase everything → import → the home screen, Keep going state, and progress data are identical to before
 - [ ] The import summary shows correct counts before confirming; cancelling leaves local data unchanged
@@ -17,3 +17,7 @@
 - [ ] "Last backup" updates after export; the nudge badge appears when the last backup is more than 7 days old (time controlled in test)
 - [ ] Persistent-storage status and app/content versions are displayed
 - [ ] Backup files are never written into the repo (gitignore already covers them)
+
+## Comments
+
+- 2026-10-18 (coordinator): Resolved on `dictation-v1` (merge 738be01, review fixes 4033da1). Review fix: deep validation of imported sessions (6acc416). Open owner decision: the nudge badge also shows when no backup was ever made.
