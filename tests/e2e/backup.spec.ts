@@ -157,7 +157,7 @@ test.describe('export', () => {
       expect.objectContaining({
         name: 'Mia',
         avatar: '🐼',
-        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3, learning: false },
+        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 0.5, learning: false },
       }),
     ]);
     expect(backup.data.sessions).toEqual([

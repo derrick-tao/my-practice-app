@@ -31,7 +31,7 @@ The practice type where the learner sees a phrase, says it aloud, then hears it 
 _Avoid_: Phrase flashcards, reading
 
 **Stroke order**:
-The practice type where the learner hears a character, watches it drawn one stroke at a time while copying each stroke on paper, then taps Next. Nothing is graded: it has no marks, so its sessions have a single round. Offered only by lessons that have a list for it. Each stroke is followed by a pause to copy it; the profile's stroke speed and pause settings set the pace.
+The practice type where the learner hears a character, watches it drawn one stroke at a time while copying each stroke on paper, then taps Next. Nothing is graded: it has no marks, so its sessions have a single round. Offered only by lessons that have a list for it. It plays by itself, each stroke followed by a pause to copy it, and the profile's stroke speed and pause settings set the pace; the learner's only control is Replay.
 _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
 
 **Item**:
