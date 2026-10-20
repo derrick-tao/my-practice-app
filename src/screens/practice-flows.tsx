@@ -2,10 +2,10 @@
 // shares: the header, save and volume notices, break prompt, sounds, audio timing, saving, and completion. A
 // type declares its flags and supplies its own stage (what the learner looks at) and controls (what they tap)
 // here, so adding a type means adding an entry to FLOWS, not another branch through the screen.
-import type { ComponentChildren, ComponentType } from "preact";
-import type { ItemData, PracticeTypeId, Rendition } from "../content/types.ts";
-import { DrawingScope, useDrawing } from "../practice/drawing.tsx";
-import type { Mark, Round, SessionResult } from "../practice/session.ts";
+import type { ComponentChildren, ComponentType } from 'preact';
+import type { ItemData, PracticeTypeId, Rendition } from '../content/types.ts';
+import { DrawingScope, useDrawing } from '../practice/drawing.tsx';
+import type { Mark, Round, SessionResult } from '../practice/session.ts';
 
 /** What the screen hands a type's stage and controls for the item being practiced. */
 export interface FlowProps {
@@ -46,28 +46,20 @@ export interface PracticeFlow {
   Controls: ComponentType<FlowProps>;
 }
 
-function ListenRow({ pulse, onListen }: Pick<FlowProps, "pulse" | "onListen">) {
+function ListenRow({ pulse, onListen }: Pick<FlowProps, 'pulse' | 'onListen'>) {
   return (
     <div class="row">
-      <button
-        type="button"
-        class={`btn btn--audio${pulse ? " pulse" : ""}`}
-        onClick={() => onListen("normal")}
-      >
+      <button type="button" class={`btn btn--audio${pulse ? ' pulse' : ''}`} onClick={() => onListen('normal')}>
         <span aria-hidden="true">🔊 </span>Listen
       </button>
-      <button
-        type="button"
-        class="btn btn--audio"
-        onClick={() => onListen("slow")}
-      >
+      <button type="button" class="btn btn--audio" onClick={() => onListen('slow')}>
         <span aria-hidden="true">🐢 </span>Slow
       </button>
     </div>
   );
 }
 
-function CheckRow({ onCheck }: Pick<FlowProps, "onCheck">) {
+function CheckRow({ onCheck }: Pick<FlowProps, 'onCheck'>) {
   return (
     <button type="button" class="btn btn--primary btn--check" onClick={onCheck}>
       <span aria-hidden="true">👀 </span>Check
@@ -75,21 +67,13 @@ function CheckRow({ onCheck }: Pick<FlowProps, "onCheck">) {
   );
 }
 
-function MarkButtons({ onMark }: Pick<FlowProps, "onMark">) {
+function MarkButtons({ onMark }: Pick<FlowProps, 'onMark'>) {
   return (
     <>
-      <button
-        type="button"
-        class="btn btn--primary btn--good"
-        onClick={() => onMark("correct")}
-      >
+      <button type="button" class="btn btn--primary btn--good" onClick={() => onMark('correct')}>
         <span aria-hidden="true">✅ </span>I got it
       </button>
-      <button
-        type="button"
-        class="btn btn--primary btn--bad"
-        onClick={() => onMark("wrong")}
-      >
+      <button type="button" class="btn btn--primary btn--bad" onClick={() => onMark('wrong')}>
         <span aria-hidden="true">❌ </span>Not yet
       </button>
     </>
@@ -97,25 +81,13 @@ function MarkButtons({ onMark }: Pick<FlowProps, "onMark">) {
 }
 
 /** An item's target in the handwriting font. `fit`: as large as fits on one line (phrases, see .phrase in practice.css) rather than shrunk by its length. */
-function TargetText({
-  item,
-  fit,
-  testId,
-}: {
-  item: ItemData;
-  fit: boolean;
-  testId: string;
-}) {
+function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testId: string }) {
   return (
     <div
-      class={fit ? "reveal__target phrase" : "reveal__target"}
+      class={fit ? 'reveal__target phrase' : 'reveal__target'}
       data-testid={testId}
       lang="zh-CN"
-      style={
-        fit
-          ? { "--chars": [...item.target].length }
-          : { "--scale": Math.max(1, [...item.target].length / 2) }
-      }
+      style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
     >
       {item.target}
     </div>
@@ -149,7 +121,7 @@ const dictation: PracticeFlow = {
   audioFirst: true,
   completionLines: firstTryAndRounds,
   Stage: ({ item, round }) =>
-    round.phase === "revealed" ? (
+    round.phase === 'revealed' ? (
       <Reveal item={item} fit={false} />
     ) : (
       <p class="prompt">
@@ -160,12 +132,8 @@ const dictation: PracticeFlow = {
     <>
       <ListenRow {...props} />
       <div class="row row--primary">
-        {props.round.phase === "prompt" && props.round.heardCurrent && (
-          <CheckRow onCheck={props.onCheck} />
-        )}
-        {props.round.phase === "revealed" && (
-          <MarkButtons onMark={props.onMark} />
-        )}
+        {props.round.phase === 'prompt' && props.round.heardCurrent && <CheckRow onCheck={props.onCheck} />}
+        {props.round.phase === 'revealed' && <MarkButtons onMark={props.onMark} />}
       </div>
     </>
   ),
@@ -176,7 +144,7 @@ const phraseRecognition: PracticeFlow = {
   audioFirst: false,
   completionLines: firstTryAndRounds,
   Stage: ({ item, round }) =>
-    round.phase === "revealed" ? (
+    round.phase === 'revealed' ? (
       <Reveal item={item} fit />
     ) : (
       <div class="reveal">
@@ -185,12 +153,10 @@ const phraseRecognition: PracticeFlow = {
     ),
   Controls: (props) => (
     <>
-      {props.round.phase === "revealed" && <ListenRow {...props} />}
+      {props.round.phase === 'revealed' && <ListenRow {...props} />}
       <div class="row row--primary">
-        {props.round.phase === "prompt" && <CheckRow onCheck={props.onCheck} />}
-        {props.round.phase === "revealed" && (
-          <MarkButtons onMark={props.onMark} />
-        )}
+        {props.round.phase === 'prompt' && <CheckRow onCheck={props.onCheck} />}
+        {props.round.phase === 'revealed' && <MarkButtons onMark={props.onMark} />}
       </div>
     </>
   ),
@@ -199,18 +165,13 @@ const phraseRecognition: PracticeFlow = {
 /** Stroke order: hear the character, watch it drawn stroke by stroke, then Next. Nothing is graded. */
 const strokeOrder: PracticeFlow = {
   audioFirst: true,
-  completionLines: ({ total }) => [`${total} ${total === 1 ? "character" : "characters"} drawn`],
+  completionLines: ({ total }) => [`${total} ${total === 1 ? 'character' : 'characters'} drawn`],
   Scope: DrawingScope,
   Stage: ({ item }) => {
     const drawing = useDrawing();
     return (
       <div class="reveal">
-        <div
-          class="drawing"
-          data-testid="drawing"
-          data-strokes-drawn={drawing.drawn}
-          data-strokes-total={drawing.total}
-        >
+        <div class="drawing" data-testid="drawing" data-strokes-drawn={drawing.drawn} data-strokes-total={drawing.total}>
           <div class="drawing__canvas" ref={drawing.hostRef} role="img" aria-label="The character being drawn" />
         </div>
         {/* Always there, so the drawing does not move when the pinyin and clue appear. */}
@@ -267,6 +228,6 @@ const strokeOrder: PracticeFlow = {
 
 export const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
   dictation,
-  "stroke-order": strokeOrder,
-  "phrase-recognition": phraseRecognition,
+  'stroke-order': strokeOrder,
+  'phrase-recognition': phraseRecognition,
 };
