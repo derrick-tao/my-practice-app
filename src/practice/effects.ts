@@ -15,9 +15,15 @@ export interface Effects {
   play(name: EffectName): number;
 }
 
+/**
+ * One element per effect for the life of the page, shared by every practice screen. A fresh set per screen was
+ * left behind each time the child finished or left a session, and the more of them had played, the slower
+ * the page ran (taps, drawing and the next item's audio all came late).
+ */
+const elements = new Map<EffectName, HTMLAudioElement>();
+
 export function createEffects(enabled: boolean): Effects {
   if (!enabled) return { play: () => 0 };
-  const elements = new Map<EffectName, HTMLAudioElement>();
   const elementFor = (name: EffectName): HTMLAudioElement => {
     let element = elements.get(name);
     if (!element) {

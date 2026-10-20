@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'preact/hooks';
 import { contentUrl } from '../content/client.ts';
 
 /**
@@ -13,6 +14,8 @@ export interface AudioPlayer {
    */
   play(audioRef: string): Promise<boolean>;
   preload(audioRefs: readonly string[]): void;
+  /** Stop and let go of every element, once the screen that owns the player is gone. */
+  release(): void;
 }
 
 export function createAudioPlayer(): AudioPlayer {
@@ -46,5 +49,21 @@ export function createAudioPlayer(): AudioPlayer {
     preload(audioRefs) {
       for (const audioRef of audioRefs) elementFor(audioRef);
     },
+    release() {
+      // Elements that were played and merely dropped stay alive in the browser, and the page slows down as they pile up.
+      for (const element of elements.values()) {
+        element.pause();
+        element.removeAttribute('src');
+        element.load();
+      }
+      elements.clear();
+    },
   };
+}
+
+/** A player for the life of the calling screen. */
+export function useAudioPlayer(): AudioPlayer {
+  const player = useMemo(createAudioPlayer, []);
+  useEffect(() => () => player.release(), []);
+  return player;
 }

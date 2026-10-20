@@ -18,7 +18,7 @@ import { PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content
 import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
-import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
   listProgress,
@@ -243,7 +243,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
 
 function LessonProgressPage({ lessonId }: { lessonId: string }) {
   const view = useLessonView(lessonId);
-  const player = useMemo(createAudioPlayer, []);
+  const player = useAudioPlayer();
   return (
     <Page view={view}>
       {({ lesson, parts }) => (
@@ -330,7 +330,7 @@ function RoundBlock({
 
 function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: string }) {
   const view = useLessonView(lessonId);
-  const player = useMemo(createAudioPlayer, []);
+  const player = useAudioPlayer();
   return (
     <Page view={view}>
       {({ lesson, parts }) => {
