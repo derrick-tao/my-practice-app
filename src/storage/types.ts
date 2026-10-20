@@ -14,7 +14,7 @@ export interface ProfileSettings {
   /** How fast stroke order practice draws each stroke. */
   strokeSpeed: 'slow' | 'normal' | 'fast';
   /** Seconds stroke order practice waits after each stroke, so the child can copy it. */
-  strokePauseSeconds: 2 | 3 | 5 | 8;
+  strokePauseSeconds: 0.5 | 1 | 2 | 3;
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {

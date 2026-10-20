@@ -114,7 +114,7 @@ const TWO_LEARNERS: SavedData = {
     schemaVersion: 3,
     profiles: [
       profile('p-leo', 'Leo', '🦊'),
-      withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 8 }),
+      withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5 }),
     ],
     activeProfileId: 'p-zoe',
     parent: {},
@@ -344,7 +344,7 @@ test.describe('import', () => {
       ['a learner without settings', withLearner(good, { settings: undefined })],
       ['a learner whose break setting is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), breakEvery: 7 } })],
       ['a learner whose stroke speed is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), strokeSpeed: 'warp' } })],
-      ['a learner whose stroke pause is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), strokePauseSeconds: 4 } })],
+      ['a learner whose stroke pause is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), strokePauseSeconds: 5 } })],
       ['a learner without assigned lessons', withLearner(good, { assignedLessonIds: undefined })],
       ['an attempt with no rounds', withAttempt(good, { rounds: [] })],
       ['an attempt with an unknown status', withAttempt(good, { status: 'paused' })],

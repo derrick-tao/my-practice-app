@@ -79,7 +79,7 @@ function isProfile(value: unknown): boolean {
     typeof settings.sounds === 'boolean' &&
     [0, 5, 10, 15].includes(settings.breakEvery as number) &&
     ['slow', 'normal', 'fast'].includes(settings.strokeSpeed as string) &&
-    [2, 3, 5, 8].includes(settings.strokePauseSeconds as number) &&
+    [0.5, 1, 2, 3].includes(settings.strokePauseSeconds as number) &&
     Array.isArray(assignedLessonIds) &&
     assignedLessonIds.every(isString)
   );

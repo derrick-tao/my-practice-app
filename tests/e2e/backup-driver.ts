@@ -39,7 +39,7 @@ export interface ProfileJson {
     breakEvery: 0 | 5 | 10 | 15;
     sounds: boolean;
     strokeSpeed: 'slow' | 'normal' | 'fast';
-    strokePauseSeconds: 2 | 3 | 5 | 8;
+    strokePauseSeconds: 0.5 | 1 | 2 | 3;
   };
   assignedLessonIds: string[];
 }

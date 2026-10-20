@@ -24,10 +24,10 @@ const STROKE_SPEED_CHOICES: ReadonlyArray<{ value: ProfileSettings['strokeSpeed'
 ];
 
 const STROKE_PAUSE_CHOICES: ReadonlyArray<{ value: ProfileSettings['strokePauseSeconds']; label: string }> = [
+  { value: 0.5, label: '0.5 s' },
+  { value: 1, label: '1 s' },
   { value: 2, label: '2 s' },
   { value: 3, label: '3 s' },
-  { value: 5, label: '5 s' },
-  { value: 8, label: '8 s' },
 ];
 
 function Settings() {

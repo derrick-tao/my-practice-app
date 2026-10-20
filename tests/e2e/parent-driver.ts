@@ -142,7 +142,7 @@ export async function setSoundEffects(page: Page, on: boolean): Promise<void> {
 /** Home -> Settings -> choose the active learner's stroke speed and/or pause after each stroke -> back to home. */
 export async function setStrokeTiming(
   page: Page,
-  { speed, pauseSeconds }: { speed?: 'Slow' | 'Normal' | 'Fast'; pauseSeconds?: 2 | 3 | 5 | 8 },
+  { speed, pauseSeconds }: { speed?: 'Slow' | 'Normal' | 'Fast'; pauseSeconds?: 0.5 | 1 | 2 | 3 },
 ): Promise<void> {
   await openSettings(page);
   const choices = [

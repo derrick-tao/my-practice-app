@@ -78,21 +78,21 @@ test.describe('settings: saved per learner', () => {
     const speed = page.getByRole('radiogroup', { name: 'Stroke speed' });
     const pause = page.getByRole('radiogroup', { name: 'Pause after each stroke' });
     await expect(speed.getByRole('radio')).toHaveText(['Slow', 'Normal', 'Fast']);
-    await expect(pause.getByRole('radio')).toHaveText(['2 s', '3 s', '5 s', '8 s']);
+    await expect(pause.getByRole('radio')).toHaveText(['0.5 s', '1 s', '2 s', '3 s']);
     await expect(speed.getByRole('radio', { name: 'Normal' })).toBeChecked();
     await expect(pause.getByRole('radio', { name: '3 s' })).toBeChecked();
 
     await speed.getByRole('radio', { name: 'Slow' }).click();
     await expect(speed.getByRole('radio', { name: 'Slow' })).toBeChecked();
     await expect(speed.getByRole('radio', { name: 'Normal' })).not.toBeChecked();
-    await pause.getByRole('radio', { name: '8 s' }).click();
-    await expect(pause.getByRole('radio', { name: '8 s' })).toBeChecked();
+    await pause.getByRole('radio', { name: '0.5 s' }).click();
+    await expect(pause.getByRole('radio', { name: '0.5 s' })).toBeChecked();
     await expect(pause.getByRole('radio', { name: '3 s' })).not.toBeChecked();
 
     await page.reload(); // the gate locks again on reload
     await passGate(page);
     await expect(page.getByRole('radio', { name: 'Slow' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '8 s' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '0.5 s' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked(); // the other choices stay as they were
   });
 
