@@ -101,7 +101,7 @@ export async function setUpLearner(page: Page, options: LearnerOptions = {}): Pr
   await expect(page.getByRole('heading', { name: `Hi ${avatar} ${name}!` })).toBeVisible();
 }
 
-/** Home -> gear -> gate -> Settings (the active learner's shuffle, break and sound settings). */
+/** Home -> gear -> gate -> Settings (the active learner's shuffle, break, sound and stroke order timing settings). */
 export async function openSettings(page: Page): Promise<void> {
   await openParentArea(page);
   await openParentSection(page, 'Settings');
@@ -136,6 +136,25 @@ export async function setSoundEffects(page: Page, on: boolean): Promise<void> {
   if ((await sounds.isChecked()) !== on) await sounds.click();
   if (on) await expect(sounds).toBeChecked();
   else await expect(sounds).not.toBeChecked();
+  await page.getByRole('link', { name: 'Home' }).click();
+}
+
+/** Home -> Settings -> choose the active learner's stroke speed and/or pause after each stroke -> back to home. */
+export async function setStrokeTiming(
+  page: Page,
+  { speed, pauseSeconds }: { speed?: 'Slow' | 'Normal' | 'Fast'; pauseSeconds?: 2 | 3 | 5 | 8 },
+): Promise<void> {
+  await openSettings(page);
+  const choices = [
+    speed !== undefined && page.getByRole('radiogroup', { name: 'Stroke speed' }).getByRole('radio', { name: speed }),
+    pauseSeconds !== undefined &&
+      page.getByRole('radiogroup', { name: 'Pause after each stroke' }).getByRole('radio', { name: `${pauseSeconds} s` }),
+  ];
+  for (const choice of choices) {
+    if (!choice) continue;
+    await choice.click();
+    await expect(choice).toBeChecked(); // shows the saved value
+  }
   await page.getByRole('link', { name: 'Home' }).click();
 }
 

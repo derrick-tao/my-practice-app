@@ -2,11 +2,12 @@
 // lessons and practice types (schema v2). Two ways old data reaches the app: it is already on the device
 // (seeded straight into storage, the only way to leave an older shape behind), or it comes in through a
 // backup file made by the older app. Both must end up the same: assignments and the practice in progress
-// intact, with Keep going resuming at the exact place.
+// intact, with Keep going resuming at the exact place. Schema 3 added the stroke order timing settings: a learner
+// saved before them (schema v2) gets the defaults and keeps their other settings.
 import type { Page } from '@playwright/test';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from './backup-driver.ts';
-import { openParentArea, openParentSection, setUpLearner } from './parent-driver.ts';
+import { openParentArea, openParentSection, openSettings, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
 import { savedDataFixture, seedSavedData } from './saved-data.ts';
 import type { LessonData } from '../../src/content/types.ts';
@@ -73,7 +74,7 @@ test.describe('saved data from the previous schema', () => {
     await expectLearnerIntact({ page, audio, loadLesson });
   });
 
-  test('after the move the saved data is at schema 2, and every save stamps when the session was last worked on', async ({
+  test('after the move the saved data is at the current schema, and every save stamps when the session was last worked on', async ({
     page,
     audio,
     loadLesson,
@@ -87,8 +88,8 @@ test.describe('saved data from the previous schema', () => {
     // On load the old sessions were stamped with the latest time they are known to have been worked on.
     await openBackupSection(page);
     const before = (await exportBackup(page)).backup;
-    expect(before.schemaVersion).toBe(2);
-    expect(before.data.app.schemaVersion).toBe(2);
+    expect(before.schemaVersion).toBe(3);
+    expect(before.data.app.schemaVersion).toBe(3);
     const stamped = (id: string) => before.data.sessions.find((s) => s.id === id)!.updatedAt;
     const learner = savedDataFixture('schema-v1-learner') as { sessions: Array<{ id: string; status: string }> };
     const active = learner.sessions.find((s) => s.status === 'active')!.id;
@@ -112,5 +113,48 @@ test.describe('saved data from the previous schema', () => {
     const saved = (id: string) => after.data.sessions.find((s) => s.id === id)!;
     expect(saved(active).updatedAt).toMatch(/^2026-10-18T12:00:/);
     expect(saved(completed).updatedAt).toBe('2026-09-20T09:05:00.000Z'); // untouched sessions keep theirs
+  });
+});
+
+test.describe('saved data from before the stroke order timing settings', () => {
+  /** The schema-v2 learner fixture has shuffle off, a break every 15 and sounds off; the new settings show their defaults. */
+  async function expectSettingsKept(page: Page): Promise<void> {
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+    await openSettings(page);
+    await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
+    await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Normal' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '3 s' })).toBeChecked();
+  }
+
+  test('a v2 device gets the default stroke speed and pause, and keeps its other settings', async ({ page }) => {
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // the empty device is prepared
+    await seedSavedData(page, savedDataFixture('schema-v2-learner') as Seed);
+
+    await expectSettingsKept(page);
+  });
+
+  test('a backup file made by the previous app imports with the same result, and re-exports at the current schema', async ({
+    page,
+  }) => {
+    await setUpLearner(page, { name: 'Zoe', avatar: '🦁', lessons: ['fixture-five'] });
+    await openBackupSection(page);
+    await chooseBackupFile(page, JSON.stringify(savedDataFixture('schema-v2-export')));
+    await confirmImport(page);
+
+    await expectSettingsKept(page);
+    await page.goto('./');
+    await openBackupSection(page);
+    const { backup } = await exportBackup(page);
+    expect(backup.data.app.profiles[0]!.settings).toEqual({
+      shuffle: false,
+      breakEvery: 15,
+      sounds: false,
+      strokeSpeed: 'normal',
+      strokePauseSeconds: 3,
+    });
   });
 });

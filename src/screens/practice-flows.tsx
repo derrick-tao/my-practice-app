@@ -6,6 +6,7 @@ import type { ComponentChildren, ComponentType } from 'preact';
 import type { ItemData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { DrawingScope, useDrawing } from '../practice/drawing.tsx';
 import type { Mark, Round, SessionResult } from '../practice/session.ts';
+import type { ProfileSettings } from '../storage/types.ts';
 
 /** What the screen hands a type's stage and controls for the item being practiced. */
 export interface FlowProps {
@@ -22,7 +23,7 @@ export interface FlowProps {
 }
 
 /** What wraps an item's stage and controls, so they can share state that lasts as long as the item does. */
-export interface ScopeProps {
+export interface ScopeProps extends Pick<ProfileSettings, 'strokeSpeed' | 'strokePauseSeconds'> {
   item: ItemData;
   children: ComponentChildren;
 }

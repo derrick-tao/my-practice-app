@@ -5,10 +5,11 @@
 // it on paper); the child can pause, step by hand, resume or replay. Which stroke the drawing is on is screen state
 // only and is not saved: a resumed session shows its character from the first stroke.
 import HanziWriter, { type CharacterJson, type CharDataLoaderFn } from 'hanzi-writer';
-import { createContext, type ComponentChildren, type RefObject } from 'preact';
+import { createContext, type RefObject } from 'preact';
 import { useContext, useEffect, useRef, useState } from 'preact/hooks';
 import { contentUrl } from '../content/client.ts';
-import type { ItemData } from '../content/types.ts';
+import type { ScopeProps } from '../screens/practice-flows.tsx';
+import type { ProfileSettings } from '../storage/types.ts';
 
 export interface Drawing {
   /** The element the character is drawn into. */
@@ -46,15 +47,14 @@ const OUTLINE_COLOR = '#dcd8e8';
 const STROKE_COLOR = '#2b2250';
 
 /**
- * Fixed for now, to tune after watching the learner: Hanzi Writer draws a stroke in (length + 600) / (3 * speed) ms,
- * about 0.3 to 0.5 s at its default speed of 1, so half that speed gives the 1 s or so a child can follow; then the
- * auto-play waits 3 s so the stroke can be copied.
+ * The learner's stroke speed setting as Hanzi Writer's `strokeAnimationSpeed`. It draws a stroke in
+ * (length + 600) / (3 * speed) ms, about 0.3 to 0.5 s at its default speed of 1, so normal (half that speed) gives
+ * the 1 s or so a child can follow, slow about 2 s and fast about 0.5 s.
  */
-const STROKE_SPEED = 0.5;
-const PAUSE_AFTER_STROKE_MS = 3_000;
+const STROKE_ANIMATION_SPEEDS: Record<ProfileSettings['strokeSpeed'], number> = { slow: 0.25, normal: 0.5, fast: 1 };
 
 /** Mount one item's drawing; give it a key per item so each character starts afresh. */
-export function DrawingScope({ item, children }: { item: ItemData; children: ComponentChildren }) {
+export function DrawingScope({ item, strokeSpeed, strokePauseSeconds, children }: ScopeProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const writer = useRef<HanziWriter | undefined>(undefined);
   const [total, setTotal] = useState<number | undefined>(undefined);
@@ -92,7 +92,7 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
       showOutline: true,
       outlineColor: OUTLINE_COLOR,
       strokeColor: STROKE_COLOR,
-      strokeAnimationSpeed: STROKE_SPEED,
+      strokeAnimationSpeed: STROKE_ANIMATION_SPEEDS[strokeSpeed],
       charDataLoader,
       onLoadCharDataError: () => mounted && setFailed(true),
     });
@@ -127,7 +127,7 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
       nextStroke();
       return;
     }
-    const timer = setTimeout(nextStroke, PAUSE_AFTER_STROKE_MS);
+    const timer = setTimeout(nextStroke, strokePauseSeconds * 1_000);
     return () => clearTimeout(timer);
   }, [playing, total, drawing, drawn]);
 
