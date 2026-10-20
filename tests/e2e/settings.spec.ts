@@ -86,7 +86,7 @@ test.describe('settings: saved per learner', () => {
     await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).toBeChecked();
   });
 
-  test('stroke speed and pause start at Normal and 3 s, and the choices survive a reload', async ({ page }) => {
+  test('stroke speed and pause start at Normal and 0.5 s, and the choices survive a reload', async ({ page }) => {
     await setUpLearner(page);
     await openSettings(page);
     const speed = page.getByRole('radiogroup', { name: 'Stroke speed' });
@@ -94,19 +94,19 @@ test.describe('settings: saved per learner', () => {
     await expect(speed.getByRole('radio')).toHaveText(['Slow', 'Normal', 'Fast']);
     await expect(pause.getByRole('radio')).toHaveText(['0.5 s', '1 s', '2 s', '3 s']);
     await expect(speed.getByRole('radio', { name: 'Normal' })).toBeChecked();
-    await expect(pause.getByRole('radio', { name: '3 s' })).toBeChecked();
+    await expect(pause.getByRole('radio', { name: '0.5 s' })).toBeChecked();
 
     await speed.getByRole('radio', { name: 'Slow' }).click();
     await expect(speed.getByRole('radio', { name: 'Slow' })).toBeChecked();
     await expect(speed.getByRole('radio', { name: 'Normal' })).not.toBeChecked();
-    await pause.getByRole('radio', { name: '0.5 s' }).click();
-    await expect(pause.getByRole('radio', { name: '0.5 s' })).toBeChecked();
-    await expect(pause.getByRole('radio', { name: '3 s' })).not.toBeChecked();
+    await pause.getByRole('radio', { name: '3 s' }).click();
+    await expect(pause.getByRole('radio', { name: '3 s' })).toBeChecked();
+    await expect(pause.getByRole('radio', { name: '0.5 s' })).not.toBeChecked();
 
     await page.reload(); // the gate locks again on reload
     await passGate(page);
     await expect(page.getByRole('radio', { name: 'Slow' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '0.5 s' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '3 s' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked(); // the other choices stay as they were
   });
 

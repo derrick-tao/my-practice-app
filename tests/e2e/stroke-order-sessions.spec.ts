@@ -1,6 +1,6 @@
 // Seam 1: how a Draw (stroke order) session is handled like any other: break prompts, resuming from Home, the
-// profile's shuffle setting, a lesson edited during practice, and backup. Stepping the drawing itself is covered
-// in stroke-order.spec.ts; here the drawing is only ever driven through the practice driver (`drawCharacter`).
+// profile's shuffle setting, a lesson edited during practice, and backup. The drawing itself is covered in
+// stroke-order.spec.ts; here the drawing is only ever driven through the practice driver (`drawCharacter`).
 import type { Page } from '@playwright/test';
 import type { ItemData, LessonData } from '../../src/content/types.ts';
 import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from './backup-driver.ts';
@@ -178,7 +178,7 @@ test.describe('stroke order: leaving and coming back', () => {
     loadLesson,
   }) => {
     // The clock runs in real time until it is frozen on the resumed character below. Unshuffled, the third character
-    // is 二, two strokes: there is a point part way through to leave it at.
+    // is 二, two strokes: it is left once its first stroke is drawn.
     await page.clock.install({ time: CLOCK_START });
     const { practice, lesson } = await start({ page, audio, loadLesson }, 'fixture-eleven-strokes', { shuffle: false });
     await drawMany(practice, 2);
@@ -186,9 +186,7 @@ test.describe('stroke order: leaving and coming back', () => {
     await expect.poll(() => practice.itemAudioCount()).toBe(3);
     const third = (await practice.lastHeardTarget())!;
     expect(third).toBe('二');
-    await practice.pause.click(); // a stroke being drawn finishes first
-    await expect(practice.nextStroke).toBeEnabled();
-    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '1');
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', /^[12]$/);
 
     await practice.home.click();
 
@@ -200,7 +198,7 @@ test.describe('stroke order: leaving and coming back', () => {
     await expect(practice.drawing).toHaveAttribute('data-strokes-total', '2');
     await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 150));
     await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
-    await expect(practice.pause).toBeVisible(); // playing again, not left paused
+    await expect(practice.replay).toBeVisible();
     await page.clock.resume();
     // A resumed session waits for a tap before playing (iOS gesture rules); the tap plays the same character.
     expect(await practice.itemAudioCount()).toBe(3);

@@ -2,8 +2,8 @@
 // stroke data read from the file the build bundled (never the library's CDN). DrawingScope owns everything about
 // the drawing for one item, and the stage and controls (see practice-flows.tsx) read it through useDrawing, so
 // the stage can show the character while the controls drive it. It plays by itself (a stroke, then a pause to copy
-// it on paper); the child can pause, step by hand, resume or replay. Which stroke the drawing is on is screen state
-// only and is not saved: a resumed session shows its character from the first stroke.
+// it on paper); the child can replay it. Which stroke the drawing is on is screen state only and is not saved: a
+// resumed session shows its character from the first stroke.
 import HanziWriter, { type CharacterJson, type CharDataLoaderFn } from 'hanzi-writer';
 import { createContext, type ComponentChildren, type RefObject } from 'preact';
 import { useContext, useEffect, useRef, useState } from 'preact/hooks';
@@ -18,18 +18,8 @@ export interface Drawing {
   drawn: number;
   /** The character's stroke count, once its data has loaded. */
   total: number | undefined;
-  /** A stroke is being drawn: the next one waits for it. */
-  drawing: boolean;
   /** Fully drawn (or its data could not be loaded, which must not strand the child): the pinyin, clue and Next show. */
   finished: boolean;
-  /** Auto-play is on: after each stroke, the next follows once the pause is over. */
-  playing: boolean;
-  /** Stop before the next stroke begins (a stroke being drawn finishes). */
-  pause: () => void;
-  /** Auto-play again from the current stroke. */
-  play: () => void;
-  /** Draw one more stroke (while paused, one per tap). */
-  nextStroke: () => void;
   /** Clear the strokes and auto-play from the first. */
   replay: () => void;
 }
@@ -66,11 +56,8 @@ export function DrawingScope({
   const [drawn, setDrawn] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [playing, setPlaying] = useState(true);
   /** Bumped by a replay and on unmount, so a stroke begun before it cannot count itself afterwards. */
   const run = useRef(0);
-  /** Set by ▶ between strokes and by ↺: the next stroke begins at once instead of after the pause. */
-  const withoutPause = useRef(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -123,41 +110,28 @@ export function DrawingScope({
       .catch(() => setDrawing(false));
   };
 
-  // Auto-play: the first stroke starts when the data has loaded, each later one after the pause. The timer goes
-  // when the child pauses, replays or leaves, so none outlives what it was waiting for.
+  // Auto-play: the first stroke starts when the data has loaded (and again after a replay), each later one after the
+  // pause. The timer goes when the child replays or leaves, so none outlives what it was waiting for.
   useEffect(() => {
-    if (!playing || total === undefined || drawing || drawn >= total) return;
-    if (drawn === 0 || withoutPause.current) {
-      withoutPause.current = false;
+    if (total === undefined || drawing || drawn >= total) return;
+    if (drawn === 0) {
       nextStroke();
       return;
     }
     const timer = setTimeout(nextStroke, strokePauseSeconds * 1_000);
     return () => clearTimeout(timer);
-  }, [playing, total, drawing, drawn]);
-
-  const play = (): void => {
-    // A stroke still being drawn finishes first and the usual pause follows it; a stale flag would skip that pause.
-    withoutPause.current = !drawing;
-    setPlaying(true);
-  };
+  }, [total, drawing, drawn]);
 
   const replay = (): void => {
     run.current++;
     // Instant: the strokes go, the outline stays.
     void writer.current?.hideCharacter({ duration: 0 });
-    withoutPause.current = true;
     setDrawn(0);
     setDrawing(false);
-    setPlaying(true);
   };
 
   const finished = failed || (total !== undefined && drawn >= total);
   return (
-    <DrawingContext.Provider
-      value={{ hostRef, drawn, total, drawing, finished, playing, pause: () => setPlaying(false), play, nextStroke, replay }}
-    >
-      {children}
-    </DrawingContext.Provider>
+    <DrawingContext.Provider value={{ hostRef, drawn, total, finished, replay }}>{children}</DrawingContext.Provider>
   );
 }

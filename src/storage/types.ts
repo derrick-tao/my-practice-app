@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   breakEvery: 10,
   sounds: true,
   strokeSpeed: 'normal',
-  strokePauseSeconds: 3,
+  strokePauseSeconds: 0.5,
   learning: false,
 };
 

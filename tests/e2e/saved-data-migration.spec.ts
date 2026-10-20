@@ -126,7 +126,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
     await expect(page.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
     await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Normal' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '3 s' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '0.5 s' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).not.toBeChecked();
   }
 
@@ -155,7 +155,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
       breakEvery: 15,
       sounds: false,
       strokeSpeed: 'normal',
-      strokePauseSeconds: 3,
+      strokePauseSeconds: 0.5,
       learning: false,
     });
   });
