@@ -12,6 +12,8 @@ export interface PracticeType {
   icon: string;
   /** What its items are called. */
   itemNoun: { singular: string; plural: string };
+  /** Whether items are marked ✅/❌. Without marks there are no scores, so progress shows only how far an attempt got. */
+  hasMarks: boolean;
   /** The practice screen, given the lesson to practice. */
   screen: ComponentType<PracticeRouteProps>;
 }
@@ -22,6 +24,7 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     label: 'Write',
     icon: '✏️',
     itemNoun: { singular: 'character', plural: 'characters' },
+    hasMarks: true,
     screen: DictationScreen,
   },
   'stroke-order': {
@@ -29,6 +32,7 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     label: 'Draw',
     icon: '🖌️',
     itemNoun: { singular: 'character', plural: 'characters' },
+    hasMarks: false,
     screen: StrokeOrderScreen,
   },
   'phrase-recognition': {
@@ -36,6 +40,7 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     label: 'Say',
     icon: '🗣️',
     itemNoun: { singular: 'phrase', plural: 'phrases' },
+    hasMarks: true,
     screen: PhraseRecognitionScreen,
   },
 };
