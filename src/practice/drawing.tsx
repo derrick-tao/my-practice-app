@@ -5,10 +5,10 @@
 // it on paper); the child can pause, step by hand, resume or replay. Which stroke the drawing is on is screen state
 // only and is not saved: a resumed session shows its character from the first stroke.
 import HanziWriter, { type CharacterJson, type CharDataLoaderFn } from 'hanzi-writer';
-import { createContext, type RefObject } from 'preact';
+import { createContext, type ComponentChildren, type RefObject } from 'preact';
 import { useContext, useEffect, useRef, useState } from 'preact/hooks';
 import { contentUrl } from '../content/client.ts';
-import type { ScopeProps } from '../screens/practice-flows.tsx';
+import type { ItemData } from '../content/types.ts';
 import type { ProfileSettings } from '../storage/types.ts';
 
 export interface Drawing {
@@ -54,7 +54,12 @@ const STROKE_COLOR = '#2b2250';
 const STROKE_ANIMATION_SPEEDS: Record<ProfileSettings['strokeSpeed'], number> = { slow: 0.25, normal: 0.5, fast: 1 };
 
 /** Mount one item's drawing; give it a key per item so each character starts afresh. */
-export function DrawingScope({ item, strokeSpeed, strokePauseSeconds, children }: ScopeProps) {
+export function DrawingScope({
+  item,
+  strokeSpeed,
+  strokePauseSeconds,
+  children,
+}: Pick<ProfileSettings, 'strokeSpeed' | 'strokePauseSeconds'> & { item: ItemData; children: ComponentChildren }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const writer = useRef<HanziWriter | undefined>(undefined);
   const [total, setTotal] = useState<number | undefined>(undefined);

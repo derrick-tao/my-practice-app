@@ -395,7 +395,12 @@ function PracticeRun({
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
       {!onBreakPrompt && flowProps && !isRoundOver(round) && (
-        <Scope key={`${round.index}:${round.position}`} item={flowProps.item} strokeSpeed={strokeSpeed} strokePauseSeconds={strokePauseSeconds}>
+        <Scope
+          key={`${round.index}:${round.position}`}
+          item={flowProps.item}
+          strokeSpeed={strokeSpeed}
+          strokePauseSeconds={strokePauseSeconds}
+        >
           <section class="practice__body">
             <div class="practice__stage">
               <flow.Stage {...flowProps} />

@@ -1,6 +1,6 @@
 // Parent area section: the active learner's settings (shuffle, break cadence, sounds, and the stroke order
-// speed and pause). Each control
-// shows the SAVED value: it changes only after the write, and a failed write offers a retry.
+// speed and pause). Each control shows the SAVED value: it changes only after the write, and a failed write
+// offers a retry.
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { activeProfileOf, setSettings } from '../../profiles.ts';
