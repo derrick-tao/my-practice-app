@@ -30,11 +30,15 @@ _Avoid_: Spelling, 听写 (in code and docs)
 The practice type where the learner sees a phrase, says it aloud, then hears it and self-grades.
 _Avoid_: Phrase flashcards, reading
 
+**Stroke order**:
+The practice type where the learner hears a character, watches it drawn one stroke at a time while copying each stroke on paper, then taps Next. Nothing is graded: it has no marks, so its sessions have a single round. Offered only by lessons that have a list for it.
+_Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
+
 **Item**:
 One thing to practice in a list. Its target is its identity within that list.
 
 **Target**:
-The Chinese text of an item: the character to write in dictation, or the phrase to say in phrase recognition.
+The Chinese text of an item: the character to write in dictation or draw in stroke order, or the phrase to say in phrase recognition.
 
 ### Practice
 
@@ -48,7 +52,7 @@ An ordered pass over a set of items; round 1 covers them all, and each later rou
 The learner's self-grade for an item in a round: ✅ correct or ❌ wrong.
 
 **Break (prompt)**:
-A pause offered during a round after a set number of marks (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
+A pause offered during a round after a set number of marks, or of Next taps in stroke order (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
 
 **Undo entry**:
 The record of the learner's latest mark, kept so Undo can take that mark back and return to the item. It is dropped when the session ends or the item leaves the list.

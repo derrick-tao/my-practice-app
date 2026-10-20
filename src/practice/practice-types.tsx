@@ -3,7 +3,7 @@
 // keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
 import type { ComponentType } from 'preact';
 import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
-import { DictationScreen, PhraseRecognitionScreen, type PracticeRouteProps } from '../screens/practice.tsx';
+import { DictationScreen, PhraseRecognitionScreen, StrokeOrderScreen, type PracticeRouteProps } from '../screens/practice.tsx';
 
 export interface PracticeType {
   id: PracticeTypeId;
@@ -12,6 +12,8 @@ export interface PracticeType {
   icon: string;
   /** What its items are called. */
   itemNoun: { singular: string; plural: string };
+  /** Whether items are marked ✅/❌. Without marks there are no scores, so progress shows only how far an attempt got. */
+  hasMarks: boolean;
   /** The practice screen, given the lesson to practice. */
   screen: ComponentType<PracticeRouteProps>;
 }
@@ -22,13 +24,23 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     label: 'Write',
     icon: '✏️',
     itemNoun: { singular: 'character', plural: 'characters' },
+    hasMarks: true,
     screen: DictationScreen,
+  },
+  'stroke-order': {
+    id: 'stroke-order',
+    label: 'Draw',
+    icon: '🖌️',
+    itemNoun: { singular: 'character', plural: 'characters' },
+    hasMarks: false,
+    screen: StrokeOrderScreen,
   },
   'phrase-recognition': {
     id: 'phrase-recognition',
     label: 'Say',
     icon: '🗣️',
     itemNoun: { singular: 'phrase', plural: 'phrases' },
+    hasMarks: true,
     screen: PhraseRecognitionScreen,
   },
 };

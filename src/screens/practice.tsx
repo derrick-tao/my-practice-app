@@ -18,6 +18,7 @@ import {
   mark,
   markCounts,
   markHeard,
+  next,
   placeOf,
   reconcileWithList,
   resetBreakCount,
@@ -36,6 +37,7 @@ import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
+import { FLOWS, NoScope, type FlowProps } from './practice-flows.tsx';
 
 function HomeButton() {
   return (
@@ -62,26 +64,10 @@ export interface PracticeRouteProps {
 }
 
 export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
+export const StrokeOrderScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="stroke-order" />;
 export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
   <PracticeScreen {...props} practiceType="phrase-recognition" />
 );
-
-/**
- * What differs between practice types on the practice screen; everything else (rounds, retries, breaks, Undo,
- * sounds, saving) is shared.
- */
-interface PracticeFlow {
-  /**
-   * The child hears the item first and writes it: its audio plays on arrival and after each mark, and Check waits
-   * until it has been requested. Without it (the child reads the item and says it) nothing plays until Check.
-   */
-  audioFirst: boolean;
-}
-
-const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
-  dictation: { audioFirst: true },
-  'phrase-recognition': { audioFirst: false },
-};
 
 function PracticeScreen({
   subject,
@@ -289,14 +275,18 @@ function PracticeRun({
     if (after && !flow.audioFirst) autoplayCurrent(after);
   };
 
-  const onMark = (result: Mark): void => {
-    const after = advance((s) => mark(s, result, env));
+  const onMark = (result: Mark): void => afterStep(advance((s) => mark(s, result, env)), result === 'correct' ? 'chime' : 'gentle');
+
+  const onNext = (): void => afterStep(advance((s) => next(s, env)), 'chime');
+
+  /** A mark or Next moved the learner on to `after`: finish with the fanfare, or play the step's sound and then the next item's audio. */
+  const afterStep = (after: Session | undefined, effect: 'chime' | 'gentle'): void => {
     if (!after) return;
     if (after.status === 'completed') {
       effects.play('fanfare');
       return;
     }
-    const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
+    const effectMs = effects.play(effect);
     cancelHeldAudio();
     // Reading first: the next item's audio would give its answer away, so nothing plays until Check.
     if (!flow.audioFirst) return;
@@ -351,7 +341,7 @@ function PracticeRun({
     return (
       <main class="screen practice">
         <h1 class="sr-only">{lesson.title}</h1>
-        <Completion {...sessionResult(session)} />
+        <Completion lines={flow.completionLines(sessionResult(session))} />
       </main>
     );
   }
@@ -360,6 +350,16 @@ function PracticeRun({
   const pulse = blockedAt?.roundIndex === place.roundIndex && blockedAt.position === place.position;
 
   const onBreakPrompt = breakDue(session, breakEvery);
+  const flowProps: FlowProps | undefined = item && {
+    item,
+    round,
+    pulse,
+    onListen: (rendition) => requestAudio(item, rendition, false, place),
+    onCheck,
+    onMark,
+    onNext,
+  };
+  const Scope = flow.Scope ?? NoScope;
 
   return (
     <main class="screen practice">
@@ -376,64 +376,24 @@ function PracticeRun({
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
-      {!onBreakPrompt && item && !isRoundOver(round) && (
-        <section class="practice__body">
-          <div class="practice__stage">
-            {round.phase === 'revealed' ? (
-              <Reveal item={item} fit={!flow.audioFirst} />
-            ) : flow.audioFirst ? (
-              <p class="prompt">
-                <span aria-hidden="true">✏️ </span>Write it!
-              </p>
-            ) : (
-              <PhrasePrompt item={item} />
-            )}
-          </div>
-          <div class="practice__controls">
-            <div role="status" class="volume-hint-slot">
-              {audioFailures >= VOLUME_HINT_AFTER && (
-                <p class="volume-hint">
-                  No sound? Turn up the volume <span aria-hidden="true">🔈</span>
-                </p>
-              )}
+      {!onBreakPrompt && flowProps && !isRoundOver(round) && (
+        <Scope key={`${round.index}:${round.position}`} item={flowProps.item}>
+          <section class="practice__body">
+            <div class="practice__stage">
+              <flow.Stage {...flowProps} />
             </div>
-            {(flow.audioFirst || round.phase === 'revealed') && (
-              <div class="row">
-                <button
-                  type="button"
-                  class={`btn btn--audio${pulse ? ' pulse' : ''}`}
-                  onClick={() => requestAudio(item, 'normal', false, place)}
-                >
-                  <span aria-hidden="true">🔊 </span>Listen
-                </button>
-                <button
-                  type="button"
-                  class="btn btn--audio"
-                  onClick={() => requestAudio(item, 'slow', false, place)}
-                >
-                  <span aria-hidden="true">🐢 </span>Slow
-                </button>
+            <div class="practice__controls">
+              <div role="status" class="volume-hint-slot">
+                {audioFailures >= VOLUME_HINT_AFTER && (
+                  <p class="volume-hint">
+                    No sound? Turn up the volume <span aria-hidden="true">🔈</span>
+                  </p>
+                )}
               </div>
-            )}
-            <div class="row row--primary">
-              {round.phase === 'prompt' && (!flow.audioFirst || round.heardCurrent) && (
-                <button type="button" class="btn btn--primary btn--check" onClick={onCheck}>
-                  <span aria-hidden="true">👀 </span>Check
-                </button>
-              )}
-              {round.phase === 'revealed' && (
-                <>
-                  <button type="button" class="btn btn--primary btn--good" onClick={() => onMark('correct')}>
-                    <span aria-hidden="true">✅ </span>I got it
-                  </button>
-                  <button type="button" class="btn btn--primary btn--bad" onClick={() => onMark('wrong')}>
-                    <span aria-hidden="true">❌ </span>Not yet
-                  </button>
-                </>
-              )}
+              <flow.Controls {...flowProps} />
             </div>
-          </div>
-        </section>
+          </section>
+        </Scope>
       )}
       {isRoundOver(round) && (
         <RoundSummary
@@ -500,51 +460,17 @@ function RoundSummary({
   );
 }
 
-function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: number; total: number; rounds: number }) {
+function Completion({ lines }: { lines: string[] }) {
   return (
     <section class="summary completion" data-testid="completion">
       <Celebration />
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>
-      <p class="completion__line">
-        {firstTryCorrect} of {total} on the first try!
-      </p>
-      <p class="completion__line">Rounds: {rounds}</p>
+      {lines.map((line) => (
+        <p class="completion__line">{line}</p>
+      ))}
       <HomeButton />
     </section>
-  );
-}
-
-/** An item's target in the handwriting font. `fit`: as large as fits on one line (phrases, see .phrase in practice.css) rather than shrunk by its length. */
-function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testId: string }) {
-  return (
-    <div
-      class={fit ? 'reveal__target phrase' : 'reveal__target'}
-      data-testid={testId}
-      lang="zh-CN"
-      style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
-    >
-      {item.target}
-    </div>
-  );
-}
-
-/** The phrase to say aloud. */
-function PhrasePrompt({ item }: { item: ItemData }) {
-  return (
-    <div class="reveal">
-      <TargetText item={item} fit testId="prompt-phrase" />
-    </div>
-  );
-}
-
-function Reveal({ item, fit }: { item: ItemData; /** Fit the target on one line (phrases) rather than shrinking it by its length. */ fit: boolean }) {
-  return (
-    <div class="reveal">
-      <TargetText item={item} fit={fit} testId="target" />
-      <div class="reveal__pinyin">{item.pinyin}</div>
-      {item.clue && <div class="reveal__clue">{item.clue}</div>}
-    </div>
   );
 }

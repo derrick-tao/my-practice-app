@@ -8,11 +8,12 @@ import { addOtherLearner } from './saved-sessions.ts';
 import { openParentArea, openParentSection, setUpLearner } from './parent-driver.ts';
 
 type Mark = 'correct' | 'wrong';
-type PracticeType = 'dictation' | 'phrase-recognition';
+type PracticeType = 'dictation' | 'stroke-order' | 'phrase-recognition';
 
 /** One practice type's part of a lesson's progress page. */
 const part = (page: Page, practiceType: PracticeType) => page.getByTestId(`progress-part-${practiceType}`);
 const write = (page: Page) => part(page, 'dictation');
+const draw = (page: Page) => part(page, 'stroke-order');
 const say = (page: Page) => part(page, 'phrase-recognition');
 type Marked = Array<[string, Mark]>;
 
@@ -29,6 +30,20 @@ function round(index: number, itemIds: string[], marked: Marked, startedAt: stri
     marks: Object.fromEntries(marked),
     startedAt,
     ...(over ? { completedAt: startedAt } : {}),
+  };
+}
+
+/** A Draw round: no marks, only how far it got (the position). */
+function drawRound(itemIds: string[], position: number, startedAt: string) {
+  return {
+    index: 1,
+    itemIds,
+    position,
+    phase: 'prompt',
+    heardCurrent: false,
+    marks: {},
+    startedAt,
+    ...(position === itemIds.length ? { completedAt: startedAt } : {}),
   };
 }
 
@@ -494,5 +509,92 @@ test.describe('parent progress page', () => {
     await expect(page.getByRole('link', { name: /Fixture Five/ })).toContainText('5 characters');
     await expect(page.getByRole('link', { name: /Fixture Five/ })).toContainText('6 phrases');
     await expect(page.getByRole('link', { name: /Fixture Three/ })).not.toContainText('phrases');
+  });
+
+  // fixture-strokes' stroke-order list is 一 人 大. A Draw attempt has one round and no marks.
+  const STROKES = 'fixture-strokes';
+  const drawAttempt = (id: string, status: 'completed' | 'active' | 'stopped', startedAt: string, itemIds: string[], position: number) =>
+    attempt(id, STROKES, status, startedAt, [drawRound(itemIds, position, startedAt)], 'stroke-order');
+
+  test('a Draw attempt shows its date, whether it is done, and how many characters it drew, with no scores', async ({ page }) => {
+    await setUpLearner(page);
+    await restoreSessions(page, [
+      drawAttempt('d-1', 'completed', '2026-10-01T12:00:00.000Z', ['一', '人', '大'], 3),
+      drawAttempt('d-2', 'active', '2026-10-05T12:00:00.000Z', ['大', '一', '人'], 2),
+    ]);
+    await openProgress(page, /Fixture Strokes/);
+
+    await expect(draw(page).getByRole('heading', { level: 3, name: 'Draw' })).toBeVisible();
+    const facts = draw(page).getByTestId('progress-facts');
+    await expect(facts).toContainText('3 characters');
+    await expect(facts).toContainText('Attempts: 2');
+
+    const attempts = draw(page).getByTestId('attempt');
+    await expect(attempts).toHaveCount(2);
+    await expect(attempts.nth(0)).toContainText('Oct 5, 2026');
+    await expect(attempts.nth(0)).toContainText('In progress');
+    await expect(attempts.nth(0)).toContainText('Characters drawn: 2 of 3');
+    await expect(attempts.nth(1)).toContainText('Oct 1, 2026');
+    await expect(attempts.nth(1)).toContainText('Completed');
+    await expect(attempts.nth(1)).toContainText('Characters drawn: 3 of 3');
+
+    // Nothing that needs marks: no score, rounds, trend, best or trickiest.
+    await expect(draw(page)).not.toContainText('First try');
+    await expect(draw(page)).not.toContainText('Best');
+    await expect(draw(page)).not.toContainText('Rounds');
+    await expect(draw(page)).not.toContainText('Trickiest');
+    await expect(draw(page).getByTestId('trend')).toHaveCount(0);
+    await expect(draw(page).getByTestId('tricky')).toHaveCount(0);
+  });
+
+  test('a Draw attempt opens to its one round and that round\'s characters, with no mark on any of them', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    await restoreSessions(page, [drawAttempt('d-1', 'active', '2026-10-05T12:00:00.000Z', ['大', '旧', '人'], 1)]);
+    await openProgress(page, /Fixture Strokes/);
+    const lesson = await loadLesson(STROKES);
+
+    await draw(page).getByTestId('attempt').click();
+    await expect(page.getByRole('heading', { level: 2, name: /Draw · Oct 5, 2026/ })).toBeVisible();
+    const rounds = page.getByTestId('round');
+    await expect(rounds).toHaveCount(1);
+    await expect(rounds.nth(0)).toContainText('3 characters');
+    await expect(rounds.nth(0)).toContainText('Characters drawn: 1 of 3');
+    await expect(rounds.nth(0)).toContainText('大');
+    await expect(rounds.nth(0)).toContainText('旧 (removed)');
+    await expect(rounds.nth(0)).toContainText('人');
+    await expect(rounds.nth(0).getByRole('button')).toHaveText(['大', '人']);
+    await expect(rounds.nth(0)).not.toContainText('✅');
+    await expect(rounds.nth(0)).not.toContainText('❌');
+    await expect(page.getByRole('main')).not.toContainText('First try');
+
+    await rounds.nth(0).getByRole('button', { name: 'Hear 人' }).click();
+    const played = await audio.played(lesson);
+    expect(played.map(({ target, practiceType, rendition }) => [target, practiceType, rendition])).toEqual([
+      ['人', 'stroke-order', 'normal'],
+    ]);
+  });
+
+  test('Write keeps its scores beside a Draw part', async ({ page }) => {
+    await setUpLearner(page);
+    await restoreSessions(page, [
+      attempt('w-1', STROKES, 'completed', '2026-10-01T12:00:00.000Z', [
+        round(1, ['小'], [bad('小')], '2026-10-01T12:00:00.000Z'),
+        round(2, ['小'], [ok('小')], '2026-10-01T12:05:00.000Z'),
+      ]),
+      drawAttempt('d-1', 'completed', '2026-10-02T12:00:00.000Z', ['一', '人', '大'], 3),
+    ]);
+    await openProgress(page, /Fixture Strokes/);
+
+    const parts = page.getByTestId(/^progress-part-/);
+    await expect(parts.nth(0).getByRole('heading', { level: 3, name: 'Write' })).toBeVisible();
+    await expect(parts.nth(1).getByRole('heading', { level: 3, name: 'Draw' })).toBeVisible();
+    await expect(write(page).getByTestId('progress-facts')).toContainText('Best first try: 0 of 1');
+    await expect(write(page).getByTestId('trend')).toHaveText(/^\s*0\s*$/);
+    await expect(write(page).getByTestId('attempt')).toContainText('First try: 0 of 1');
+    await expect(draw(page).getByTestId('attempt')).toHaveCount(1);
   });
 });

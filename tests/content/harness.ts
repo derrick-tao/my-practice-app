@@ -104,9 +104,9 @@ export function lessonYaml(
 }
 
 /** Build and return the error message of the rejection (fails the test if the build succeeds). */
-export async function buildError(ws: Workspace): Promise<string> {
+export async function buildError(ws: Workspace, overrides?: Partial<BuildOptions>): Promise<string> {
   try {
-    await ws.build();
+    await ws.build(overrides);
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }

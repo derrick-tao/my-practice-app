@@ -8,7 +8,7 @@ test.describe('published content as the app sees it', () => {
     const manifest = await (await page.request.get('content/manifest.json')).json();
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
     const ids = manifest.subjects[0].lessons.map((l: { id: string }) => l.id);
-    expect(ids).toEqual(['fixture-five', 'fixture-three', 'fixture-twelve']);
+    expect(ids).toEqual(['fixture-eleven-strokes', 'fixture-five', 'fixture-strokes', 'fixture-three', 'fixture-twelve']);
 
     const lesson = await loadLesson('fixture-three');
     expect(lesson.lists.dictation!.map((i) => i.pinyin)).toEqual(['zhǎo', 'diǎn', 'fēn']);
@@ -19,6 +19,16 @@ test.describe('published content as the app sees it', () => {
         expect((await response.body()).length, ref).toBeGreaterThan(0);
       }
     }
+  });
+
+  test('serves each stroke-order item its stroke data, and only those items', async ({ page, loadLesson }) => {
+    const lesson = await loadLesson('fixture-strokes');
+    for (const item of lesson.lists['stroke-order']!) {
+      const response = await page.request.get(`content/${item.strokes}`);
+      expect(response.status(), item.strokes).toBe(200);
+      expect(((await response.json()) as { strokes: string[] }).strokes.length, item.target).toBeGreaterThan(0);
+    }
+    expect(lesson.lists.dictation!.every((item) => item.strokes === undefined)).toBe(true);
   });
 
   test('auto-fills pinyin that the author omitted', async ({ loadLesson }) => {

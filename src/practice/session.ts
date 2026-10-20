@@ -52,7 +52,10 @@ export interface Session {
   rounds: Round[];
   /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
-  /** Marks since the last break prompt was answered (or the last retry round started). */
+  /**
+   * Marks (and Next taps in stroke order) since the last break prompt was answered (or the last retry round started).
+   * The name stays because renaming the saved field would need a storage migration.
+   */
   marksSinceBreak: number;
 }
 
@@ -187,6 +190,29 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
   const next = { ...marked, undo: entry, marksSinceBreak: marked.marksSinceBreak + 1 };
   // Marking happens on the round as it is: every one of its items still counts.
   return finishIfClean(next, env, new Set(currentRound(next).itemIds));
+}
+
+/**
+ * Next (stroke order): the learner has drawn the current item, so move on to the next one (or finish) with no
+ * mark. It counts toward the break prompt like a mark does, but sets no undo entry: there is nothing to take
+ * back. With no ❌ a stroke order round is always clean, so it never leads to a retry round.
+ */
+export function next(session: Session, env: PracticeEnv): Session {
+  if (session.status !== 'active' || session.practiceType !== 'stroke-order') return session;
+  const moved = withCurrentRound(session, (round) => {
+    if (isRoundOver(round)) return round;
+    const position = round.position + 1;
+    return {
+      ...round,
+      position,
+      phase: 'prompt',
+      heardCurrent: false,
+      ...(position >= round.itemIds.length ? { completedAt: env.now() } : {}),
+    };
+  });
+  if (moved === session) return session;
+  const counted = { ...moved, marksSinceBreak: moved.marksSinceBreak + 1 };
+  return finishIfClean(counted, env, new Set(currentRound(counted).itemIds));
 }
 
 /** The last mark can be taken back: it is in the current round, and nothing has been marked since. */

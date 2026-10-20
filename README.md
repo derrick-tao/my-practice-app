@@ -1,6 +1,6 @@
 # My Practice App
 
-A kid-friendly practice web app hosted on GitHub Pages. A lesson offers one or more practice types. **Write** (dictation, 听写): hear a character in Mandarin, write it on paper, check, and self-mark until every character is right. **Say** (phrase recognition): see a phrase, say it aloud, hear it, and self-mark until every phrase is right.
+A kid-friendly practice web app hosted on GitHub Pages. A lesson offers one or more practice types. **Write** (dictation, 听写): hear a character in Mandarin, write it on paper, check, and self-mark until every character is right. **Say** (phrase recognition): see a phrase, say it aloud, hear it, and self-mark until every phrase is right. **Draw** (stroke order): hear a character, watch it drawn stroke by stroke and copy each stroke on paper, then tap Next, with no marks; only lessons that have a stroke-order list offer it.
 
 - Spec: `.scratch/dictation-v1/spec.md`
 - Tickets: `.scratch/dictation-v1/issues/`
@@ -20,7 +20,7 @@ With no `.privacy-denylist` (as in CI and on a fresh clone) the check passes sil
 
 ## Publish a lesson
 
-Add `content/<subject>/<lesson-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. A lesson holds one list per practice type, each a YAML list of items under its own key. `dictation:` (practiced as Write) takes items with a target, optional clue, pinyin and say. `phrase-recognition:` (practiced as Say) takes items with a target and optional pinyin and say, and no clue:
+Add `content/<subject>/<lesson-id>.yaml` (the file name must equal `id`), commit to `main`, and the deploy workflow validates, builds, and publishes it. A lesson holds one list per practice type, each a YAML list of items under its own key. `dictation:` (practiced as Write) takes items with a target, optional clue, pinyin and say. `stroke-order:` (practiced as Draw) takes the same fields, and each target must be exactly one character that has stroke data (from `hanzi-writer-data`; the build writes a stroke file per character and fails naming the item if one has none). `phrase-recognition:` (practiced as Say) takes items with a target and optional pinyin and say, and no clue:
 
 ```yaml
 phrase-recognition:
@@ -29,7 +29,7 @@ phrase-recognition:
   - target: 书包
 ```
 
-A lesson may have either list or both, and the same target may appear in both. Phrase pinyin is generated when omitted, so write `pinyin:` where the generator differs from the textbook. Home offers a button for each list a lesson has. See `content/chinese/fall-2026-assessment.yaml` for the full format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
+A lesson may have any of the lists, and the same target may appear in several. Phrase pinyin is generated when omitted, so write `pinyin:` where the generator differs from the textbook. Home offers a button for each list a lesson has. See `content/chinese/fall-2026-assessment.yaml` for the full format. A mistake fails the build with a message naming the file, item, and rule, and nothing is deployed.
 
 ## Audio
 

@@ -1,0 +1,21 @@
+# Seam 1 fixture: a stroke-order list of low-stroke characters (一 has 1 stroke, 人 has 2, 大 has 3), and the
+# other two lists beside it, so the buttons' order (Write, Draw, Say) can be checked.
+id: fixture-strokes
+title: Fixture Strokes
+subject: chinese
+script: simplified
+dictation:
+  - target: 小
+    clue: 小猫
+stroke-order:
+  - target: 一
+    clue: 一个
+    pinyin: yī
+  - target: 人
+    clue: 大人
+    pinyin: rén
+  - target: 大
+    clue: 大小
+    pinyin: dà
+phrase-recognition:
+  - target: 一只狗

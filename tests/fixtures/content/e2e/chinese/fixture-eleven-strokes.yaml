@@ -1,0 +1,40 @@
+# Seam 1 fixture: eleven stroke-order characters of one or two strokes each, enough for a break prompt (every 5
+# Next taps at the lowest cadence) to land mid-session and then again after it restarts, without a long drawing.
+id: fixture-eleven-strokes
+title: Fixture Eleven Strokes
+subject: chinese
+script: simplified
+stroke-order:
+  - target: 一
+    clue: 一个
+    pinyin: yī
+  - target: 乙
+    clue: 乙方
+    pinyin: yǐ
+  - target: 二
+    clue: 二月
+    pinyin: èr
+  - target: 十
+    clue: 十个
+    pinyin: shí
+  - target: 人
+    clue: 大人
+    pinyin: rén
+  - target: 八
+    clue: 八月
+    pinyin: bā
+  - target: 入
+    clue: 入口
+    pinyin: rù
+  - target: 力
+    clue: 力气
+    pinyin: lì
+  - target: 又
+    clue: 又来
+    pinyin: yòu
+  - target: 九
+    clue: 九月
+    pinyin: jiǔ
+  - target: 刀
+    clue: 小刀
+    pinyin: dāo

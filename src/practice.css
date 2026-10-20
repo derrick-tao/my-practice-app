@@ -412,3 +412,25 @@
   font-weight: 700;
   text-align: center;
 }
+
+/* Stroke order: the drawing is a square sized by the short side of the screen, and no wider than the stage. */
+.drawing {
+  width: min(60vmin, 100cqw);
+}
+
+.drawing__canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 3px solid var(--outline, #ece8f6);
+  border-radius: 24px;
+  background: var(--card);
+}
+
+.drawing__canvas svg {
+  display: block;
+}
+
+.drawing__caption {
+  /* Room for the pinyin and the clue, so the drawing stays put when they appear. */
+  min-height: 4.2rem;
+}

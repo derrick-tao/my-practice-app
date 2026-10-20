@@ -1,10 +1,10 @@
 # Pre-K lesson (Chinese), mirroring the Fall 2026 Assessment's themes at a 4-5 year old's level.
-# Dictation characters are 6 strokes or fewer and listed easiest first, for when shuffle is off.
+# Draw (stroke-order) characters are 6 strokes or fewer and listed easiest first, for when shuffle is off.
 id: prek-2026-10-19
 title: Pre-K 2026-10-19
 subject: chinese
 script: simplified
-dictation:
+stroke-order:
   - target: 一
     clue: 一个
     pinyin: yī
