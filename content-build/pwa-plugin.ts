@@ -2,8 +2,9 @@
 //
 // The list is derived from what the build actually produced, never from a hand-kept glob:
 //   - the app shell: every file in the output folder except content/ and the worker itself
-//   - the content: manifest.json, the font subset, every lesson file, and every audio file those lessons reference
-// A lesson that references audio missing from the output fails the build instead of shipping a worker
+//   - the content: manifest.json, the font subset, every lesson file, and every audio and stroke file those lessons
+//     reference, plus the stroke data licence published with them
+// A lesson that references audio or stroke data missing from the output fails the build instead of shipping a worker
 // that could never finish installing.
 import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
@@ -11,6 +12,7 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 import { listEntries, type LessonData } from '../src/content/types.ts';
 import { FONT_REF } from './font.ts';
+import { STROKE_LICENCE_REF } from './strokes.ts';
 
 const PLACEHOLDER = "/*PRECACHE*/ { buildId: 'dev', urls: [] }";
 const WORKER_FILE = 'sw.js';
@@ -41,6 +43,10 @@ export async function collectPrecache(outDir: string): Promise<Precache> {
     for (const [, items] of listEntries(lesson.lists)) {
       for (const item of items) {
         for (const ref of [item.audio.normal, item.audio.slow]) urls.add(`content/${ref}`);
+        if (item.strokes) {
+          urls.add(`content/${item.strokes}`);
+          urls.add(`content/${STROKE_LICENCE_REF}`);
+        }
       }
     }
   }
