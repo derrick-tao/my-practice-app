@@ -6,8 +6,12 @@ A kid-friendly practice app: a learner works through published lessons on their 
 
 ### Content
 
+**Subject**:
+The school subject a lesson belongs to, e.g. Chinese. A lesson has exactly one; two subjects tested in the same week are two lessons.
+_Avoid_: Course, class
+
 **Lesson**:
-A published unit of practice for one school test or week (e.g. "Fall 2026 Assessment"), with a title, subject, script, and optional test dates. It offers one or more practice types, each with its own list.
+A published unit of practice for one school test or week in one subject (e.g. "Fall 2026 Assessment"), with a title, subject, script, and optional test dates. It offers one or more practice types, each with its own list.
 _Avoid_: Assessment, unit, word list
 
 **Practice type**:
