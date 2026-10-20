@@ -18,6 +18,7 @@ import {
   mark,
   markCounts,
   markHeard,
+  next,
   placeOf,
   reconcileWithList,
   resetBreakCount,
@@ -36,7 +37,7 @@ import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
-import { FLOWS, type FlowProps } from './practice-flows.tsx';
+import { FLOWS, NoScope, type FlowProps } from './practice-flows.tsx';
 
 function HomeButton() {
   return (
@@ -63,6 +64,7 @@ export interface PracticeRouteProps {
 }
 
 export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
+export const StrokeOrderScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="stroke-order" />;
 export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
   <PracticeScreen {...props} practiceType="phrase-recognition" />
 );
@@ -273,14 +275,18 @@ function PracticeRun({
     if (after && !flow.audioFirst) autoplayCurrent(after);
   };
 
-  const onMark = (result: Mark): void => {
-    const after = advance((s) => mark(s, result, env));
+  const onMark = (result: Mark): void => afterStep(advance((s) => mark(s, result, env)), result === 'correct' ? 'chime' : 'gentle');
+
+  const onNext = (): void => afterStep(advance((s) => next(s, env)), 'chime');
+
+  /** A mark or Next moved the learner on to `after`: finish with the fanfare, or play the step's sound and then the next item's audio. */
+  const afterStep = (after: Session | undefined, effect: 'chime' | 'gentle'): void => {
     if (!after) return;
     if (after.status === 'completed') {
       effects.play('fanfare');
       return;
     }
-    const effectMs = effects.play(result === 'correct' ? 'chime' : 'gentle');
+    const effectMs = effects.play(effect);
     cancelHeldAudio();
     // Reading first: the next item's audio would give its answer away, so nothing plays until Check.
     if (!flow.audioFirst) return;
@@ -335,7 +341,7 @@ function PracticeRun({
     return (
       <main class="screen practice">
         <h1 class="sr-only">{lesson.title}</h1>
-        <Completion {...sessionResult(session)} />
+        <Completion lines={flow.completionLines(sessionResult(session))} />
       </main>
     );
   }
@@ -351,7 +357,9 @@ function PracticeRun({
     onListen: (rendition) => requestAudio(item, rendition, false, place),
     onCheck,
     onMark,
+    onNext,
   };
+  const Scope = flow.Scope ?? NoScope;
 
   return (
     <main class="screen practice">
@@ -369,21 +377,23 @@ function PracticeRun({
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
       {!onBreakPrompt && flowProps && !isRoundOver(round) && (
-        <section class="practice__body">
-          <div class="practice__stage">
-            <flow.Stage {...flowProps} />
-          </div>
-          <div class="practice__controls">
-            <div role="status" class="volume-hint-slot">
-              {audioFailures >= VOLUME_HINT_AFTER && (
-                <p class="volume-hint">
-                  No sound? Turn up the volume <span aria-hidden="true">🔈</span>
-                </p>
-              )}
+        <Scope key={`${round.index}:${round.position}`} item={flowProps.item}>
+          <section class="practice__body">
+            <div class="practice__stage">
+              <flow.Stage {...flowProps} />
             </div>
-            <flow.Controls {...flowProps} />
-          </div>
-        </section>
+            <div class="practice__controls">
+              <div role="status" class="volume-hint-slot">
+                {audioFailures >= VOLUME_HINT_AFTER && (
+                  <p class="volume-hint">
+                    No sound? Turn up the volume <span aria-hidden="true">🔈</span>
+                  </p>
+                )}
+              </div>
+              <flow.Controls {...flowProps} />
+            </div>
+          </section>
+        </Scope>
       )}
       {isRoundOver(round) && (
         <RoundSummary
@@ -450,17 +460,16 @@ function RoundSummary({
   );
 }
 
-function Completion({ firstTryCorrect, total, rounds }: { firstTryCorrect: number; total: number; rounds: number }) {
+function Completion({ lines }: { lines: string[] }) {
   return (
     <section class="summary completion" data-testid="completion">
       <Celebration />
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>
-      <p class="completion__line">
-        {firstTryCorrect} of {total} on the first try!
-      </p>
-      <p class="completion__line">Rounds: {rounds}</p>
+      {lines.map((line) => (
+        <p class="completion__line">{line}</p>
+      ))}
       <HomeButton />
     </section>
   );

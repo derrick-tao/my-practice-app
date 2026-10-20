@@ -38,7 +38,7 @@ export const allowAudioPlayback = (page: Page): Promise<void> =>
 export const lessonGroup = (page: Page, title: string): Locator => page.getByRole('group', { name: title, exact: true });
 
 /** The button label a child sees for each practice type (see the practice-type registry). */
-const BUTTON_LABEL: Record<PracticeTypeId, string> = { dictation: 'Write', 'phrase-recognition': 'Say' };
+const BUTTON_LABEL: Record<PracticeTypeId, string> = { dictation: 'Write', 'stroke-order': 'Draw', 'phrase-recognition': 'Say' };
 
 export class PracticeScreen {
   readonly listen: Locator;
@@ -63,6 +63,12 @@ export class PracticeScreen {
   readonly takeBreak: Locator;
   /** The home screen's resume card. */
   readonly keepGoing: Locator;
+  /** Stroke order: the drawing (it exposes `data-strokes-drawn` and `data-strokes-total` for tests). */
+  readonly drawing: Locator;
+  /** Stroke order: draws the next stroke of the character. */
+  readonly nextStroke: Locator;
+  /** Stroke order: moves on to the next character (shown once the character is fully drawn). */
+  readonly next: Locator;
 
   constructor(
     readonly page: Page,
@@ -89,6 +95,9 @@ export class PracticeScreen {
     this.keepOn = page.getByRole('button', { name: 'Keep going' });
     this.takeBreak = page.getByRole('button', { name: 'Break' });
     this.keepGoing = page.getByRole('link', { name: /Keep going/ });
+    this.drawing = page.getByTestId('drawing');
+    this.nextStroke = page.getByRole('button', { name: 'Next stroke' });
+    this.next = page.getByRole('button', { name: 'Next', exact: true });
   }
 
   /** The lesson's button for this practice type on its home card (not the Keep going card, which also names the lesson). */
@@ -178,5 +187,27 @@ export class PracticeScreen {
   async playRetryRound(isCorrect: (target: string, index: number) => boolean): Promise<string[]> {
     await this.retry.click();
     return this.playRound(isCorrect);
+  }
+
+  /** Stroke order: how many strokes of the current character are drawn, and how many it has (once its data has loaded). */
+  async strokes(): Promise<{ drawn: number; total: number | undefined }> {
+    const drawn = await this.drawing.getAttribute('data-strokes-drawn');
+    const total = await this.drawing.getAttribute('data-strokes-total');
+    return { drawn: Number(drawn), total: total === null ? undefined : Number(total) };
+  }
+
+  /** Stroke order: tap Next stroke until the character is fully drawn (Next shows). Returns how many strokes it took. */
+  async drawCharacter(): Promise<number> {
+    await expect(this.nextStroke).toBeVisible();
+    let taps = 0;
+    while (await this.nextStroke.isVisible()) {
+      const before = (await this.strokes()).drawn;
+      await this.nextStroke.click();
+      taps++;
+      // A stroke is drawn over about a second; the next tap waits for it.
+      await expect.poll(async () => (await this.strokes()).drawn).toBe(before + 1);
+    }
+    await expect(this.next).toBeVisible();
+    return taps;
   }
 }
