@@ -1,0 +1,92 @@
+# Pre-K lesson (Chinese), mirroring the Fall 2026 Assessment's themes at a 4-5 year old's level.
+# Dictation characters are 6 strokes or fewer and listed easiest first, for when shuffle is off.
+id: prek-2026-10-19
+title: Pre-K 2026-10-19
+subject: chinese
+script: simplified
+dictation:
+  - target: 一
+    clue: 一个
+    pinyin: yī
+  - target: 二
+    clue: 一二三
+    pinyin: èr
+  - target: 三
+    clue: 三只狗
+    pinyin: sān
+  - target: 人
+    clue: 家人
+    pinyin: rén
+  - target: 大
+    clue: 大狗
+    pinyin: dà
+  - target: 小
+    clue: 小猫
+    pinyin: xiǎo
+  - target: 口
+    clue: 门口
+    pinyin: kǒu
+  - target: 上
+    clue: 上学
+    pinyin: shàng
+  - target: 手
+    clue: 洗手
+    pinyin: shǒu
+  - target: 水
+    clue: 喝水
+    pinyin: shuǐ
+  - target: 日
+    clue: 生日
+    pinyin: rì
+  - target: 月
+    clue: 月亮
+    pinyin: yuè
+  - target: 牛
+    clue: 牛奶
+    pinyin: niú
+  - target: 牙
+    clue: 刷牙
+    pinyin: yá
+  - target: 马
+    clue: 小马
+    pinyin: mǎ
+  - target: 鸟
+    clue: 小鸟
+    pinyin: niǎo
+  - target: 只
+    clue: 一只猫
+    pinyin: zhī
+  - target: 吃
+    clue: 吃饭
+    pinyin: chī
+  - target: 米
+    clue: 米饭
+    pinyin: mǐ
+  - target: 早
+    clue: 早上
+    pinyin: zǎo
+
+# Phrases the child reads aloud. Pinyin is generated unless written here: the generator misses these neutral tones.
+phrase-recognition:
+  - target: 早上
+    pinyin: zǎo shang
+  - target: 晚安
+  - target: 月亮
+    pinyin: yuè liang
+  - target: 生日
+  - target: 喝水
+  - target: 吃饭
+  - target: 米饭
+  - target: 牛奶
+  - target: 洗手
+  - target: 刷牙
+  - target: 小猫
+  - target: 小狗
+  - target: 一只猫
+  - target: 三只鸟
+  - target: 一条鱼
+  - target: 书包
+  - target: 妈妈
+  - target: 爸爸
+  - target: 扫地
+  - target: 收玩具
