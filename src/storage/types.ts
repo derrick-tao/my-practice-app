@@ -4,16 +4,26 @@
 import type { Session } from '../practice/session.ts';
 
 /** Bump when the stored shape changes, and add the step to migrations.ts. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export interface ProfileSettings {
   shuffle: boolean;
   /** Offer a break every N marks; 0 is off. */
   breakEvery: 0 | 5 | 10 | 15;
   sounds: boolean;
+  /** How fast stroke order practice draws each stroke. */
+  strokeSpeed: 'slow' | 'normal' | 'fast';
+  /** Seconds stroke order practice waits after each stroke, so the child can copy it. */
+  strokePauseSeconds: 0.5 | 1 | 2 | 3;
 }
 
-export const DEFAULT_SETTINGS: ProfileSettings = { shuffle: true, breakEvery: 10, sounds: true };
+export const DEFAULT_SETTINGS: ProfileSettings = {
+  shuffle: true,
+  breakEvery: 10,
+  sounds: true,
+  strokeSpeed: 'normal',
+  strokePauseSeconds: 3,
+};
 
 export interface Profile {
   /** UUID. */

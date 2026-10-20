@@ -4,7 +4,7 @@
 //   {
 //     "appId": "my-practice-app",       which app wrote it
 //     "kind": "backup",                 what sort of file it is (room for other kinds later)
-//     "schemaVersion": 2,               the schema of `data` (same number as data.app.schemaVersion)
+//     "schemaVersion": 3,               the schema of `data` (same number as data.app.schemaVersion)
 //     "exportedAt": "2026-10-18T12:00:00.000Z",
 //     "data": { "app": <AppRecord>, "sessions": [<Session>, ...] }
 //   }
@@ -78,6 +78,8 @@ function isProfile(value: unknown): boolean {
     typeof settings.shuffle === 'boolean' &&
     typeof settings.sounds === 'boolean' &&
     [0, 5, 10, 15].includes(settings.breakEvery as number) &&
+    ['slow', 'normal', 'fast'].includes(settings.strokeSpeed as string) &&
+    [0.5, 1, 2, 3].includes(settings.strokePauseSeconds as number) &&
     Array.isArray(assignedLessonIds) &&
     assignedLessonIds.every(isString)
   );

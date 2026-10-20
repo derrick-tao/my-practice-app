@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test';
 import type { ItemData, LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
-import { setSoundEffects, setUpLearner } from './parent-driver.ts';
+import { setSoundEffects, setStrokeTiming, setUpLearner } from './parent-driver.ts';
 import { lessonGroup, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
 
 interface Fixtures {
@@ -17,9 +17,16 @@ interface Fixtures {
 /** The fixture's characters by the pinyin shown once each is drawn, with their stroke counts. */
 const STROKES_BY_PINYIN: Record<string, number> = { yī: 1, rén: 2, dà: 3 };
 
-async function start({ page, audio, loadLesson }: Fixtures, options: { sounds?: boolean } = {}) {
+interface StartOptions {
+  sounds?: boolean;
+  speed?: 'Slow' | 'Normal' | 'Fast';
+  pauseSeconds?: 0.5 | 1 | 2 | 3;
+}
+
+async function start({ page, audio, loadLesson }: Fixtures, options: StartOptions = {}) {
   await setUpLearner(page);
   if (options.sounds === false) await setSoundEffects(page, false);
+  if (options.speed !== undefined || options.pauseSeconds !== undefined) await setStrokeTiming(page, options);
   const lesson = await loadLesson('fixture-strokes');
   const practice = new PracticeScreen(page, audio, lesson, 'stroke-order');
   await practice.open();
@@ -226,10 +233,10 @@ test.describe('stroke order: auto-play', () => {
   const PAUSE_MS = 3_000;
 
   /** With the seeded shuffle's first character: 大, 3 strokes (then 一, then 人). */
-  async function startOnClock(fixtures: Fixtures) {
+  async function startOnClock(fixtures: Fixtures, options: StartOptions = {}) {
     await seedRandom(fixtures.page, 1);
     await fixtures.page.clock.install({ time: CLOCK_START });
-    const started = await start(fixtures);
+    const started = await start(fixtures, options);
     await expect(started.practice.drawing).toHaveAttribute('data-strokes-total', '3');
     const now = await fixtures.page.evaluate(() => Date.now());
     await fixtures.page.clock.pauseAt(new Date(now + 150));
@@ -271,6 +278,39 @@ test.describe('stroke order: auto-play', () => {
     await expect(page.locator('.reveal__pinyin')).toHaveText('dà');
     await expect(page.locator('.reveal__clue')).toBeVisible();
     await expect(practice.pause).toHaveCount(0);
+  });
+
+  test('the learner\'s pause setting sets how long the drawing waits after each stroke: 0.5 s', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson }, { pauseSeconds: 0.5 });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+
+    await page.clock.runFor(500 - 200);
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    // Stroke 2 is drawn well before the default 3 s pause would allow.
+    expect(await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS)).toBeGreaterThan(200);
+  });
+
+  test('the learner\'s pause setting sets how long the drawing waits after each stroke: 2 s', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson }, { pauseSeconds: 2 });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+
+    await page.clock.runFor(2_000 - 200);
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    // Stroke 2 is drawn well before the default 3 s pause plus a stroke would allow.
+    expect(await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS)).toBeGreaterThan(200);
+  });
+
+  test('the learner\'s speed setting sets how long each stroke takes to draw', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson }, { speed: 'Slow' });
+    // The default takes up to DRAW_MAX_MS; slow takes about twice that, so still nothing drawn by then.
+    await page.clock.runFor(DRAW_MAX_MS);
+    expect((await practice.strokes()).drawn).toBe(0);
+    await runUntilDrawn(page, practice, 1, 3_000);
+  });
+
+  test('a fast speed setting draws a stroke in about half a second', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson }, { speed: 'Fast' });
+    await runUntilDrawn(page, practice, 1, 500);
   });
 
   test('⏸ stops the drawing, before the next stroke begins', async ({ page, audio, loadLesson }) => {
@@ -448,9 +488,11 @@ test.describe('stroke order: auto-play', () => {
   });
 
   test('leaving the screen mid-drawing leaves nothing running on the next screen', async ({ page, audio, loadLesson }) => {
-    // Not ours: the app's service-worker update check fails the same way on any screen once the clock runs on.
+    // Not ours: once the clock runs on, the service-worker update check and WebKit's fetch of the manifest can fail the
+    // same way on any screen. A drawing timer left running would throw something else.
     const errors: string[] = [];
-    page.on('pageerror', (error) => !/\.waiting/.test(error.message) && errors.push(error.message));
+    const unrelated = /\.waiting|due to access control checks/;
+    page.on('pageerror', (error) => !unrelated.test(error.message) && errors.push(error.message));
     const { practice } = await startOnClock({ page, audio, loadLesson });
     await runUntilDrawn(page, practice, 1, DRAW_MAX_MS); // waiting out the pause before stroke 2
 

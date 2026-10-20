@@ -1,4 +1,4 @@
-// Seam 1: per-learner Settings (ticket 08): shuffle, break cadence, sounds.
+// Seam 1: per-learner Settings (ticket 08): shuffle, break cadence, sounds, and the stroke order timing.
 import type { Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
@@ -70,6 +70,30 @@ test.describe('settings: saved per learner', () => {
     await expect(page.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
     await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
+  });
+
+  test('stroke speed and pause start at Normal and 3 s, and the choices survive a reload', async ({ page }) => {
+    await setUpLearner(page);
+    await openSettings(page);
+    const speed = page.getByRole('radiogroup', { name: 'Stroke speed' });
+    const pause = page.getByRole('radiogroup', { name: 'Pause after each stroke' });
+    await expect(speed.getByRole('radio')).toHaveText(['Slow', 'Normal', 'Fast']);
+    await expect(pause.getByRole('radio')).toHaveText(['0.5 s', '1 s', '2 s', '3 s']);
+    await expect(speed.getByRole('radio', { name: 'Normal' })).toBeChecked();
+    await expect(pause.getByRole('radio', { name: '3 s' })).toBeChecked();
+
+    await speed.getByRole('radio', { name: 'Slow' }).click();
+    await expect(speed.getByRole('radio', { name: 'Slow' })).toBeChecked();
+    await expect(speed.getByRole('radio', { name: 'Normal' })).not.toBeChecked();
+    await pause.getByRole('radio', { name: '0.5 s' }).click();
+    await expect(pause.getByRole('radio', { name: '0.5 s' })).toBeChecked();
+    await expect(pause.getByRole('radio', { name: '3 s' })).not.toBeChecked();
+
+    await page.reload(); // the gate locks again on reload
+    await passGate(page);
+    await expect(page.getByRole('radio', { name: 'Slow' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '0.5 s' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked(); // the other choices stay as they were
   });
 
   test('sounds off mutes effects only: the character audio still plays', async ({ page, audio, loadLesson }) => {

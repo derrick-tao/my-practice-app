@@ -5,7 +5,9 @@
 //
 //   1 -> 2  lists became lessons: `assignedListIds` -> `assignedLessonIds`, a session's `listId` ->
 //           `lessonId`, a round's phase `listening` -> `prompt`, and every session gets `updatedAt`.
-import { NewerSchemaError, SCHEMA_VERSION, type StoredData } from './types.ts';
+//   2 -> 3  stroke order timing became settings: every profile gets `strokeSpeed` and `strokePauseSeconds`
+//           (the defaults, which are what stroke order practice always did).
+import { DEFAULT_SETTINGS, NewerSchemaError, SCHEMA_VERSION, type StoredData } from './types.ts';
 
 export interface Migration {
   /** Version this step upgrades from; it produces `from + 1`. */
@@ -53,7 +55,25 @@ function listsBecameLessons(data: StoredData): StoredData {
   };
 }
 
-export const MIGRATIONS: readonly Migration[] = [{ from: 1, up: listsBecameLessons }];
+/** Saved data as schema version 2 wrote it: a profile whose settings lack the stroke order timing. */
+type V2Profile = { settings: Record<string, unknown>; [field: string]: unknown };
+
+function strokeTimingBecameSettings(data: StoredData): StoredData {
+  const { strokeSpeed, strokePauseSeconds } = DEFAULT_SETTINGS;
+  const profiles = (data.app.profiles as unknown as V2Profile[]).map((profile) => ({
+    ...profile,
+    settings: { strokeSpeed, strokePauseSeconds, ...profile.settings },
+  }));
+  return {
+    app: { ...data.app, schemaVersion: 3, profiles: profiles as unknown as StoredData['app']['profiles'] },
+    sessions: data.sessions,
+  };
+}
+
+export const MIGRATIONS: readonly Migration[] = [
+  { from: 1, up: listsBecameLessons },
+  { from: 2, up: strokeTimingBecameSettings },
+];
 
 /**
  * Bring stored data up to SCHEMA_VERSION. Returns the same object when it is already current. Refuses data

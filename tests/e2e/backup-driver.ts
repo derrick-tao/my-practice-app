@@ -34,7 +34,13 @@ export interface ProfileJson {
   name: string;
   avatar: string;
   createdAt: string;
-  settings: { shuffle: boolean; breakEvery: 0 | 5 | 10 | 15; sounds: boolean };
+  settings: {
+    shuffle: boolean;
+    breakEvery: 0 | 5 | 10 | 15;
+    sounds: boolean;
+    strokeSpeed: 'slow' | 'normal' | 'fast';
+    strokePauseSeconds: 0.5 | 1 | 2 | 3;
+  };
   assignedLessonIds: string[];
 }
 

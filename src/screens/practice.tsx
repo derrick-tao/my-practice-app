@@ -36,6 +36,7 @@ import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
+import type { ProfileSettings } from '../storage/types.ts';
 import { useLoad } from '../use-async.ts';
 import { FLOWS, NoScope, type FlowProps } from './practice-flows.tsx';
 
@@ -134,17 +135,29 @@ function OpenPractice({
   const opened = useLoad(
     async () => {
       const storage = getStorage();
-      const { breakEvery, shuffle, sounds } = await currentSettings(storage);
+      const { breakEvery, shuffle, sounds, strokeSpeed, strokePauseSeconds } = await currentSettings(storage);
       const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle }, env);
-      return result && { ...result, breakEvery, sounds };
+      return result && { ...result, breakEvery, sounds, strokeSpeed, strokePauseSeconds };
     },
     [openTries],
   );
   if (opened.status === 'ready' && !opened.value) return <LessonNotFound />;
   const result = opened.status === 'ready' ? opened.value : undefined;
   if (result) {
-    const { session, resumed, breakEvery, sounds } = result;
-    return <PracticeRun lesson={lesson} practiceType={practiceType} env={env} initial={session} resumed={resumed} breakEvery={breakEvery} sounds={sounds} />;
+    const { session, resumed, breakEvery, sounds, strokeSpeed, strokePauseSeconds } = result;
+    return (
+      <PracticeRun
+        lesson={lesson}
+        practiceType={practiceType}
+        env={env}
+        initial={session}
+        resumed={resumed}
+        breakEvery={breakEvery}
+        sounds={sounds}
+        strokeSpeed={strokeSpeed}
+        strokePauseSeconds={strokePauseSeconds}
+      />
+    );
   }
   return (
     <main class="screen">
@@ -166,6 +179,8 @@ function PracticeRun({
   resumed,
   breakEvery,
   sounds,
+  strokeSpeed,
+  strokePauseSeconds,
 }: {
   lesson: LessonData;
   practiceType: PracticeTypeId;
@@ -177,6 +192,9 @@ function PracticeRun({
   breakEvery: number;
   /** Play sound effects on ✅, ❌ and finishing (the profile's setting). Character audio ignores it. */
   sounds: boolean;
+  /** How fast stroke order draws each stroke, and how long it waits after each (the profile's settings). */
+  strokeSpeed: ProfileSettings['strokeSpeed'];
+  strokePauseSeconds: ProfileSettings['strokePauseSeconds'];
 }) {
   const flow = FLOWS[practiceType];
   const player = useMemo(createAudioPlayer, []);
@@ -377,7 +395,12 @@ function PracticeRun({
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
       {!onBreakPrompt && flowProps && !isRoundOver(round) && (
-        <Scope key={`${round.index}:${round.position}`} item={flowProps.item}>
+        <Scope
+          key={`${round.index}:${round.position}`}
+          item={flowProps.item}
+          strokeSpeed={strokeSpeed}
+          strokePauseSeconds={strokePauseSeconds}
+        >
           <section class="practice__body">
             <div class="practice__stage">
               <flow.Stage {...flowProps} />
