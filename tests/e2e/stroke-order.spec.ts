@@ -20,7 +20,7 @@ const STROKES_BY_PINYIN: Record<string, number> = { yī: 1, rén: 2, dà: 3 };
 interface StartOptions {
   sounds?: boolean;
   speed?: 'Slow' | 'Normal' | 'Fast';
-  pauseSeconds?: 2 | 3 | 5 | 8;
+  pauseSeconds?: 0.5 | 1 | 2 | 3;
 }
 
 async function start({ page, audio, loadLesson }: Fixtures, options: StartOptions = {}) {
@@ -280,12 +280,13 @@ test.describe('stroke order: auto-play', () => {
     await expect(practice.pause).toHaveCount(0);
   });
 
-  test('the learner\'s pause setting sets how long the drawing waits after each stroke: 8 s', async ({ page, audio, loadLesson }) => {
-    const { practice } = await startOnClock({ page, audio, loadLesson }, { pauseSeconds: 8 });
+  test('the learner\'s pause setting sets how long the drawing waits after each stroke: 0.5 s', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson }, { pauseSeconds: 0.5 });
     await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
 
-    await page.clock.runFor(8_000 - 200); // well past the default 3 s
+    await page.clock.runFor(500 - 200);
     expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    // Stroke 2 is drawn well before the default 3 s pause would allow.
     expect(await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS)).toBeGreaterThan(200);
   });
 
@@ -487,9 +488,11 @@ test.describe('stroke order: auto-play', () => {
   });
 
   test('leaving the screen mid-drawing leaves nothing running on the next screen', async ({ page, audio, loadLesson }) => {
-    // Not ours: the app's service-worker update check fails the same way on any screen once the clock runs on.
+    // Not ours: once the clock runs on, the service-worker update check and WebKit's fetch of the manifest can fail the
+    // same way on any screen. A drawing timer left running would throw something else.
     const errors: string[] = [];
-    page.on('pageerror', (error) => !/\.waiting/.test(error.message) && errors.push(error.message));
+    const unrelated = /\.waiting|due to access control checks/;
+    page.on('pageerror', (error) => !unrelated.test(error.message) && errors.push(error.message));
     const { practice } = await startOnClock({ page, audio, loadLesson });
     await runUntilDrawn(page, practice, 1, DRAW_MAX_MS); // waiting out the pause before stroke 2
 
