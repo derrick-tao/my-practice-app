@@ -46,6 +46,7 @@ const LESSON_KEYS: readonly string[] = ['id', 'title', 'subject', 'script', 'tes
 /** The fields an item may have, per practice type. A lesson's keys are LESSON_KEYS plus one list key per practice type. */
 const ITEM_KEYS: Record<PracticeTypeId, readonly string[]> = {
   dictation: ['target', 'clue', 'pinyin', 'say'],
+  'stroke-order': ['target', 'clue', 'pinyin', 'say'],
   'phrase-recognition': ['target', 'pinyin', 'say'],
 };
 const HAN = /^\p{Script=Han}+$/u;
@@ -186,6 +187,9 @@ function validateList(type: PracticeTypeId, rawItems: unknown[], context: ListCo
       target = raw.target.trim();
       if (subject === 'chinese' && !HAN.test(target)) {
         itemFail('target-cjk', `target "${target}" must contain only Chinese characters`);
+      }
+      if (type === 'stroke-order' && [...target].length !== 1) {
+        itemFail('stroke-order-single-character', `target "${target}" must be exactly one character (a stroke order item is drawn one character at a time)`);
       }
       const first = firstSeen.get(target);
       if (first !== undefined) {

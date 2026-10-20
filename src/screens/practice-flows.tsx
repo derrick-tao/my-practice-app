@@ -2,9 +2,10 @@
 // shares: the header, save and volume notices, break prompt, sounds, audio timing, saving, and completion. A
 // type declares its flags and supplies its own stage (what the learner looks at) and controls (what they tap)
 // here, so adding a type means adding an entry to FLOWS, not another branch through the screen.
-import type { ComponentType } from "preact";
+import type { ComponentChildren, ComponentType } from "preact";
 import type { ItemData, PracticeTypeId, Rendition } from "../content/types.ts";
-import type { Mark, Round } from "../practice/session.ts";
+import { DrawingScope, useDrawing } from "../practice/drawing.tsx";
+import type { Mark, Round, SessionResult } from "../practice/session.ts";
 
 /** What the screen hands a type's stage and controls for the item being practiced. */
 export interface FlowProps {
@@ -16,7 +17,18 @@ export interface FlowProps {
   onListen: (rendition: Rendition) => void;
   onCheck: () => void;
   onMark: (result: Mark) => void;
+  /** Move on from an item that is not graded (stroke order). */
+  onNext: () => void;
 }
+
+/** What wraps an item's stage and controls, so they can share state that lasts as long as the item does. */
+export interface ScopeProps {
+  item: ItemData;
+  children: ComponentChildren;
+}
+
+/** The scope of a type that needs none. */
+export const NoScope = ({ children }: ScopeProps) => <>{children}</>;
 
 export interface PracticeFlow {
   /**
@@ -24,6 +36,10 @@ export interface PracticeFlow {
    * until it has been requested. Without it (the child reads the item and says it) nothing plays until Check.
    */
   audioFirst: boolean;
+  /** What the completion screen says besides "You did it!". */
+  completionLines: (result: SessionResult) => string[];
+  /** Wraps the stage and controls of the item being practiced; the screen gives it a new key for each item. Default: none. */
+  Scope?: ComponentType<ScopeProps>;
   /** The upper part of the screen. */
   Stage: ComponentType<FlowProps>;
   /** The buttons under the volume hint. */
@@ -122,9 +138,16 @@ function Reveal({
   );
 }
 
+/** The completion of a graded type: the first-try score and the number of rounds. */
+const firstTryAndRounds = ({ firstTryCorrect, total, rounds }: SessionResult): string[] => [
+  `${firstTryCorrect} of ${total} on the first try!`,
+  `Rounds: ${rounds}`,
+];
+
 /** Dictation: hear it, write it ("Write it!"), Check, then mark. */
 const dictation: PracticeFlow = {
   audioFirst: true,
+  completionLines: firstTryAndRounds,
   Stage: ({ item, round }) =>
     round.phase === "revealed" ? (
       <Reveal item={item} fit={false} />
@@ -151,6 +174,7 @@ const dictation: PracticeFlow = {
 /** Phrase recognition: read the phrase, Check (which plays it), then mark. */
 const phraseRecognition: PracticeFlow = {
   audioFirst: false,
+  completionLines: firstTryAndRounds,
   Stage: ({ item, round }) =>
     round.phase === "revealed" ? (
       <Reveal item={item} fit />
@@ -172,7 +196,63 @@ const phraseRecognition: PracticeFlow = {
   ),
 };
 
+/** Stroke order: hear the character, watch it drawn stroke by stroke, then Next. Nothing is graded. */
+const strokeOrder: PracticeFlow = {
+  audioFirst: true,
+  completionLines: ({ total }) => [`${total} ${total === 1 ? "character" : "characters"} drawn`],
+  Scope: DrawingScope,
+  Stage: ({ item }) => {
+    const drawing = useDrawing();
+    return (
+      <div class="reveal">
+        <div
+          class="drawing"
+          data-testid="drawing"
+          data-strokes-drawn={drawing.drawn}
+          data-strokes-total={drawing.total}
+        >
+          <div class="drawing__canvas" ref={drawing.hostRef} role="img" aria-label="The character being drawn" />
+        </div>
+        {/* Always there, so the drawing does not move when the pinyin and clue appear. */}
+        <div class="drawing__caption">
+          {drawing.finished && (
+            <>
+              <div class="reveal__pinyin">{item.pinyin}</div>
+              {item.clue && <div class="reveal__clue">{item.clue}</div>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  },
+  Controls: (props) => {
+    const drawing = useDrawing();
+    return (
+      <>
+        <ListenRow {...props} />
+        <div class="row row--primary">
+          {drawing.finished ? (
+            <button type="button" class="btn btn--primary btn--good" onClick={props.onNext}>
+              <span aria-hidden="true">➡️ </span>Next
+            </button>
+          ) : (
+            <button
+              type="button"
+              class="btn btn--primary"
+              disabled={drawing.drawing || drawing.total === undefined}
+              onClick={drawing.nextStroke}
+            >
+              <span aria-hidden="true">🖌️ </span>Next stroke
+            </button>
+          )}
+        </div>
+      </>
+    );
+  },
+};
+
 export const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
   dictation,
+  "stroke-order": strokeOrder,
   "phrase-recognition": phraseRecognition,
 };

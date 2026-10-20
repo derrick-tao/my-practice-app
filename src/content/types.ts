@@ -3,8 +3,8 @@
 
 export type Script = 'simplified' | 'traditional';
 
-/** The practice-type registry's id space. A lesson's data has a list for each of these it offers. */
-export const PRACTICE_TYPE_IDS = ['dictation', 'phrase-recognition'] as const;
+/** The practice-type registry's id space, in registry order (the order buttons appear in). A lesson's data has a list for each of these it offers. */
+export const PRACTICE_TYPE_IDS = ['dictation', 'stroke-order', 'phrase-recognition'] as const;
 export type PracticeTypeId = (typeof PRACTICE_TYPE_IDS)[number];
 
 export const isPracticeTypeId = (value: string): value is PracticeTypeId =>
@@ -43,6 +43,8 @@ export interface ItemData {
   pinyin: string;
   /** Paths relative to the content root (`<base>content/`), e.g. `audio/<hash>.mp3`. */
   audio: { normal: string; slow: string };
+  /** Stroke order items only: the character's stroke data, relative to the content root, e.g. `strokes/<hash>.json`. */
+  strokes?: string;
 }
 
 export interface LessonData {
