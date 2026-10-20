@@ -169,27 +169,39 @@ test.describe('stroke order: break prompt', () => {
   });
 });
 
+const CLOCK_START = new Date('2026-10-19T09:00:00.000Z');
+
 test.describe('stroke order: leaving and coming back', () => {
   test('Home has a Keep going card for Draw; opening it returns to the same character, redrawn from its first stroke', async ({
     page,
     audio,
     loadLesson,
   }) => {
-    const { practice, lesson } = await start({ page, audio, loadLesson }, 'fixture-eleven-strokes');
+    // The clock runs in real time until it is frozen on the resumed character below. Unshuffled, the third character
+    // is 二, two strokes: there is a point part way through to leave it at.
+    await page.clock.install({ time: CLOCK_START });
+    const { practice, lesson } = await start({ page, audio, loadLesson }, 'fixture-eleven-strokes', { shuffle: false });
     await drawMany(practice, 2);
     await expect(practice.progressText()).toHaveText('2 / 11');
     await expect.poll(() => practice.itemAudioCount()).toBe(3);
     const third = (await practice.lastHeardTarget())!;
-    await practice.nextStroke.click(); // part way through drawing it
+    expect(third).toBe('二');
+    await practice.pause.click(); // a stroke being drawn finishes first
+    await expect(practice.nextStroke).toBeEnabled();
     await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '1');
 
     await practice.home.click();
 
     await expect(page.getByRole('group', { name: 'Keep going: Fixture Eleven Strokes, Draw' })).toBeVisible();
+    // The resumed character auto-plays from its first stroke; freeze the clock just after that stroke begins.
     await practice.keepGoing.click();
     await expect(page).toHaveURL(/#\/chinese\/stroke-order\/fixture-eleven-strokes$/);
     await expect(practice.progressText()).toHaveText('2 / 11');
+    await expect(practice.drawing).toHaveAttribute('data-strokes-total', '2');
+    await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 150));
     await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await expect(practice.pause).toBeVisible(); // playing again, not left paused
+    await page.clock.resume();
     // A resumed session waits for a tap before playing (iOS gesture rules); the tap plays the same character.
     expect(await practice.itemAudioCount()).toBe(3);
     expect(await heardNow(practice)).toBe(third);
@@ -200,6 +212,7 @@ test.describe('stroke order: leaving and coming back', () => {
   });
 
   test('a reload part way through a character comes back to it too', async ({ page, audio, loadLesson }) => {
+    await page.clock.install({ time: CLOCK_START }); // runs in real time until frozen on the reloaded character
     const { practice } = await start({ page, audio, loadLesson }, 'fixture-eleven-strokes');
     await drawAndNext(practice);
     await expect.poll(() => practice.itemAudioCount()).toBe(2);
@@ -208,7 +221,10 @@ test.describe('stroke order: leaving and coming back', () => {
     await practice.reopenViaKeepGoing();
 
     await expect(practice.progressText()).toHaveText('1 / 11');
+    await expect(practice.drawing).toHaveAttribute('data-strokes-total', /^\d+$/);
+    await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 150)); // just into the first stroke
     await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await page.clock.resume();
     expect(await heardNow(practice)).toBe(second);
   });
 });
@@ -294,7 +310,8 @@ test.describe('stroke order: a lesson edited during practice', () => {
 
   test('removing every character of the session stops it with the lesson-changed notice', async ({ page, audio, loadLesson }) => {
     const { practice } = await start({ page, audio, loadLesson }, 'fixture-strokes');
-    await expect(practice.nextStroke).toBeVisible();
+    await expect.poll(() => practice.itemAudioCount()).toBe(1); // the session has begun
+    await expect(practice.drawing).toBeVisible();
     // The parent replaced all three characters with another one.
     await publishLessonEdit(page, 'fixture-strokes', (l) => withStrokeOrder(l, [{ ...listed(l)[0]!, target: '山' }]));
 
