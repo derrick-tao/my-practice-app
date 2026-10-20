@@ -8,7 +8,7 @@ test.describe('published content as the app sees it', () => {
     const manifest = await (await page.request.get('content/manifest.json')).json();
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
     const ids = manifest.subjects[0].lessons.map((l: { id: string }) => l.id);
-    expect(ids).toEqual(['fixture-five', 'fixture-strokes', 'fixture-three', 'fixture-twelve']);
+    expect(ids).toEqual(['fixture-eleven-strokes', 'fixture-five', 'fixture-strokes', 'fixture-three', 'fixture-twelve']);
 
     const lesson = await loadLesson('fixture-three');
     expect(lesson.lists.dictation!.map((i) => i.pinyin)).toEqual(['zhǎo', 'diǎn', 'fēn']);
