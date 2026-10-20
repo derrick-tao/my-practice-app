@@ -337,6 +337,32 @@ test.describe('stroke order: auto-play', () => {
     await expect(practice.next).toBeVisible();
   });
 
+  test('▶ pressed while a stroke is being drawn lets it finish, then the normal pause follows', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await page.clock.runFor(100); // the first stroke is under way
+    await practice.pause.click();
+    await practice.play.click();
+
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await page.clock.runFor(PAUSE_MS - 200);
+    expect((await practice.strokes()).drawn).toBe(1); // still copying stroke 1
+    await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS);
+  });
+
+  test('▶ pressed between strokes starts the next one at once', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await practice.pause.click();
+    await page.clock.runFor(10_000);
+
+    await practice.play.click();
+    await runUntilDrawn(page, practice, 2, DRAW_MAX_MS); // no 3 s wait
+  });
+
   test('↺ clears the strokes and replays from the first one, auto-playing', async ({ page, audio, loadLesson }) => {
     const { practice } = await startOnClock({ page, audio, loadLesson });
     await runUntilDrawn(page, practice, 2, 2 * DRAW_MAX_MS + PAUSE_MS);

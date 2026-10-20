@@ -64,7 +64,7 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
   const [playing, setPlaying] = useState(true);
   /** Bumped by a replay and on unmount, so a stroke begun before it cannot count itself afterwards. */
   const run = useRef(0);
-  /** Set by ▶ and ↺: the next stroke begins at once instead of after the pause. */
+  /** Set by ▶ between strokes and by ↺: the next stroke begins at once instead of after the pause. */
   const withoutPause = useRef(false);
 
   useEffect(() => {
@@ -132,7 +132,8 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
   }, [playing, total, drawing, drawn]);
 
   const play = (): void => {
-    withoutPause.current = true;
+    // A stroke still being drawn finishes first and the usual pause follows it; a stale flag would skip that pause.
+    withoutPause.current = !drawing;
     setPlaying(true);
   };
 
