@@ -65,8 +65,12 @@ export class PracticeScreen {
   readonly keepGoing: Locator;
   /** Stroke order: the drawing (it exposes `data-strokes-drawn` and `data-strokes-total` for tests). */
   readonly drawing: Locator;
-  /** Stroke order: draws the next stroke of the character. */
+  /** Stroke order: draws the next stroke of the character (offered while paused). */
   readonly nextStroke: Locator;
+  /** Stroke order: ⏸ stops the auto-play before the next stroke begins; ▶ resumes it; ↺ clears the strokes and replays. */
+  readonly pause: Locator;
+  readonly play: Locator;
+  readonly replay: Locator;
   /** Stroke order: moves on to the next character (shown once the character is fully drawn). */
   readonly next: Locator;
 
@@ -97,6 +101,9 @@ export class PracticeScreen {
     this.keepGoing = page.getByRole('link', { name: /Keep going/ });
     this.drawing = page.getByTestId('drawing');
     this.nextStroke = page.getByRole('button', { name: 'Next stroke' });
+    this.pause = page.getByRole('button', { name: 'Pause' });
+    this.play = page.getByRole('button', { name: 'Play', exact: true });
+    this.replay = page.getByRole('button', { name: 'Replay' });
     this.next = page.getByRole('button', { name: 'Next', exact: true });
   }
 
@@ -196,18 +203,22 @@ export class PracticeScreen {
     return { drawn: Number(drawn), total: total === null ? undefined : Number(total) };
   }
 
-  /** Stroke order: tap Next stroke until the character is fully drawn (Next shows). Returns how many strokes it took. */
+  /**
+   * Stroke order: pause the auto-play, then tap Next stroke until the character is fully drawn (Next shows). Returns
+   * how many strokes the character has.
+   */
   async drawCharacter(): Promise<number> {
-    await expect(this.nextStroke).toBeVisible();
-    let taps = 0;
+    await expect(this.pause.or(this.next)).toBeVisible();
+    if (await this.pause.isVisible()) await this.pause.click();
+    // A stroke being drawn when the pause lands finishes first.
+    await expect(this.nextStroke.or(this.next)).toBeEnabled();
     while (await this.nextStroke.isVisible()) {
       const before = (await this.strokes()).drawn;
       await this.nextStroke.click();
-      taps++;
       // A stroke is drawn over about a second; the next tap waits for it.
       await expect.poll(async () => (await this.strokes()).drawn).toBe(before + 1);
     }
     await expect(this.next).toBeVisible();
-    return taps;
+    return (await this.strokes()).drawn;
   }
 }

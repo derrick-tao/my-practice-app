@@ -235,14 +235,28 @@ const strokeOrder: PracticeFlow = {
             <button type="button" class="btn btn--primary btn--good" onClick={props.onNext}>
               <span aria-hidden="true">➡️ </span>Next
             </button>
+          ) : drawing.playing ? (
+            <button type="button" class="btn btn--primary" onClick={drawing.pause}>
+              <span aria-hidden="true">⏸ </span>Pause
+            </button>
           ) : (
-            <button
-              type="button"
-              class="btn btn--primary"
-              disabled={drawing.drawing || drawing.total === undefined}
-              onClick={drawing.nextStroke}
-            >
-              <span aria-hidden="true">🖌️ </span>Next stroke
+            <>
+              <button
+                type="button"
+                class="btn btn--primary"
+                disabled={drawing.drawing || drawing.total === undefined}
+                onClick={drawing.nextStroke}
+              >
+                <span aria-hidden="true">🖌️ </span>Next stroke
+              </button>
+              <button type="button" class="btn btn--primary" onClick={drawing.play}>
+                <span aria-hidden="true">▶ </span>Play
+              </button>
+            </>
+          )}
+          {drawing.total !== undefined && (
+            <button type="button" class="btn btn--primary" onClick={drawing.replay}>
+              <span aria-hidden="true">↺ </span>Replay
             </button>
           )}
         </div>
