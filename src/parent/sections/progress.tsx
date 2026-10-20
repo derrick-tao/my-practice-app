@@ -4,6 +4,8 @@
 //                                            first-try trend, best score and trickiest items
 //   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
 //                                            its counts and the missed items
+// A practice type without marks (Draw) has no scores: its part is the attempt count and each attempt's date, status
+// and how far its one round got, and its attempt page lists that round's characters.
 // The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
@@ -37,6 +39,10 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
   active: { icon: '⏳', label: 'In progress' },
   stopped: { icon: '⏹️', label: 'Stopped' },
 };
+
+/** How far a round got without marks: "Characters drawn: 2 of 3" (a round that never started counts as 0 of 0). */
+const drawnText = (round: RoundSummary | undefined): string =>
+  `Characters drawn: ${round?.reached ?? 0} of ${round?.itemCount ?? 0}`;
 
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
@@ -134,7 +140,7 @@ function Page({
   return <>{children(view.value)}</>;
 }
 
-function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptSummary }) {
+function AttemptRow({ lessonId, type, attempt }: { lessonId: string; type: PracticeType; attempt: AttemptSummary }) {
   const status = STATUS[attempt.status];
   const done = attempt.status === 'completed';
   return (
@@ -145,10 +151,16 @@ function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptS
           <span aria-hidden="true">{status.icon} </span>
           {status.label}
         </span>
-        <span>First try: {scoreText(attempt.firstTry)}</span>
-        <span>
-          {done ? 'Rounds' : 'Rounds so far'}: {attempt.roundCount}
-        </span>
+        {type.hasMarks ? (
+          <>
+            <span>First try: {scoreText(attempt.firstTry)}</span>
+            <span>
+              {done ? 'Rounds' : 'Rounds so far'}: {attempt.roundCount}
+            </span>
+          </>
+        ) : (
+          <span>{drawnText(attempt.rounds[0])}</span>
+        )}
       </a>
     </li>
   );
@@ -166,13 +178,17 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
       <div class="progress-header__facts" data-testid="progress-facts">
         <span>{countLabel(type, listed.length)}</span>
         <span>Attempts: {progress.attemptCount}</span>
-        <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>
+        {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>
 
-      <h4 class="progress-heading">First-try trend</h4>
-      <p class="progress-trend" data-testid="trend">
-        {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
-      </p>
+      {type.hasMarks && (
+        <>
+          <h4 class="progress-heading">First-try trend</h4>
+          <p class="progress-trend" data-testid="trend">
+            {progress.trend.length > 0 ? progress.trend.join(' → ') : 'No completed attempts yet'}
+          </p>
+        </>
+      )}
 
       <h4 class="progress-heading">Attempts</h4>
       {progress.attempts.length === 0 ? (
@@ -180,12 +196,12 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
       ) : (
         <ul class="progress-list">
           {progress.attempts.map((attempt) => (
-            <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
+            <AttemptRow key={attempt.id} lessonId={lessonId} type={type} attempt={attempt} />
           ))}
         </ul>
       )}
 
-      {progress.trickiest.length > 0 && (
+      {type.hasMarks && progress.trickiest.length > 0 && (
         <>
           <h4 class="progress-heading">Trickiest {type.itemNoun.plural}</h4>
           <ol class="progress-list progress-tricky">
@@ -229,6 +245,33 @@ function LessonProgressPage({ lessonId }: { lessonId: string }) {
         </>
       )}
     </Page>
+  );
+}
+
+/** A round of a practice type without marks: its size, how far it got and its characters in the order they came. */
+function DrawnRoundBlock({
+  round,
+  type,
+  items,
+  player,
+}: {
+  round: RoundSummary;
+  type: PracticeType;
+  items: Map<string, ItemData>;
+  player: AudioPlayer;
+}) {
+  return (
+    <li class="progress-round" data-testid="round">
+      <div class="progress-round__facts">
+        <span>{countLabel(type, round.itemCount)}</span>
+        <span>{drawnText(round)}</span>
+      </div>
+      <div class="progress-round__missed">
+        {round.itemIds.map((target) => (
+          <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
+        ))}
+      </div>
+    </li>
   );
 }
 
@@ -285,11 +328,15 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
               {part.type.label} · {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
               {status.label}
             </h2>
-            <p>First try: {scoreText(attempt.firstTry)}</p>
+            {part.type.hasMarks && <p>First try: {scoreText(attempt.firstTry)}</p>}
             <ol class="progress-list">
-              {attempt.rounds.map((round) => (
-                <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
-              ))}
+              {attempt.rounds.map((round) =>
+                part.type.hasMarks ? (
+                  <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
+                ) : (
+                  <DrawnRoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
+                ),
+              )}
             </ol>
           </>
         );
