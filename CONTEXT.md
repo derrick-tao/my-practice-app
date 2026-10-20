@@ -48,7 +48,7 @@ An ordered pass over a set of items; round 1 covers them all, and each later rou
 The learner's self-grade for an item in a round: ✅ correct or ❌ wrong.
 
 **Break (prompt)**:
-A pause offered during a round after a set number of marks (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
+A pause offered during a round after a set number of marks, or of Next taps in stroke order (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
 
 **Undo entry**:
 The record of the learner's latest mark, kept so Undo can take that mark back and return to the item. It is dropped when the session ends or the item leaves the list.
