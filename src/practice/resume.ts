@@ -52,6 +52,7 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
  * Open a lesson's list for one practice type: continue its session in progress, or start a new one. Other
  * lists' sessions are never touched. Whatever is returned is saved first, so nothing is on screen that is
  * not on disk (and a continued session is saved again, which makes it the most recently used).
+ * `learning` (the profile's learning setting) only decides what a NEW session is; a continued one stays as it started.
  *
  * A lesson that no longer offers the practice type counts as having lost every item: its saved session
  * (reconciled per list, like any edit) is stopped. With no saved session either there is nothing to open
@@ -60,7 +61,7 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
 export async function openSession(
   storage: StorageAdapter,
   lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
-  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean },
+  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; learning: boolean },
   env: PracticeEnv,
 ): Promise<OpenedSession | undefined> {
   const profileId = await currentProfileId(storage);

@@ -38,7 +38,7 @@ import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import type { ProfileSettings } from '../storage/types.ts';
 import { useLoad } from '../use-async.ts';
-import { FLOWS, NoScope, type FlowProps } from './practice-flows.tsx';
+import { flowOf, NoScope, type FlowProps } from './practice-flows.tsx';
 
 function HomeButton() {
   return (
@@ -135,8 +135,8 @@ function OpenPractice({
   const opened = useLoad(
     async () => {
       const storage = getStorage();
-      const { breakEvery, shuffle, sounds, strokeSpeed, strokePauseSeconds } = await currentSettings(storage);
-      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle }, env);
+      const { breakEvery, shuffle, sounds, strokeSpeed, strokePauseSeconds, learning } = await currentSettings(storage);
+      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle, learning }, env);
       return result && { ...result, breakEvery, sounds, strokeSpeed, strokePauseSeconds };
     },
     [openTries],
@@ -196,7 +196,8 @@ function PracticeRun({
   strokeSpeed: ProfileSettings['strokeSpeed'];
   strokePauseSeconds: ProfileSettings['strokePauseSeconds'];
 }) {
-  const flow = FLOWS[practiceType];
+  // Fixed for the session's lifetime: a learning session stays one even if the setting changes.
+  const flow = flowOf(initial);
   const player = useMemo(createAudioPlayer, []);
   const effects = useMemo(() => createEffects(sounds), []);
   const itemsById = useMemo(
@@ -295,16 +296,16 @@ function PracticeRun({
 
   const onMark = (result: Mark): void => afterStep(advance((s) => mark(s, result, env)), result === 'correct' ? 'chime' : 'gentle');
 
-  const onNext = (): void => afterStep(advance((s) => next(s, env)), 'chime');
+  const onNext = (): void => afterStep(advance((s) => next(s, env)), flow.nextEffect);
 
-  /** A mark or Next moved the learner on to `after`: finish with the fanfare, or play the step's sound and then the next item's audio. */
-  const afterStep = (after: Session | undefined, effect: 'chime' | 'gentle'): void => {
+  /** A mark or Next moved the learner on to `after`: finish with the fanfare, or play the step's sound (if it has one) and then the next item's audio. */
+  const afterStep = (after: Session | undefined, effect: 'chime' | 'gentle' | undefined): void => {
     if (!after) return;
     if (after.status === 'completed') {
       effects.play('fanfare');
       return;
     }
-    const effectMs = effects.play(effect);
+    const effectMs = effect ? effects.play(effect) : 0;
     cancelHeldAudio();
     // Reading first: the next item's audio would give its answer away, so nothing plays until Check.
     if (!flow.audioFirst) return;

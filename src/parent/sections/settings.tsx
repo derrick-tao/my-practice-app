@@ -1,4 +1,4 @@
-// Parent area section: the active learner's settings (shuffle, break cadence, sounds, and the stroke order
+// Parent area section: the active learner's settings (shuffle, break cadence, sounds, learning, and the stroke order
 // speed and pause). Each control shows the SAVED value: it changes only after the write, and a failed write
 // offers a retry.
 import { useState } from 'preact/hooks';
@@ -37,7 +37,7 @@ function Settings() {
   const [lastChange, setLastChange] = useState<Partial<ProfileSettings>>({});
 
   if (!profile) return null;
-  const { shuffle, breakEvery, sounds, strokeSpeed, strokePauseSeconds } = profile.settings;
+  const { shuffle, breakEvery, sounds, learning, strokeSpeed, strokePauseSeconds } = profile.settings;
 
   const save = (change: Partial<ProfileSettings>): Promise<void> => {
     setLastChange(change);
@@ -61,6 +61,12 @@ function Settings() {
           title="Sound effects"
           meta="The voice always plays"
           onToggle={() => void save({ sounds: !sounds })}
+        />
+        <SwitchRow
+          on={learning}
+          title="Say: learning, no grading"
+          meta="On: each phrase is shown and heard, then Next. Off: Say is graded as usual"
+          onToggle={() => void save({ learning: !learning })}
         />
       </ul>
       <div class="field">

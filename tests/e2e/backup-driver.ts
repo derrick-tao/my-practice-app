@@ -40,6 +40,7 @@ export interface ProfileJson {
     sounds: boolean;
     strokeSpeed: 'slow' | 'normal' | 'fast';
     strokePauseSeconds: 0.5 | 1 | 2 | 3;
+    learning: boolean;
   };
   assignedLessonIds: string[];
 }

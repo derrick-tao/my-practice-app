@@ -2,8 +2,8 @@
 // lessons and practice types (schema v2). Two ways old data reaches the app: it is already on the device
 // (seeded straight into storage, the only way to leave an older shape behind), or it comes in through a
 // backup file made by the older app. Both must end up the same: assignments and the practice in progress
-// intact, with Keep going resuming at the exact place. Schema 3 added the stroke order timing settings: a learner
-// saved before them (schema v2) gets the defaults and keeps their other settings.
+// intact, with Keep going resuming at the exact place. Schema 3 added the stroke order timing settings and schema 4 the
+// learning setting: a learner saved before them (schema v2) gets the defaults and keeps their other settings.
 import type { Page } from '@playwright/test';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from './backup-driver.ts';
@@ -88,8 +88,8 @@ test.describe('saved data from the previous schema', () => {
     // On load the old sessions were stamped with the latest time they are known to have been worked on.
     await openBackupSection(page);
     const before = (await exportBackup(page)).backup;
-    expect(before.schemaVersion).toBe(3);
-    expect(before.data.app.schemaVersion).toBe(3);
+    expect(before.schemaVersion).toBe(4);
+    expect(before.data.app.schemaVersion).toBe(4);
     const stamped = (id: string) => before.data.sessions.find((s) => s.id === id)!.updatedAt;
     const learner = savedDataFixture('schema-v1-learner') as { sessions: Array<{ id: string; status: string }> };
     const active = learner.sessions.find((s) => s.status === 'active')!.id;
@@ -127,6 +127,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
     await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Normal' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '3 s' })).toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).not.toBeChecked();
   }
 
   test('a v2 device gets the default stroke speed and pause, and keeps its other settings', async ({ page }) => {
@@ -155,6 +156,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
       sounds: false,
       strokeSpeed: 'normal',
       strokePauseSeconds: 3,
+      learning: false,
     });
   });
 });

@@ -53,11 +53,21 @@ export interface Session {
   /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
   /**
-   * Marks (and Next taps in stroke order) since the last break prompt was answered (or the last retry round started).
+   * Marks (and Next taps in stroke order and learning sessions) since the last break prompt was answered (or the last retry round started).
    * The name stays because renaming the saved field would need a storage migration.
    */
   marksSinceBreak: number;
+  /**
+   * A learning session (phrase recognition while the learner's learning setting was on): the items are shown and
+   * heard, then Next, with no marks. Fixed when the session starts, so changing the setting leaves a session in
+   * progress as it was. Absent means graded.
+   */
+  learning?: true;
 }
+
+/** Whether the session's items are marked ✅/❌. Stroke order and learning sessions are not: they have no scores, undo or retry rounds. */
+export const hasMarks = (session: Pick<Session, 'practiceType' | 'learning'>): boolean =>
+  session.practiceType !== 'stroke-order' && !session.learning;
 
 /** Everything non-deterministic the practice logic needs; injected so tests can pin it. */
 export interface PracticeEnv {
@@ -71,7 +81,14 @@ export const DEFAULT_PROFILE_ID = 'default';
 
 export function createSession(
   lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
-  options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; profileId?: string },
+  options: {
+    practiceType: PracticeTypeId;
+    contentVersion: string;
+    shuffle: boolean;
+    profileId?: string;
+    /** Start a learning session. Only phrase recognition has them; any other practice type ignores it. */
+    learning?: boolean;
+  },
   env: PracticeEnv,
 ): Session {
   const itemIds = (lesson.lists[options.practiceType] ?? []).map((item) => item.target);
@@ -99,6 +116,7 @@ export function createSession(
     ],
     undo: null,
     marksSinceBreak: 0,
+    ...(options.learning && options.practiceType === 'phrase-recognition' ? { learning: true as const } : {}),
   };
 }
 
@@ -160,6 +178,7 @@ export function markHeard(session: Session, place: Place): Session {
 
 /** Check: moves to the revealed phase. With `needsHeard` (dictation) it is only available once the current item's audio has been heard. */
 export function reveal(session: Session, needsHeard: boolean): Session {
+  if (!hasMarks(session)) return session;
   return withCurrentRound(session, (round) =>
     isRoundOver(round) || round.phase !== 'prompt' || (needsHeard && !round.heardCurrent)
       ? round
@@ -169,6 +188,7 @@ export function reveal(session: Session, needsHeard: boolean): Session {
 
 /** Record the learner's mark for the revealed item and move to the next one (or finish the round). */
 export function mark(session: Session, result: Mark, env: PracticeEnv): Session {
+  if (!hasMarks(session)) return session;
   const before = currentRound(session);
   const itemId = currentItemId(before);
   const marked = withCurrentRound(session, (round) => {
@@ -193,12 +213,12 @@ export function mark(session: Session, result: Mark, env: PracticeEnv): Session 
 }
 
 /**
- * Next (stroke order): the learner has drawn the current item, so move on to the next one (or finish) with no
- * mark. It counts toward the break prompt like a mark does, but sets no undo entry: there is nothing to take
- * back. With no ❌ a stroke order round is always clean, so it never leads to a retry round.
+ * Next (stroke order, learning sessions): the learner has drawn or heard the current item, so move on to the next
+ * one (or finish) with no mark. It counts toward the break prompt like a mark does, but sets no undo entry: there
+ * is nothing to take back. With no ❌ such a round is always clean, so it never leads to a retry round.
  */
 export function next(session: Session, env: PracticeEnv): Session {
-  if (session.status !== 'active' || session.practiceType !== 'stroke-order') return session;
+  if (session.status !== 'active' || hasMarks(session)) return session;
   const moved = withCurrentRound(session, (round) => {
     if (isRoundOver(round)) return round;
     const position = round.position + 1;

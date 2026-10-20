@@ -1,6 +1,6 @@
 # My Practice App
 
-A kid-friendly practice web app hosted on GitHub Pages. A lesson offers one or more practice types. **Write** (dictation, 听写): hear a character in Mandarin, write it on paper, check, and self-mark until every character is right. **Say** (phrase recognition): see a phrase, say it aloud, hear it, and self-mark until every phrase is right. **Draw** (stroke order): hear a character, watch it drawn stroke by stroke and copy each stroke on paper, then tap Next, with no marks; only lessons that have a stroke-order list offer it.
+A kid-friendly practice web app hosted on GitHub Pages. A lesson offers one or more practice types. **Write** (dictation, 听写): hear a character in Mandarin, write it on paper, check, and self-mark until every character is right. **Say** (phrase recognition): see a phrase, say it aloud, hear it, and self-mark until every phrase is right. For a learner who has not memorized the phrases yet, a grown-up can turn on the per-learner *learning* setting (Settings, "Say: learning, no grading"): new Say sessions then show each phrase with its pinyin, say it, and offer only Next, with nothing graded (a session keeps the kind it started as). **Draw** (stroke order): hear a character, watch it drawn stroke by stroke and copy each stroke on paper, then tap Next, with no marks; only lessons that have a stroke-order list offer it.
 
 - Spec: `.scratch/dictation-v1/spec.md`
 - Tickets: `.scratch/dictation-v1/issues/`

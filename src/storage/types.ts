@@ -4,7 +4,7 @@
 import type { Session } from '../practice/session.ts';
 
 /** Bump when the stored shape changes, and add the step to migrations.ts. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export interface ProfileSettings {
   shuffle: boolean;
@@ -15,6 +15,8 @@ export interface ProfileSettings {
   strokeSpeed: 'slow' | 'normal' | 'fast';
   /** Seconds stroke order practice waits after each stroke, so the child can copy it. */
   strokePauseSeconds: 0.5 | 1 | 2 | 3;
+  /** New phrase recognition sessions are learning sessions: each phrase is shown and heard, then Next, with no marks. */
+  learning: boolean;
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   sounds: true,
   strokeSpeed: 'normal',
   strokePauseSeconds: 3,
+  learning: false,
 };
 
 export interface Profile {

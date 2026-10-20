@@ -5,8 +5,10 @@
 //  - rounds to complete: how many rounds a completed attempt took;
 //  - a stopped attempt is listed, but is left out of the trend and the best score (so is an attempt
 //    still in progress: neither has finished);
-//  - trickiest: items by total wrong marks over every round of every attempt of the list.
-import { isRoundOver, markCounts, type Round, type Session, type SessionStatus } from './session.ts';
+//  - trickiest: items by total wrong marks over every round of every attempt of the list;
+//  - a learning session is listed apart from the attempts: it has no marks and no score, so it is not an attempt
+//    and counts toward none of the above.
+import { hasMarks, isRoundOver, markCounts, type Round, type Session, type SessionStatus } from './session.ts';
 
 export interface Score {
   correct: number;
@@ -33,6 +35,10 @@ export interface AttemptSummary {
   id: string;
   startedAt: string;
   status: SessionStatus;
+  /** A learning session (phrase recognition with nothing marked). */
+  learning: boolean;
+  /** The attempt's items are marked, so it has a first-try score and rounds; false for stroke order and learning sessions. */
+  hasMarks: boolean;
   /** Null until round 1 is over. */
   firstTry: Score | null;
   /** Rounds played so far (the rounds to complete, once the attempt is completed). */
@@ -50,9 +56,11 @@ export const TRICKIEST_LIMIT = 10;
 
 /** One learner's progress on one list (a lesson's items for one practice type). */
 export interface ListProgress {
-  /** Every attempt (completed, in progress and stopped), newest first. */
+  /** Every attempt (completed, in progress and stopped), newest first. Learning sessions are not attempts. */
   attempts: AttemptSummary[];
   attemptCount: number;
+  /** The learning sessions (completed, in progress and stopped), newest first. */
+  learningSessions: AttemptSummary[];
   /** The best first-try score among completed attempts, or null when none has completed. */
   best: Score | null;
   /** First-try correct counts of completed attempts, oldest first. */
@@ -82,6 +90,8 @@ export function summarizeAttempt(session: Session): AttemptSummary {
     id: session.id,
     startedAt: session.startedAt,
     status: session.status,
+    learning: session.learning === true,
+    hasMarks: hasMarks(session),
     firstTry: first?.finished ? { correct: first.correct, total: first.itemCount } : null,
     roundCount: rounds.length,
     rounds,
@@ -93,13 +103,15 @@ export function summarizeAttempt(session: Session): AttemptSummary {
  * order items with equal counts in the trickiest ranking (items the list no longer has come last).
  */
 export function listProgress(sessions: readonly Session[], listedTargets: readonly string[]): ListProgress {
-  const attempts = sessions
+  const newestFirst = sessions
     .map(summarizeAttempt)
     .sort((x, y) => y.startedAt.localeCompare(x.startedAt));
+  const attempts = newestFirst.filter((a) => !a.learning);
   const completed = attempts.filter((a) => a.status === 'completed' && a.firstTry !== null).reverse();
   return {
     attempts,
     attemptCount: attempts.length,
+    learningSessions: newestFirst.filter((a) => a.learning),
     best: bestScore(completed.map((a) => a.firstTry!)),
     trend: completed.map((a) => a.firstTry!.correct),
     trickiest: trickiest(attempts, listedTargets),

@@ -5,7 +5,7 @@
 import type { ComponentChildren, ComponentType } from 'preact';
 import type { ItemData, PracticeTypeId, Rendition } from '../content/types.ts';
 import { DrawingScope, useDrawing } from '../practice/drawing.tsx';
-import type { Mark, Round, SessionResult } from '../practice/session.ts';
+import type { Mark, Round, Session, SessionResult } from '../practice/session.ts';
 import type { ProfileSettings } from '../storage/types.ts';
 
 /** What the screen hands a type's stage and controls for the item being practiced. */
@@ -18,7 +18,7 @@ export interface FlowProps {
   onListen: (rendition: Rendition) => void;
   onCheck: () => void;
   onMark: (result: Mark) => void;
-  /** Move on from an item that is not graded (stroke order). */
+  /** Move on from an item that is not graded (stroke order, learning sessions). */
   onNext: () => void;
 }
 
@@ -37,6 +37,8 @@ export interface PracticeFlow {
    * until it has been requested. Without it (the child reads the item and says it) nothing plays until Check.
    */
   audioFirst: boolean;
+  /** The sound Next plays; none means the next item's audio follows at once. Only flows without marks have a Next. */
+  nextEffect?: 'chime';
   /** What the completion screen says besides "You did it!". */
   completionLines: (result: SessionResult) => string[];
   /** Wraps the stage and controls of the item being practiced; the screen gives it a new key for each item. Default: none. */
@@ -166,6 +168,7 @@ const phraseRecognition: PracticeFlow = {
 /** Stroke order: hear the character, watch it drawn stroke by stroke, then Next. Nothing is graded. */
 const strokeOrder: PracticeFlow = {
   audioFirst: true,
+  nextEffect: 'chime',
   completionLines: ({ total }) => [`${total} ${total === 1 ? 'character' : 'characters'} drawn`],
   Scope: DrawingScope,
   Stage: ({ item }) => {
@@ -227,8 +230,34 @@ const strokeOrder: PracticeFlow = {
   },
 };
 
-export const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
+/**
+ * A learning session of phrase recognition: the phrase and its pinyin are shown and it plays on arrival, and Next
+ * (once it has been heard) moves on. Nothing is graded, and Next makes no sound, so the next phrase plays at once.
+ */
+const learning: PracticeFlow = {
+  audioFirst: true,
+  completionLines: ({ total }) => [`${total} ${total === 1 ? 'phrase' : 'phrases'} learned`],
+  Stage: ({ item }) => <Reveal item={item} fit />,
+  Controls: (props) => (
+    <>
+      <ListenRow {...props} />
+      <div class="row row--primary">
+        {props.round.heardCurrent && (
+          <button type="button" class="btn btn--primary btn--good" onClick={props.onNext}>
+            <span aria-hidden="true">➡️ </span>Next
+          </button>
+        )}
+      </div>
+    </>
+  ),
+};
+
+const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
   dictation,
   'stroke-order': strokeOrder,
   'phrase-recognition': phraseRecognition,
 };
+
+/** How a session is practiced: by its practice type, or as a learning session. */
+export const flowOf = (session: Pick<Session, 'practiceType' | 'learning'>): PracticeFlow =>
+  session.learning ? learning : FLOWS[session.practiceType];

@@ -7,6 +7,8 @@
 //           `lessonId`, a round's phase `listening` -> `prompt`, and every session gets `updatedAt`.
 //   2 -> 3  stroke order timing became settings: every profile gets `strokeSpeed` and `strokePauseSeconds`
 //           (the defaults, which are what stroke order practice always did).
+//   3 -> 4  the learning setting: every profile gets `learning` off, which is how phrase recognition always worked.
+//           (A session's `learning` flag is optional, absent meaning graded, so sessions need no step.)
 import { DEFAULT_SETTINGS, NewerSchemaError, SCHEMA_VERSION, type StoredData } from './types.ts';
 
 export interface Migration {
@@ -70,9 +72,25 @@ function strokeTimingBecameSettings(data: StoredData): StoredData {
   };
 }
 
+/** Saved data as schema version 3 wrote it: a profile whose settings lack the learning setting. */
+type V3Profile = { settings: Record<string, unknown>; [field: string]: unknown };
+
+function learningBecameSetting(data: StoredData): StoredData {
+  const { learning } = DEFAULT_SETTINGS;
+  const profiles = (data.app.profiles as unknown as V3Profile[]).map((profile) => ({
+    ...profile,
+    settings: { learning, ...profile.settings },
+  }));
+  return {
+    app: { ...data.app, schemaVersion: 4, profiles: profiles as unknown as StoredData['app']['profiles'] },
+    sessions: data.sessions,
+  };
+}
+
 export const MIGRATIONS: readonly Migration[] = [
   { from: 1, up: listsBecameLessons },
   { from: 2, up: strokeTimingBecameSettings },
+  { from: 3, up: learningBecameSetting },
 ];
 
 /**

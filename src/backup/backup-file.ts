@@ -4,7 +4,7 @@
 //   {
 //     "appId": "my-practice-app",       which app wrote it
 //     "kind": "backup",                 what sort of file it is (room for other kinds later)
-//     "schemaVersion": 3,               the schema of `data` (same number as data.app.schemaVersion)
+//     "schemaVersion": 4,             the schema of `data` (same number as data.app.schemaVersion)
 //     "exportedAt": "2026-10-18T12:00:00.000Z",
 //     "data": { "app": <AppRecord>, "sessions": [<Session>, ...] }
 //   }
@@ -80,6 +80,7 @@ function isProfile(value: unknown): boolean {
     [0, 5, 10, 15].includes(settings.breakEvery as number) &&
     ['slow', 'normal', 'fast'].includes(settings.strokeSpeed as string) &&
     [0.5, 1, 2, 3].includes(settings.strokePauseSeconds as number) &&
+    typeof settings.learning === 'boolean' &&
     Array.isArray(assignedLessonIds) &&
     assignedLessonIds.every(isString)
   );
@@ -132,7 +133,8 @@ function isSession(value: unknown): boolean {
     value.rounds.length > 0 &&
     value.rounds.every(isRound) &&
     isUndoEntry(value.undo) &&
-    isNonNegativeInteger(value.marksSinceBreak)
+    isNonNegativeInteger(value.marksSinceBreak) &&
+    (value.learning === undefined || value.learning === true)
   );
 }
 

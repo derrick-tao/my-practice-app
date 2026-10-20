@@ -60,7 +60,8 @@
 }
 
 .progress-attempt__date,
-.progress-attempt__status {
+.progress-attempt__status,
+.progress-attempt__tag {
   font-weight: 700;
 }
 

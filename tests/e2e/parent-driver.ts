@@ -164,3 +164,13 @@ export async function openProfiles(page: Page): Promise<void> {
   await openParentSection(page, 'Profiles');
   await expect(page.getByRole('heading', { name: 'Profiles', exact: true })).toBeVisible();
 }
+
+/** Home -> Settings -> turn the active learner's "Say: learning, no grading" on or off -> back to home. */
+export async function setLearning(page: Page, on: boolean): Promise<void> {
+  await openSettings(page);
+  const learning = page.getByRole('switch', { name: 'Say: learning, no grading' });
+  if ((await learning.isChecked()) !== on) await learning.click();
+  if (on) await expect(learning).toBeChecked();
+  else await expect(learning).not.toBeChecked();
+  await page.getByRole('link', { name: 'Home' }).click();
+}

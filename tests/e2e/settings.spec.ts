@@ -72,6 +72,20 @@ test.describe('settings: saved per learner', () => {
     await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
   });
 
+  test('the learning setting starts off, survives a reload, and is per learner', async ({ page }) => {
+    await setUpLearner(page);
+    await openSettings(page);
+    const learning = page.getByRole('switch', { name: 'Say: learning, no grading' });
+    await expect(learning).not.toBeChecked();
+
+    await learning.click();
+    await expect(learning).toBeChecked();
+
+    await page.reload(); // the gate locks again on reload
+    await passGate(page);
+    await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).toBeChecked();
+  });
+
   test('stroke speed and pause start at Normal and 3 s, and the choices survive a reload', async ({ page }) => {
     await setUpLearner(page);
     await openSettings(page);

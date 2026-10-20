@@ -50,7 +50,7 @@ function profile(id: string, name: string, avatar: string): ProfileJson {
     name,
     avatar,
     createdAt: '2026-09-01T09:00:00.000Z',
-    settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3 },
+    settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3, learning: false },
     assignedLessonIds: ['fixture-three', 'fixture-five'],
   };
 }
@@ -111,10 +111,10 @@ function withLearner(backup: BackupJson, change: Record<string, unknown>): strin
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
 const TWO_LEARNERS: SavedData = {
   app: {
-    schemaVersion: 3,
+    schemaVersion: 4,
     profiles: [
       profile('p-leo', 'Leo', '🦊'),
-      withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5 }),
+      withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5, learning: false }),
     ],
     activeProfileId: 'p-zoe',
     parent: {},
@@ -149,7 +149,7 @@ test.describe('export', () => {
       expect.objectContaining({
         appId: 'my-practice-app',
         kind: 'backup',
-        schemaVersion: 3,
+        schemaVersion: 4,
         exportedAt: expect.stringMatching(/^2026-10-18T12:00:/),
       }),
     );
@@ -157,7 +157,7 @@ test.describe('export', () => {
       expect.objectContaining({
         name: 'Mia',
         avatar: '🐼',
-        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3 },
+        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3, learning: false },
       }),
     ]);
     expect(backup.data.sessions).toEqual([
@@ -371,8 +371,8 @@ test.describe('import', () => {
     const before = await savedNow(page);
     const newer = {
       ...backupFile(TWO_LEARNERS, '2026-10-12T08:00:00.000Z'),
-      schemaVersion: 4,
-      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 4, somethingNew: true } },
+      schemaVersion: 5,
+      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 5, somethingNew: true } },
     };
 
     await chooseBackupFile(page, JSON.stringify(newer));

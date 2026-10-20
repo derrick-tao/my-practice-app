@@ -5,7 +5,9 @@
 //   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
 //                                            its counts and the missed items
 // A practice type without marks (Draw) has no scores: its part is the attempt count and each attempt's date, status
-// and how far its one round got, and its attempt page lists that round's characters.
+// and how far its one round got, and its attempt page lists that round's characters. A learning session (Say with
+// the learning setting on) is the same: listed apart from the part's attempts, under 👂 Learning, and counted in
+// none of its numbers.
 // The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
@@ -40,9 +42,9 @@ const STATUS: Record<SessionStatus, { icon: string; label: string }> = {
   stopped: { icon: '⏹️', label: 'Stopped' },
 };
 
-/** How far a round got without marks: "Characters drawn: 2 of 3" (a round that never started counts as 0 of 0). */
-const drawnText = (round: RoundSummary | undefined): string =>
-  `Characters drawn: ${round?.reached ?? 0} of ${round?.itemCount ?? 0}`;
+/** How far a round got without marks: "Characters drawn: 2 of 3", "Phrases learned: 2 of 3" (a round that never started counts as 0 of 0). */
+const reachedText = (attempt: Pick<AttemptSummary, 'learning'>, round: RoundSummary | undefined): string =>
+  `${attempt.learning ? 'Phrases learned' : 'Characters drawn'}: ${round?.reached ?? 0} of ${round?.itemCount ?? 0}`;
 
 const scoreText = (score: Score | null): string => (score ? `${score.correct} of ${score.total}` : '—');
 
@@ -140,7 +142,7 @@ function Page({
   return <>{children(view.value)}</>;
 }
 
-function AttemptRow({ lessonId, type, attempt }: { lessonId: string; type: PracticeType; attempt: AttemptSummary }) {
+function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptSummary }) {
   const status = STATUS[attempt.status];
   const done = attempt.status === 'completed';
   return (
@@ -151,7 +153,12 @@ function AttemptRow({ lessonId, type, attempt }: { lessonId: string; type: Pract
           <span aria-hidden="true">{status.icon} </span>
           {status.label}
         </span>
-        {type.hasMarks ? (
+        {attempt.learning && (
+          <span class="progress-attempt__tag">
+            <span aria-hidden="true">👂 </span>Learning
+          </span>
+        )}
+        {attempt.hasMarks ? (
           <>
             <span>First try: {scoreText(attempt.firstTry)}</span>
             <span>
@@ -159,7 +166,7 @@ function AttemptRow({ lessonId, type, attempt }: { lessonId: string; type: Pract
             </span>
           </>
         ) : (
-          <span>{drawnText(attempt.rounds[0])}</span>
+          <span>{reachedText(attempt, attempt.rounds[0])}</span>
         )}
       </a>
     </li>
@@ -196,9 +203,22 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
       ) : (
         <ul class="progress-list">
           {progress.attempts.map((attempt) => (
-            <AttemptRow key={attempt.id} lessonId={lessonId} type={type} attempt={attempt} />
+            <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
           ))}
         </ul>
+      )}
+
+      {progress.learningSessions.length > 0 && (
+        <>
+          <h4 class="progress-heading">
+            <span aria-hidden="true">👂 </span>Learning
+          </h4>
+          <ul class="progress-list" data-testid="learning-sessions">
+            {progress.learningSessions.map((attempt) => (
+              <AttemptRow key={attempt.id} lessonId={lessonId} attempt={attempt} />
+            ))}
+          </ul>
+        </>
       )}
 
       {type.hasMarks && progress.trickiest.length > 0 && (
@@ -248,13 +268,15 @@ function LessonProgressPage({ lessonId }: { lessonId: string }) {
   );
 }
 
-/** A round of a practice type without marks: its size, how far it got and its characters in the order they came. */
-function DrawnRoundBlock({
+/** A round without marks (stroke order, a learning session): its size, how far it got and its items in the order they came. */
+function UnmarkedRoundBlock({
+  attempt,
   round,
   type,
   items,
   player,
 }: {
+  attempt: AttemptSummary;
   round: RoundSummary;
   type: PracticeType;
   items: Map<string, ItemData>;
@@ -264,7 +286,7 @@ function DrawnRoundBlock({
     <li class="progress-round" data-testid="round">
       <div class="progress-round__facts">
         <span>{countLabel(type, round.itemCount)}</span>
-        <span>{drawnText(round)}</span>
+        <span>{reachedText(attempt, round)}</span>
       </div>
       <div class="progress-round__missed">
         {round.itemIds.map((target) => (
@@ -313,7 +335,7 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
     <Page view={view}>
       {({ lesson, parts }) => {
         const part = parts.find((p) => p.sessions.some((s) => s.id === attemptId));
-        const attempt = part?.progress.attempts.find((a) => a.id === attemptId);
+        const attempt = [...(part?.progress.attempts ?? []), ...(part?.progress.learningSessions ?? [])].find((a) => a.id === attemptId);
         if (!part || !attempt) return <p class="notice">We couldn't find this attempt.</p>;
         const items = new Map(part.items.map((item) => [item.target, item]));
         const status = STATUS[attempt.status];
@@ -325,16 +347,29 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
             </a>
             <h2 class="progress-header__title">
               <span aria-hidden="true">{part.type.icon} </span>
-              {part.type.label} · {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
+              {part.type.label} ·{' '}
+              {attempt.learning && (
+                <>
+                  <span aria-hidden="true">👂 </span>Learning ·{' '}
+                </>
+              )}
+              {formatDate(attempt.startedAt)} · <span aria-hidden="true">{status.icon} </span>
               {status.label}
             </h2>
-            {part.type.hasMarks && <p>First try: {scoreText(attempt.firstTry)}</p>}
+            {attempt.hasMarks && <p>First try: {scoreText(attempt.firstTry)}</p>}
             <ol class="progress-list">
               {attempt.rounds.map((round) =>
-                part.type.hasMarks ? (
+                attempt.hasMarks ? (
                   <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
                 ) : (
-                  <DrawnRoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
+                  <UnmarkedRoundBlock
+                    key={round.index}
+                    attempt={attempt}
+                    round={round}
+                    type={part.type}
+                    items={items}
+                    player={player}
+                  />
                 ),
               )}
             </ol>
