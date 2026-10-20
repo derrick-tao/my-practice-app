@@ -17,10 +17,14 @@ export interface RoundSummary {
   /** 1-based round number. */
   index: number;
   itemCount: number;
+  /** The round's targets, in the order it presented them. */
+  itemIds: string[];
   correct: number;
   wrong: number;
   /** Targets marked wrong, in the order the round presented them. */
   missed: string[];
+  /** How many of the round's items it has got past (marked, or for a practice type without marks, moved on from). */
+  reached: number;
   /** All of the round's items have been marked. False for a round still going, or left half done. */
   finished: boolean;
 }
@@ -62,9 +66,11 @@ function summarizeRound(round: Round): RoundSummary {
   return {
     index: round.index,
     itemCount: round.itemIds.length,
+    itemIds: round.itemIds,
     correct,
     wrong,
     missed: round.itemIds.filter((target) => round.marks[target] === 'wrong'),
+    reached: Math.min(round.position, round.itemIds.length),
     finished: isRoundOver(round),
   };
 }

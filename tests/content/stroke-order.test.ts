@@ -1,7 +1,8 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildError, createWorkspace, lessonHeader } from './harness.ts';
+import { buildError, createWorkspace, lessonHeader, lessonYaml } from './harness.ts';
 
 /** A lesson file with a `stroke-order:` list (and optionally a `dictation:` list), each given as its item lines. */
 function lesson(id: string, lists: { strokeOrder: string; dictation?: string; phrases?: string }): string {
@@ -16,9 +17,10 @@ function lesson(id: string, lists: { strokeOrder: string; dictation?: string; ph
   );
 }
 
+/** The stroke data files in the output (the licence beside them is not one). */
 const strokeFiles = async (outDir: string): Promise<string[]> => {
   try {
-    return (await readdir(path.join(outDir, 'strokes'))).sort();
+    return (await readdir(path.join(outDir, 'strokes'))).filter((f) => f.endsWith('.json')).sort();
   } catch {
     return [];
   }
@@ -138,5 +140,43 @@ describe('content build: stroke files', () => {
     const before = (await ws.build()).contentVersion;
     await ws.writeLessons({ 'chinese/x.yaml': lesson('x', { strokeOrder: '\n  - target: 一\n  - target: 人\n' }) });
     expect((await ws.build()).contentVersion).not.toBe(before);
+  });
+});
+
+describe('content build: stroke data source', () => {
+  /** A stroke data folder holding only 一, whose single stroke is the given path. */
+  async function dataDir(strokePath: string): Promise<string> {
+    const dir = await mkdtemp(path.join(tmpdir(), 'stroke-data-'));
+    await writeFile(path.join(dir, '一.json'), JSON.stringify({ strokes: [strokePath], medians: [[[0, 0], [10, 0]]] }));
+    return dir;
+  }
+
+  it('changes the content version when a character\'s stroke data changes, though no lesson file does', async () => {
+    const ws = await createWorkspace({ 'chinese/x.yaml': lesson('x', { strokeOrder: '\n  - target: 一\n' }) });
+    const before = await ws.build({ strokeDataDir: await dataDir('M 0 0 L 10 0') });
+    const same = await ws.build({ strokeDataDir: await dataDir('M 0 0 L 10 0') });
+    const after = await ws.build({ strokeDataDir: await dataDir('M 0 0 L 20 0') });
+    expect(same.contentVersion).toBe(before.contentVersion);
+    expect(after.contentVersion).not.toBe(before.contentVersion);
+  });
+
+  it('reports a character the data folder lacks, naming file, list, item and character', async () => {
+    const ws = await createWorkspace({ 'chinese/x.yaml': lesson('x', { strokeOrder: '\n  - target: 一\n  - target: 人\n' }) });
+    const message = await buildError(ws, { strokeDataDir: await dataDir('M 0 0 L 10 0') });
+    expect(message).toContain('chinese/x.yaml: stroke-order item 2 (人): [stroke-data-missing]');
+    expect(message).toContain('[stroke-data-missing]');
+  });
+});
+
+describe('content build: stroke data licence', () => {
+  it('publishes the Arphic Public License next to the stroke files, only when there are stroke files', async () => {
+    const ws = await createWorkspace({ 'chinese/x.yaml': lesson('x', { strokeOrder: '\n  - target: 一\n' }) });
+    await ws.build();
+    const licence = await readFile(path.join(ws.outDir, 'strokes', 'ARPHICPL.TXT'), 'utf8');
+    expect(licence).toContain('ARPHIC PUBLIC LICENSE');
+
+    const plain = await createWorkspace({ 'chinese/y.yaml': lessonYaml('y', '\n  - target: 大\n') });
+    await plain.build();
+    await expect(readdir(path.join(plain.outDir, 'strokes'))).rejects.toThrow();
   });
 });
