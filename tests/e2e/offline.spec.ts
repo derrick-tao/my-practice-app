@@ -87,6 +87,40 @@ test.describe('offline', () => {
       .toEqual({ statuses: ['loaded'], covers: true });
   });
 
+  test('Draw opens and draws strokes with the network off, and never asks another origin for stroke data', async ({
+    page,
+    context,
+    audio,
+    request,
+    baseURL,
+  }) => {
+    // Everything the app requests, from the first run on, must stay on its own origin (no stroke data CDN).
+    const origin = new URL(baseURL!).origin;
+    const elsewhere: string[] = [];
+    page.on('request', (req) => {
+      if (/^https?:/.test(req.url()) && new URL(req.url()).origin !== origin) elsewhere.push(req.url());
+    });
+
+    await startAtHome(page);
+    const lesson = (await (await request.get(await lessonPath(request, 'fixture-strokes'))).json()) as LessonData;
+
+    await context.setOffline(true);
+    await page.reload();
+
+    const practice = new PracticeScreen(page, audio, lesson, 'stroke-order');
+    await practice.open();
+    await expect.poll(async () => (await practice.strokes()).total).toBeGreaterThan(0);
+    await practice.drawCharacter();
+    expect((await practice.strokes()).drawn).toBe((await practice.strokes()).total);
+    await expect(practice.next).toBeVisible();
+
+    // Every stroke file and the licence beside them are served from the cache.
+    const refs = [...lesson.lists['stroke-order']!.map((item) => item.strokes!), 'strokes/ARPHICPL.TXT'];
+    const statuses = await page.evaluate(async (urls) => Promise.all(urls.map(async (url) => (await fetch(url)).status)), refs.map((ref) => `content/${ref}`));
+    expect(statuses).toEqual(statuses.map(() => 200));
+    expect(elsewhere).toEqual([]);
+  });
+
   test('every lesson, its audio and the content manifest are available offline, including after a restart', async ({
     page,
     context,

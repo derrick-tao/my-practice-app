@@ -12,13 +12,15 @@ import { formatIssue, validateAcrossFiles, validateLessonFile, type Issue, type 
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
 import { FONT_REF, buildFontSubset } from './font.ts';
-import { resolveStrokes, type StrokeFile } from './strokes.ts';
+import { STROKE_LICENCE_REF, readStrokeLicence, resolveStrokes, type StrokeFile } from './strokes.ts';
 
 export interface BuildOptions extends AudioOptions {
   /** Folder of lesson files, grouped by subject: `<contentDir>/<subject>/<lesson-id>.yaml`. */
   contentDir: string;
   /** Output folder (becomes `<site>/content/`): manifest.json, lessons/<id>.<hash>.json, audio/<hash>.<ext>. */
   outDir: string;
+  /** Folder of `<character>.json` stroke data; defaults to the `hanzi-writer-data` package (tests swap it). */
+  strokeDataDir?: string;
 }
 
 export interface BuildResult {
@@ -34,7 +36,7 @@ export async function generateAudio(options: Omit<BuildOptions, 'outDir'>): Prom
 }
 
 export async function buildContent(options: BuildOptions): Promise<BuildResult> {
-  const { sources, warnings, strokes } = await loadAndValidate(options.contentDir);
+  const { sources, warnings, strokes } = await loadAndValidate(options.contentDir, options.strokeDataDir);
   const resolved = await resolveAudio(sources, options);
   const audioFiles = new Map<string, string>();
 
@@ -84,8 +86,11 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
   await mkdir(path.join(options.outDir, 'audio'), { recursive: true });
   for (const { body, ref } of lessonFiles.values()) await writeFile(path.join(options.outDir, ref), body);
   for (const [ref, file] of audioFiles) await copyFile(file, path.join(options.outDir, ref));
-  if (strokes.size > 0) await mkdir(path.join(options.outDir, 'strokes'), { recursive: true });
-  for (const { ref, body } of strokes.values()) await writeFile(path.join(options.outDir, ref), body);
+  if (strokes.size > 0) {
+    await mkdir(path.join(options.outDir, 'strokes'), { recursive: true });
+    for (const { ref, body } of strokes.values()) await writeFile(path.join(options.outDir, ref), body);
+    await writeFile(path.join(options.outDir, STROKE_LICENCE_REF), await readStrokeLicence());
+  }
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
   const items = sources.flatMap((s) => listEntries(s.lists).flatMap(([, list]) => list));
@@ -129,6 +134,7 @@ export class ContentBuildError extends Error {
 /** Validate every lesson file (and that each stroke order character has stroke data); throws ContentBuildError (naming file, item and rule) on any error. */
 export async function loadAndValidate(
   contentDir: string,
+  strokeDataDir?: string,
 ): Promise<{ sources: SourceLesson[]; warnings: string[]; strokes: Map<string, StrokeFile> }> {
   const entries = (await readdir(contentDir, { recursive: true })).filter((e) => e.endsWith('.yaml')).sort();
   const errors: Issue[] = [];
@@ -142,7 +148,7 @@ export async function loadAndValidate(
     if (result.lesson) parsed.push({ file, lesson: result.lesson });
   }
   errors.push(...validateAcrossFiles(parsed));
-  const { files: strokes, issues: strokeIssues } = await resolveStrokes(parsed);
+  const { files: strokes, issues: strokeIssues } = await resolveStrokes(parsed, strokeDataDir);
   errors.push(...strokeIssues);
   if (errors.length > 0) throw new ContentBuildError(errors.map(formatIssue));
   return { sources: parsed.map((p) => p.lesson), warnings: warnings.map(formatIssue), strokes };

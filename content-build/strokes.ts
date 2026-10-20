@@ -8,7 +8,14 @@ import path from 'node:path';
 import { listEntries } from '../src/content/types.ts';
 import type { Issue, SourceLesson } from './validate.ts';
 
-const DATA_DIR = path.dirname(createRequire(import.meta.url).resolve('hanzi-writer-data/package.json'));
+/** Where the licence lands, relative to the content root, next to the stroke files it covers. */
+export const STROKE_LICENCE_REF = 'strokes/ARPHICPL.TXT';
+
+// The licence text is committed here with the data source, as the font's OFL is in `fonts/`; the Arphic
+// licence requires it to travel with every copy of the data.
+const LICENCE_SOURCE = new URL('./stroke-data/ARPHICPL.TXT', import.meta.url);
+
+const PACKAGE_DATA_DIR = path.dirname(createRequire(import.meta.url).resolve('hanzi-writer-data/package.json'));
 
 /** A character's stroke file: `ref` is relative to the content root, `body` is the file's text. */
 export interface StrokeFile {
@@ -16,10 +23,15 @@ export interface StrokeFile {
   body: string;
 }
 
+/** The committed licence text, published alongside the stroke files. */
+export function readStrokeLicence(): Promise<string> {
+  return readFile(LICENCE_SOURCE, 'utf8');
+}
+
 /** The stroke data for one character, or undefined when the package has none. */
-async function readStrokeData(char: string): Promise<string | undefined> {
+async function readStrokeData(dataDir: string, char: string): Promise<string | undefined> {
   try {
-    return await readFile(path.join(DATA_DIR, `${char}.json`), 'utf8');
+    return await readFile(path.join(dataDir, `${char}.json`), 'utf8');
   } catch {
     return undefined;
   }
@@ -28,6 +40,7 @@ async function readStrokeData(char: string): Promise<string | undefined> {
 /** Every distinct character in the lessons' stroke-order lists, with its stroke file; characters without data are reported as issues. */
 export async function resolveStrokes(
   sources: ReadonlyArray<{ file: string; lesson: SourceLesson }>,
+  dataDir: string = PACKAGE_DATA_DIR,
 ): Promise<{ files: Map<string, StrokeFile>; issues: Issue[] }> {
   const files = new Map<string, StrokeFile>();
   const missing = new Set<string>();
@@ -37,7 +50,7 @@ export async function resolveStrokes(
       if (type !== 'stroke-order') continue;
       for (const [index, item] of items.entries()) {
         if (files.has(item.target) || missing.has(`${file}\0${item.target}`)) continue;
-        const body = await readStrokeData(item.target);
+        const body = await readStrokeData(dataDir, item.target);
         if (body === undefined) {
           missing.add(`${file}\0${item.target}`);
           issues.push({
