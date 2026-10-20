@@ -363,6 +363,25 @@ test.describe('stroke order: auto-play', () => {
     await runUntilDrawn(page, practice, 2, DRAW_MAX_MS); // no 3 s wait
   });
 
+  test('↺ pressed while a stroke is being drawn restarts from the first, with nothing left over from the old run', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await page.clock.runFor(PAUSE_MS + 100); // stroke 2 is under way
+    expect((await practice.strokes()).drawn).toBe(1);
+
+    await practice.replay.click();
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    // Stroke 2 of the old run would finish here; only stroke 1 of the new one may be counted.
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await page.clock.runFor(PAUSE_MS - 200);
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS);
+  });
+
   test('↺ clears the strokes and replays from the first one, auto-playing', async ({ page, audio, loadLesson }) => {
     const { practice } = await startOnClock({ page, audio, loadLesson });
     await runUntilDrawn(page, practice, 2, 2 * DRAW_MAX_MS + PAUSE_MS);
