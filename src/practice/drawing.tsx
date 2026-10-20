@@ -1,8 +1,9 @@
 // The stroke order drawing: a character's strokes drawn one at a time over a faint outline by Hanzi Writer, with
 // stroke data read from the file the build bundled (never the library's CDN). DrawingScope owns everything about
 // the drawing for one item, and the stage and controls (see practice-flows.tsx) read it through useDrawing, so
-// the stage can show the character while the controls step it. Which stroke the drawing is on is screen state only
-// and is not saved: a resumed session shows its character from the first stroke.
+// the stage can show the character while the controls drive it. It plays by itself (a stroke, then a pause to copy
+// it on paper); the child can pause, step by hand, resume or replay. Which stroke the drawing is on is screen state
+// only and is not saved: a resumed session shows its character from the first stroke.
 import HanziWriter, { type CharacterJson, type CharDataLoaderFn } from 'hanzi-writer';
 import { createContext, type ComponentChildren, type RefObject } from 'preact';
 import { useContext, useEffect, useRef, useState } from 'preact/hooks';
@@ -20,8 +21,16 @@ export interface Drawing {
   drawing: boolean;
   /** Fully drawn (or its data could not be loaded, which must not strand the child): the pinyin, clue and Next show. */
   finished: boolean;
-  /** Draw one more stroke. */
+  /** Auto-play is on: after each stroke, the next follows once the pause is over. */
+  playing: boolean;
+  /** Stop before the next stroke begins (a stroke being drawn finishes). */
+  pause: () => void;
+  /** Auto-play again from the current stroke. */
+  play: () => void;
+  /** Draw one more stroke (while paused, one per tap). */
   nextStroke: () => void;
+  /** Clear the strokes and auto-play from the first. */
+  replay: () => void;
 }
 
 const DrawingContext = createContext<Drawing | undefined>(undefined);
@@ -36,6 +45,14 @@ export function useDrawing(): Drawing {
 const OUTLINE_COLOR = '#dcd8e8';
 const STROKE_COLOR = '#2b2250';
 
+/**
+ * Fixed for now, to tune after watching the learner: Hanzi Writer draws a stroke in (length + 600) / (3 * speed) ms,
+ * about 0.3 to 0.5 s at its default speed of 1, so half that speed gives the 1 s or so a child can follow; then the
+ * auto-play waits 3 s so the stroke can be copied.
+ */
+const STROKE_SPEED = 0.5;
+const PAUSE_AFTER_STROKE_MS = 3_000;
+
 /** Mount one item's drawing; give it a key per item so each character starts afresh. */
 export function DrawingScope({ item, children }: { item: ItemData; children: ComponentChildren }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -44,6 +61,11 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
   const [drawn, setDrawn] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(true);
+  /** Bumped by a replay and on unmount, so a stroke begun before it cannot count itself afterwards. */
+  const run = useRef(0);
+  /** Set by ▶ and ↺: the next stroke begins at once instead of after the pause. */
+  const withoutPause = useRef(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -70,22 +92,25 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
       showOutline: true,
       outlineColor: OUTLINE_COLOR,
       strokeColor: STROKE_COLOR,
+      strokeAnimationSpeed: STROKE_SPEED,
       charDataLoader,
       onLoadCharDataError: () => mounted && setFailed(true),
     });
     return () => {
       mounted = false;
+      run.current++;
       void writer.current?.pauseAnimation(); // a stroke still being drawn stops with the screen
     };
   }, []);
 
   const nextStroke = (): void => {
     if (!writer.current || drawing || total === undefined || drawn >= total) return;
+    const thisRun = run.current;
     setDrawing(true);
     void writer.current
       .animateStroke(drawn, {
         onComplete: ({ canceled }) => {
-          if (canceled) return;
+          if (canceled || thisRun !== run.current) return;
           setDrawn((n) => n + 1);
           setDrawing(false);
         },
@@ -93,9 +118,39 @@ export function DrawingScope({ item, children }: { item: ItemData; children: Com
       .catch(() => setDrawing(false));
   };
 
+  // Auto-play: the first stroke starts when the data has loaded, each later one after the pause. The timer goes
+  // when the child pauses, replays or leaves, so none outlives what it was waiting for.
+  useEffect(() => {
+    if (!playing || total === undefined || drawing || drawn >= total) return;
+    if (drawn === 0 || withoutPause.current) {
+      withoutPause.current = false;
+      nextStroke();
+      return;
+    }
+    const timer = setTimeout(nextStroke, PAUSE_AFTER_STROKE_MS);
+    return () => clearTimeout(timer);
+  }, [playing, total, drawing, drawn]);
+
+  const play = (): void => {
+    withoutPause.current = true;
+    setPlaying(true);
+  };
+
+  const replay = (): void => {
+    run.current++;
+    // Instant: the strokes go, the outline stays.
+    void writer.current?.hideCharacter({ duration: 0 });
+    withoutPause.current = true;
+    setDrawn(0);
+    setDrawing(false);
+    setPlaying(true);
+  };
+
   const finished = failed || (total !== undefined && drawn >= total);
   return (
-    <DrawingContext.Provider value={{ hostRef, drawn, total, drawing, finished, nextStroke }}>
+    <DrawingContext.Provider
+      value={{ hostRef, drawn, total, drawing, finished, playing, pause: () => setPlaying(false), play, nextStroke, replay }}
+    >
       {children}
     </DrawingContext.Provider>
   );

@@ -1,11 +1,12 @@
 // Seam 1: stroke order practice (🖌️ Draw). The child hears a character, watches it drawn one stroke at a time
-// over a faint outline, then taps Next. Nothing is graded: no marks, no Undo, no retry rounds. These tests step
-// the drawing by hand (Next stroke); what is asserted is what the child sees, never the drawing library's SVG.
+// over a faint outline, then taps Next. Nothing is graded: no marks, no Undo, no retry rounds. The drawing plays by
+// itself; most tests pause it and step by hand (Next stroke), and the auto-play tests drive the page clock. What is
+// asserted is what the child sees, never the drawing library's SVG.
 import type { Page } from '@playwright/test';
 import type { ItemData, LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { setSoundEffects, setUpLearner } from './parent-driver.ts';
-import { lessonGroup, PracticeScreen, rejectAudioPlayback } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen, rejectAudioPlayback, seedRandom } from './practice-driver.ts';
 
 interface Fixtures {
   page: Page;
@@ -27,10 +28,10 @@ async function start({ page, audio, loadLesson }: Fixtures, options: { sounds?: 
 }
 
 /** Draw the current character fully and say which one it was (from the pinyin it then shows). */
-async function drawAndIdentify(practice: PracticeScreen): Promise<{ pinyin: string; taps: number }> {
-  const taps = await practice.drawCharacter();
+async function drawAndIdentify(practice: PracticeScreen): Promise<{ pinyin: string; strokes: number }> {
+  const strokes = await practice.drawCharacter();
   const pinyin = (await practice.page.locator('.reveal__pinyin').textContent())!;
-  return { pinyin, taps };
+  return { pinyin, strokes };
 }
 
 test.describe('stroke order: the Draw button', () => {
@@ -57,9 +58,8 @@ test.describe('stroke order: arriving at a character', () => {
     const { practice, lesson } = await start({ page, audio, loadLesson });
 
     await expect(practice.drawing).toBeVisible();
-    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
     await expect(practice.drawing).toHaveAttribute('data-strokes-total', /^[123]$/);
-    await expect(practice.nextStroke).toBeVisible();
+    await expect(practice.pause).toBeVisible();
     await expect.poll(() => audio.played(lesson)).toEqual([
       expect.objectContaining({ practiceType: 'stroke-order', rendition: 'normal' }),
     ]);
@@ -78,7 +78,7 @@ test.describe('stroke order: arriving at a character', () => {
 
   test('has no ✅/❌, Check, Undo or round badge, and Next is hidden', async ({ page, audio, loadLesson }) => {
     const { practice } = await start({ page, audio, loadLesson });
-    await expect(practice.nextStroke).toBeVisible();
+    await expect(practice.pause).toBeVisible();
 
     await expect(practice.gotIt).toHaveCount(0);
     await expect(practice.notYet).toHaveCount(0);
@@ -106,8 +106,11 @@ test.describe('stroke order: drawing a character by hand', () => {
     const { practice } = await start({ page, audio, loadLesson });
     await expect(practice.drawing).toHaveAttribute('data-strokes-total', /^[123]$/);
     const { total } = await practice.strokes();
+    await practice.pause.click();
+    // A stroke being drawn when the pause lands finishes first; the taps carry on from there.
+    await expect(practice.nextStroke.or(practice.next)).toBeEnabled();
 
-    for (let drawn = 1; drawn <= total!; drawn++) {
+    for (let drawn = (await practice.strokes()).drawn + 1; drawn <= total!; drawn++) {
       await expect(practice.next).toHaveCount(0);
       await expect(page.locator('.reveal__pinyin')).toHaveCount(0);
       await practice.nextStroke.click();
@@ -163,8 +166,8 @@ test.describe('stroke order: moving on and finishing', () => {
 
     const seen: string[] = [];
     for (let i = 0; i < 3; i++) {
-      const { pinyin, taps } = await drawAndIdentify(practice);
-      expect(taps).toBe(STROKES_BY_PINYIN[pinyin]);
+      const { pinyin, strokes } = await drawAndIdentify(practice);
+      expect(strokes).toBe(STROKES_BY_PINYIN[pinyin]);
       seen.push(pinyin);
       await practice.next.click();
     }
@@ -209,5 +212,209 @@ test.describe("stroke order: the next character's audio waits for the chime", ()
     expect(await practice.itemAudioCount()).toBe(1);
     await page.clock.runFor(200);
     await expect.poll(() => audio.played(lesson)).toHaveLength(2);
+  });
+});
+
+// Auto-play: a stroke about every 4 s (about 1 s drawing, then 3 s to copy it), driven by the page clock so no test
+// waits for real. The clock is paused as soon as the character has loaded, a few milliseconds into its first stroke,
+// so what happens next is up to the test.
+test.describe('stroke order: auto-play', () => {
+  const CLOCK_START = new Date('2026-10-19T09:00:00.000Z');
+  const STEP_MS = 50;
+  /** A stroke is drawn in about a second, then the drawing waits 3 s so the child can copy it. */
+  const DRAW_MAX_MS = 1_300;
+  const PAUSE_MS = 3_000;
+
+  /** With the seeded shuffle's first character: 大, 3 strokes (then 一, then 人). */
+  async function startOnClock(fixtures: Fixtures) {
+    await seedRandom(fixtures.page, 1);
+    await fixtures.page.clock.install({ time: CLOCK_START });
+    const started = await start(fixtures);
+    await expect(started.practice.drawing).toHaveAttribute('data-strokes-total', '3');
+    const now = await fixtures.page.evaluate(() => Date.now());
+    await fixtures.page.clock.pauseAt(new Date(now + 150));
+    await expect(started.practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    return started;
+  }
+
+  /** Run the clock in small steps until `n` strokes are drawn; says how long that took. */
+  async function runUntilDrawn(page: Page, practice: PracticeScreen, n: number, limitMs: number): Promise<number> {
+    for (let elapsed = 0; elapsed <= limitMs; elapsed += STEP_MS) {
+      if ((await practice.strokes()).drawn === n) return elapsed;
+      await page.clock.runFor(STEP_MS);
+    }
+    throw new Error(`${n} strokes not drawn within ${limitMs} ms (${(await practice.strokes()).drawn} drawn)`);
+  }
+
+  test('draws a stroke by itself, then the next after a 3 s pause, and offers Next right after the last', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await expect(practice.pause).toBeVisible();
+
+    expect(await runUntilDrawn(page, practice, 1, DRAW_MAX_MS)).toBeGreaterThan(0);
+    // Nothing more for the child to copy until the pause is over.
+    await page.clock.runFor(PAUSE_MS - 200);
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    expect(await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS)).toBeGreaterThan(200);
+
+    await page.clock.runFor(PAUSE_MS - 200);
+    expect(await practice.strokes()).toEqual({ drawn: 2, total: 3 });
+    await expect(practice.next).toHaveCount(0);
+    await expect(page.locator('.reveal__pinyin')).toHaveCount(0);
+    await runUntilDrawn(page, practice, 3, 200 + DRAW_MAX_MS);
+
+    // The last stroke is followed by the pinyin, the clue and Next, not by another pause.
+    await expect(practice.next).toBeVisible();
+    await expect(page.locator('.reveal__pinyin')).toHaveText('dà');
+    await expect(page.locator('.reveal__clue')).toBeVisible();
+    await expect(practice.pause).toHaveCount(0);
+  });
+
+  test('⏸ stops the drawing, before the next stroke begins', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await page.clock.runFor(1_000); // in the pause after the first stroke
+
+    await practice.pause.click();
+    await expect(practice.play).toBeVisible();
+    await expect(practice.pause).toHaveCount(0);
+    await page.clock.runFor(30_000);
+
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+    await expect(practice.next).toHaveCount(0);
+  });
+
+  test('⏸ while a stroke is being drawn lets that stroke finish, then stops', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await page.clock.runFor(100); // the first stroke is under way
+
+    await practice.pause.click();
+    await page.clock.runFor(30_000);
+
+    expect(await practice.strokes()).toEqual({ drawn: 1, total: 3 });
+  });
+
+  test('while paused, each tap on Next stroke draws one stroke; ▶ is offered and Next stroke is not', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await expect(practice.nextStroke).toHaveCount(0);
+    await practice.pause.click();
+    await page.clock.runFor(DRAW_MAX_MS); // the stroke begun on arrival finishes
+    expect((await practice.strokes()).drawn).toBe(1);
+
+    await expect(practice.nextStroke).toBeEnabled();
+    await practice.nextStroke.click();
+    await expect(practice.nextStroke).toBeDisabled(); // one stroke at a time
+    await runUntilDrawn(page, practice, 2, DRAW_MAX_MS);
+    await page.clock.runFor(30_000);
+    expect((await practice.strokes()).drawn).toBe(2); // and only the one
+
+    await practice.nextStroke.click();
+    await runUntilDrawn(page, practice, 3, DRAW_MAX_MS);
+    await expect(practice.next).toBeVisible();
+    await expect(practice.nextStroke).toHaveCount(0);
+    await expect(practice.play).toHaveCount(0);
+  });
+
+  test('▶ resumes the auto-play from the current stroke, to the end', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await practice.pause.click();
+    await page.clock.runFor(10_000);
+    expect((await practice.strokes()).drawn).toBe(1);
+
+    await practice.play.click();
+    await expect(practice.pause).toBeVisible();
+    await expect(practice.nextStroke).toHaveCount(0);
+    await runUntilDrawn(page, practice, 2, PAUSE_MS + DRAW_MAX_MS);
+    await runUntilDrawn(page, practice, 3, PAUSE_MS + DRAW_MAX_MS);
+    await expect(practice.next).toBeVisible();
+  });
+
+  test('↺ clears the strokes and replays from the first one, auto-playing', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 2, 2 * DRAW_MAX_MS + PAUSE_MS);
+
+    await practice.replay.click();
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await expect(practice.pause).toBeVisible();
+    // It plays again from stroke 1 on the same schedule.
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+    await page.clock.runFor(PAUSE_MS - 200);
+    expect((await practice.strokes()).drawn).toBe(1);
+    await runUntilDrawn(page, practice, 2, 200 + DRAW_MAX_MS);
+  });
+
+  test('↺ works while paused, and after the last stroke (the pinyin, clue and Next go until it is drawn again)', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await practice.pause.click();
+    await page.clock.runFor(DRAW_MAX_MS);
+    await practice.nextStroke.click();
+    await runUntilDrawn(page, practice, 2, DRAW_MAX_MS);
+
+    await practice.replay.click();
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await expect(practice.pause).toBeVisible(); // replaying means playing, even from a pause
+    await runUntilDrawn(page, practice, 3, 3 * (PAUSE_MS + DRAW_MAX_MS));
+    await expect(practice.next).toBeVisible();
+
+    await practice.replay.click();
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await expect(practice.next).toHaveCount(0);
+    await expect(page.locator('.reveal__pinyin')).toHaveCount(0);
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS);
+  });
+
+  test('has no previous-stroke control', async ({ page, audio, loadLesson }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await practice.pause.click();
+    await expect(page.getByRole('button', { name: /previous|back|undo/i })).toHaveCount(0);
+  });
+
+  test('the next character starts playing by itself, even after the last was stepped by hand', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await practice.pause.click();
+    await page.clock.runFor(DRAW_MAX_MS);
+    for (const drawn of [2, 3]) {
+      await practice.nextStroke.click();
+      await runUntilDrawn(page, practice, drawn, DRAW_MAX_MS);
+    }
+    await practice.next.click();
+
+    await expect(practice.progressText()).toHaveText('1 / 3');
+    await expect(practice.drawing).toHaveAttribute('data-strokes-drawn', '0');
+    await expect(practice.pause).toBeVisible(); // not left paused
+    await runUntilDrawn(page, practice, 1, 2 * DRAW_MAX_MS); // 一, one stroke
+    await expect(practice.next).toBeVisible();
+  });
+
+  test('leaving the screen mid-drawing leaves nothing running on the next screen', async ({ page, audio, loadLesson }) => {
+    // Not ours: the app's service-worker update check fails the same way on any screen once the clock runs on.
+    const errors: string[] = [];
+    page.on('pageerror', (error) => !/\.waiting/.test(error.message) && errors.push(error.message));
+    const { practice } = await startOnClock({ page, audio, loadLesson });
+    await runUntilDrawn(page, practice, 1, DRAW_MAX_MS); // waiting out the pause before stroke 2
+
+    await practice.home.click();
+    await expect(page.getByRole('heading', { name: /^Hi / })).toBeVisible();
+    await page.clock.runFor(30_000);
+
+    await expect(practice.drawing).toHaveCount(0);
+    expect(errors).toEqual([]);
+    await expect(page.getByRole('heading', { name: /^Hi / })).toBeVisible();
   });
 });
