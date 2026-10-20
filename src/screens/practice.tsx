@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { fetchLessonWithVersion } from '../content/client.ts';
 import type { ItemData, LessonData, PracticeTypeId, Rendition } from '../content/types.ts';
-import { createAudioPlayer } from '../practice/audio.ts';
+import { useAudioPlayer } from '../practice/audio.ts';
 import { Celebration } from '../practice/celebration.tsx';
 import { createEffects } from '../practice/effects.ts';
 import { loadKaiFont } from '../practice/kai-font.ts';
@@ -198,7 +198,7 @@ function PracticeRun({
 }) {
   // Fixed for the session's lifetime: a learning session stays one even if the setting changes.
   const flow = flowOf(initial);
-  const player = useMemo(createAudioPlayer, []);
+  const player = useAudioPlayer();
   const effects = useMemo(() => createEffects(sounds), []);
   const itemsById = useMemo(
     () => new Map((lesson.lists[practiceType] ?? []).map((item) => [item.target, item])),

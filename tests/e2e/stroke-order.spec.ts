@@ -505,3 +505,45 @@ test.describe('stroke order: auto-play', () => {
     await expect(page.getByRole('heading', { name: /^Hi / })).toBeVisible();
   });
 });
+
+test.describe('stroke order: opening it again and again', () => {
+  // The page slowed down the more sessions had been opened in one visit, because each left its audio elements
+  // behind. Nothing here may stay loaded once the child is home: the item audio is let go, and the sound effects
+  // are one set for the whole visit rather than one per session.
+  test('lets go of its audio on leaving, and reuses the same sound effects', async ({ page, audio, loadLesson }) => {
+    await page.addInitScript(() => {
+      const made: HTMLAudioElement[] = [];
+      const RealAudio = window.Audio;
+      window.Audio = new Proxy(RealAudio, {
+        construct(target, args) {
+          const element = Reflect.construct(target, args) as HTMLAudioElement;
+          made.push(element);
+          return element;
+        },
+      });
+      (window as unknown as { __made: HTMLAudioElement[] }).__made = made;
+    });
+    const itemAudioLoaded = (): Promise<number> =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __made: HTMLAudioElement[] }).__made.filter(
+            (e) => e.getAttribute('src') !== null && !e.src.includes('/sounds/'),
+          ).length,
+      );
+    const audioElementsMade = (): Promise<number> =>
+      page.evaluate(() => (window as unknown as { __made: HTMLAudioElement[] }).__made.length);
+
+    const { practice } = await start({ page, audio, loadLesson });
+    await expect(practice.drawing).toBeVisible();
+    await practice.home.click();
+    await expect.poll(itemAudioLoaded).toBe(0);
+    const afterFirst = await audioElementsMade();
+
+    await practice.lessonCard().click();
+    await expect(practice.drawing).toBeVisible();
+    await practice.home.click();
+    await expect.poll(itemAudioLoaded).toBe(0);
+    // The second visit made only the item audio again: the three sound effects were not made a second time.
+    expect((await audioElementsMade()) - afterFirst).toBe(afterFirst - 3);
+  });
+});

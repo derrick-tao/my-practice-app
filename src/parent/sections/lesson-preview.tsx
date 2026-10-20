@@ -5,7 +5,7 @@ import { useMemo } from 'preact/hooks';
 import { fetchLesson } from '../../content/client.ts';
 import { listEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
-import { createAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
 import { useLoad } from '../../use-async.ts';
@@ -65,7 +65,7 @@ function PreviewSection({ player, type, items }: { player: AudioPlayer; type: Pr
 }
 
 function Preview({ lesson }: { lesson: LessonData }) {
-  const player = useMemo(createAudioPlayer, []);
+  const player = useAudioPlayer();
   const lists = listEntries(lesson.lists);
   return (
     <>
