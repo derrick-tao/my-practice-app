@@ -52,7 +52,10 @@ export interface Session {
   rounds: Round[];
   /** The single undo entry, or null. Set by a mark; cleared by the next mark, a new round, or completion. */
   undo: UndoEntry | null;
-  /** Marks since the last break prompt was answered (or the last retry round started). */
+  /**
+   * Marks (and Next taps in stroke order) since the last break prompt was answered (or the last retry round started).
+   * The name stays because renaming the saved field would need a storage migration.
+   */
   marksSinceBreak: number;
 }
 
