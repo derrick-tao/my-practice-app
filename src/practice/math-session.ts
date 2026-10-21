@@ -5,7 +5,7 @@
 // One problem is one or more steps (blanks): Facts has one, a Strategies problem several. Each step goes: first try
 // right -> on to the next step; first try wrong -> the same step again (phase stays `prompt`, one try on record);
 // second try right -> "got it!" (phase `revealed`, Next moves on); second try wrong -> the answer with its explanation
-// (phase `revealed`, Next moves on). The problem is ✅ only if every step was right on its first try, and its mark is
+// (phase `revealed`, Next moves on). True or false has no second try: one wrong answer goes straight to the explanation. The problem is ✅ only if every step was right on its first try, and its mark is
 // decided, and saved, the moment its last step is settled, so a reload shows the same screen. Which step the learner is
 // on is never saved on its own: it is read back from the tries (each says its step) and the phase. A retry round puts a
 // new problem of the same kind at each ❌ spot. There is no undo and no timer.
@@ -96,8 +96,10 @@ function stepsOf(session: Session, problem: Problem): Step[] {
 
 const stepOfTry = (thisTry: Try): number => thisTry.step ?? 0;
 const triesAt = (tries: Try[], step: number): Try[] => tries.filter((thisTry) => stepOfTry(thisTry) === step);
-/** A step is over once it is answered right or both tries are used. */
-const isStepSettled = (tries: Try[]): boolean => tries.some((thisTry) => thisTry.correct) || tries.length >= MAX_TRIES;
+/** Tries a step allows: two on the number pad, one for True or false (with two choices a second try is only a guess). */
+const triesAllowed = (session: Session): number => (typeOf(session).input === 'true-false' ? 1 : MAX_TRIES);
+/** A step is over once it is answered right or every allowed try is used. */
+const isStepSettled = (tries: Try[], allowed: number): boolean => tries.some((thisTry) => thisTry.correct) || tries.length >= allowed;
 
 /** Where the learner is within the current problem: the step shown, how many there are, and the tries at that step. */
 export interface StepPlace {
@@ -116,7 +118,8 @@ export function currentStep(session: Session): StepPlace | undefined {
   const steps = stepsOf(session, problem);
   const all = currentRound(session).tries?.[currentItemId(currentRound(session))!] ?? [];
   // `revealed` is a settled step waiting for Next: it is the step of the latest try. Otherwise it is the first step not settled.
-  const settledFirst = steps.findIndex((_, i) => !isStepSettled(triesAt(all, i)));
+  const allowed = triesAllowed(session);
+  const settledFirst = steps.findIndex((_, i) => !isStepSettled(triesAt(all, i), allowed));
   const index =
     currentRound(session).phase === 'revealed' ? stepOfTry(all.at(-1)!) : settledFirst === -1 ? steps.length - 1 : settledFirst;
   return { index, steps, step: steps[index]!, tries: triesAt(all, index) };
@@ -146,7 +149,7 @@ export function submitAnswer(session: Session, entry: string, env: PracticeEnv):
   const place = currentStep(session);
   const problem = currentProblem(session);
   if (id === undefined || !problem || !place || before.phase !== 'prompt') return session;
-  if (place.tries.length >= MAX_TRIES) return session;
+  if (place.tries.length >= triesAllowed(session)) return session;
 
   const correct = isCorrectEntry(typeOf(session), problem, entry, place.step.answer);
   // Facts has one step and saves no step number, so what it saved before multi-step problems is unchanged.
@@ -154,8 +157,12 @@ export function submitAnswer(session: Session, entry: string, env: PracticeEnv):
   const all = [...(before.tries?.[id] ?? []), thisTry];
   const tries = triesAt(all, place.index);
   const firstTryRight = correct && tries.length === 1;
-  if (!isStepSettled(tries)) return withCurrentRound(session, (round) => ({ ...round, tries: { ...round.tries, [id]: all } })); // wrong the first time: the same step again
+  if (!isStepSettled(tries, triesAllowed(session))) return withCurrentRound(session, (round) => ({ ...round, tries: { ...round.tries, [id]: all } })); // wrong the first time: the same step again
+  return settleStep(session, id, all, place, firstTryRight, env);
+}
 
+/** The step just answered is settled (tries are in `all`): mark the problem if it was the last step, and move on or reveal. */
+function settleStep(session: Session, id: string, all: Try[], place: StepPlace, firstTryRight: boolean, env: PracticeEnv): Session {
   const isLast = place.index === place.steps.length - 1;
   // ✅ only if every step was right on its first try.
   const clean = place.steps.every((_, i) => {
@@ -169,6 +176,21 @@ export function submitAnswer(session: Session, entry: string, env: PracticeEnv):
     return firstTryRight ? moveOn(marked, env) : { ...marked, phase: 'revealed' as const };
   });
   return isLast && firstTryRight ? afterFinished(updated, env) : updated;
+}
+
+/**
+ * A session saved when True or false still had a second try can hold one wrong try with the problem still waiting
+ * for the second. With one try allowed that problem is missed: settle it the way answering would have. Derived from
+ * the saved tries alone (nothing new is stored), and any other session comes back unchanged (the same object).
+ */
+export function settleSavedTries(session: Session, env: PracticeEnv): Session {
+  if (session.status !== 'active') return session;
+  const round = currentRound(session);
+  const id = currentItemId(round);
+  const place = currentStep(session);
+  if (id === undefined || !place || round.phase !== 'prompt' || place.tries.length === 0) return session;
+  if (!isStepSettled(place.tries, triesAllowed(session)) || place.tries.some((thisTry) => thisTry.correct)) return session;
+  return settleStep(session, id, round.tries![id]!, place, false, env);
 }
 
 /** Next: the answer (and explanation) has been seen, so move to the next step, or after the last one to the next problem. */

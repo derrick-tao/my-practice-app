@@ -1,8 +1,10 @@
 // Seam 1: the True or false practice type (ticket 51). The child reads an equation and taps True or False; the
-// rest (20 problems, two tries, marks, retry rounds, save and resume) works as for Facts. The problems are random,
+// rest (20 problems, marks, retry rounds, save and resume) works as for Facts, except that there is no second try:
+// a wrong answer goes straight to the answer and why. The problems are random,
 // so the driver reads each equation on screen and works out for itself whether it is true (true-or-false-driver.ts).
 import type { Page } from '@playwright/test';
 import { expect, test, type AudioProbe } from './harness.ts';
+import { editSavedData } from './backup-driver.ts';
 import { openSettings, setSoundEffects, setUpLearner } from './parent-driver.ts';
 import { identityOf, isTrue, kindOf, TrueOrFalseScreen } from './true-or-false-driver.ts';
 
@@ -140,20 +142,22 @@ test.describe('tries and marks', () => {
     expect(await audio.effects()).toEqual(['chime']);
   });
 
-  test('wrong then right shows "got it!" and the verdict, counts as ❌, and makes no ❌ sound', async ({ page, audio }) => {
+  test('wrong goes straight to the answer and why (both sides worked out): no "try again", the ❌ sound, and counts as ❌', async ({ page, audio }) => {
     const screen = await start({ page, audio });
+
     const statement = await screen.answerWrong();
 
-    await expect(screen.feedback).toContainText('Try again');
+    await expect(screen.feedback).toContainText(`The answer is ${isTrue(statement) ? 'True' : 'False'}`);
+    await expect(screen.feedback).not.toContainText('Try again');
+    await expect(screen.feedback).not.toContainText('got it!');
+    const why = (await screen.strategy.textContent())!;
+    expect(why).toContain(`Left: ${statement.left.plain ? statement.left.text : `${statement.left.text} = ${statement.left.value}`}.`);
+    expect(why).toContain(`Right: ${statement.right.plain ? statement.right.text : `${statement.right.text} = ${statement.right.value}`}.`);
+    expect(why).toContain(isTrue(statement) ? 'so it is true' : 'so it is false');
+    await expect(screen.trueButton).toHaveCount(0); // nothing left to answer: only Next
+    await expect(screen.falseButton).toHaveCount(0);
+    await expect.poll(() => audio.effects()).toEqual(['gentle']);
     await expect(screen.progress).toHaveText('0 / 20');
-    expect((await screen.read()).text).toBe(statement.text); // the same problem, a second try
-    expect(await audio.effects()).toEqual([]);
-
-    await screen.tap(isTrue(statement));
-    await expect(screen.feedback).toContainText('got it!');
-    await expect(screen.problem).toContainText(`${statement.text} ${isTrue(statement) ? 'True' : 'False'}`);
-    await expect(screen.strategy).toHaveCount(0);
-    expect(await audio.effects()).toEqual([]);
 
     await screen.next.click();
     await expect(screen.progress).toHaveText('1 / 20');
@@ -163,25 +167,18 @@ test.describe('tries and marks', () => {
     await expect(page.getByTestId('wrong-count')).toHaveText('1');
   });
 
-  test('wrong twice shows the answer and why (both sides worked out), plays the ❌ sound only then, and counts as ❌', async ({ page, audio }) => {
+  test('the missed problem comes back as a new problem in the retry round', async ({ page, audio }) => {
     const screen = await start({ page, audio });
-    const statement = await screen.answerWrong();
-    await expect(screen.feedback).toContainText('Try again');
-    expect(await audio.effects()).toEqual([]);
-
-    await screen.tap(!isTrue(statement));
-
-    await expect(screen.feedback).toContainText(`The answer is ${isTrue(statement) ? 'True' : 'False'}`);
-    const why = (await screen.strategy.textContent())!;
-    expect(why).toContain(`Left: ${statement.left.plain ? statement.left.text : `${statement.left.text} = ${statement.left.value}`}.`);
-    expect(why).toContain(`Right: ${statement.right.plain ? statement.right.text : `${statement.right.text} = ${statement.right.value}`}.`);
-    expect(why).toContain(isTrue(statement) ? 'so it is true' : 'so it is false');
-    await expect.poll(() => audio.effects()).toEqual(['gentle']);
-
-    await screen.next.click();
-    await expect(screen.progress).toHaveText('1 / 20');
+    const missed = await screen.solveMissed();
     await screen.playRound();
-    await expect(page.getByTestId('wrong-count')).toHaveText('1');
+    await expect(screen.summary).toBeVisible();
+
+    await screen.retry.click();
+
+    await expect(screen.progress).toHaveText('0 / 1');
+    const again = await screen.read();
+    expect(identityOf(again)).not.toBe(identityOf(missed));
+    expect(kindOf(again)).toBe(kindOf(missed));
   });
 
   test('with Sounds off a missed problem makes no sound', async ({ page, audio }) => {
@@ -212,7 +209,7 @@ test.describe('retry rounds', () => {
     const screen = await start({ page, audio });
     const missedAt = new Set([2, 5, 11]);
 
-    const first = await screen.playRound((_, index) => (missedAt.has(index) ? (index === 5 ? 'second' : 'missed') : 'first'));
+    const first = await screen.playRound((_, index) => (missedAt.has(index) ? 'missed' : 'first'));
 
     await expect(screen.summary).toBeVisible();
     await expect(page.getByTestId('correct-count')).toHaveText('17');
@@ -235,40 +232,38 @@ test.describe('retry rounds', () => {
 });
 
 test.describe('reloading resumes the exact state', () => {
-  test('after a first try that was wrong: the same problem, Try again, and the second try still pending', async ({ page, audio }) => {
+  test('a session saved with one wrong try on record (from before True or false lost its second try) reloads as missed', async ({ page, audio }) => {
     const screen = await start({ page, audio });
     await screen.solveFirstTry();
-    const statement = await screen.answerWrong();
-    await expect(screen.feedback).toContainText('Try again');
+    const statement = await screen.read();
+    await page.goto('./');
+    await editSavedData(page, (saved) => ({
+      ...saved,
+      sessions: saved.sessions.map((session) => {
+        const rounds = session.rounds as Array<{ itemIds: string[]; position: number; tries?: Record<string, unknown[]> }>;
+        const round = rounds[0]!;
+        const wrong = { answer: isTrue(statement) ? 'false' : 'true', correct: false };
+        return { ...session, rounds: [{ ...round, tries: { ...round.tries, [round.itemIds[round.position]!]: [wrong] } }] };
+      }),
+    }));
 
-    await page.reload();
+    await screen.keepGoing.click();
 
+    await expect(screen.feedback).toContainText(`The answer is ${isTrue(statement) ? 'True' : 'False'}`);
+    await expect(screen.feedback).not.toContainText('Try again');
+    await expect(screen.strategy).toBeVisible();
     await expect(screen.progress).toHaveText('1 / 20');
-    expect((await screen.read()).text).toBe(statement.text);
-    await expect(screen.feedback).toContainText('Try again');
-    await screen.tap(isTrue(statement));
-    await expect(screen.feedback).toContainText('got it!');
-  });
-
-  test('after "got it!": still showing it, and Next carries on', async ({ page, audio }) => {
-    const screen = await start({ page, audio });
-    const statement = await screen.answerWrong();
-    await screen.tap(isTrue(statement));
-    await expect(screen.feedback).toContainText('got it!');
-
-    await screen.reopenViaKeepGoing();
-
-    await expect(screen.feedback).toContainText('got it!');
-    await expect(screen.problem).toContainText(`${statement.text} ${isTrue(statement) ? 'True' : 'False'}`);
-    await expect(screen.progress).toHaveText('0 / 20');
     await screen.next.click();
-    await expect(screen.progress).toHaveText('1 / 20');
+    await expect(screen.progress).toHaveText('2 / 20');
+    await screen.playRound();
+    await expect(page.getByTestId('wrong-count')).toHaveText('1'); // it is marked ❌ and joins the retry round
+    await screen.retry.click();
+    await expect(screen.progress).toHaveText('0 / 1');
   });
 
   test('after the answer was shown: the answer and why again, without a second ❌ sound', async ({ page, audio }) => {
     const screen = await start({ page, audio });
     const statement = await screen.answerWrong();
-    await screen.tap(!isTrue(statement));
     const why = await screen.strategy.textContent();
 
     await page.reload();
@@ -334,7 +329,7 @@ test.describe('reloading resumes the exact state', () => {
 test.describe('breaks', () => {
   test('count a finished problem, not each try', async ({ page, audio }) => {
     const screen = await start({ page, audio }, LESSON, 5);
-    await screen.solveSecondTry();
+    await screen.solveMissed();
     await screen.solveMissed();
     for (let i = 0; i < 2; i++) await screen.solveFirstTry();
     await expect(screen.breakPrompt).toHaveCount(0);
