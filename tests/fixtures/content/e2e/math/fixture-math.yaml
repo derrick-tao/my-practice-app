@@ -1,0 +1,7 @@
+# Math fixture for the Seam 1 specs: Facts with the default rules (within 20, add and subtract).
+id: fixture-math
+title: Fixture Math
+subject: math
+testDates: 2026-10-26 to 2026-10-30
+facts:
+  within: 20

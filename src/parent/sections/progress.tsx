@@ -8,13 +8,16 @@
 // and how far its one round got, and its attempt page lists that round's characters. A learning session (Say with
 // the learning setting on) is the same: listed apart from the part's attempts, under 👂 Learning, and counted in
 // none of its numbers.
+// A math part (src/parent/math-parts.tsx) keeps the same layout, but its trickiest list is problem kinds with ❌ counts
+// out of the problems of that kind, and an attempt page shows each missed problem with the answer the child entered.
 // The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
-import { PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
+import { isListType, isRulesType, PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
+import { SESSION_SIZE, type Rules } from '../../math/rules.ts';
 import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
@@ -27,12 +30,14 @@ import {
   type RoundSummary,
   type Score,
 } from '../../practice/progress.ts';
-import type { Session, SessionStatus } from '../../practice/session.ts';
+import { missedProblems, trickiestKinds } from '../../practice/math-progress.ts';
+import type { Round, Session, SessionStatus } from '../../practice/session.ts';
 import { parentHref } from '../../router.ts';
 import { getStorage } from '../../storage/index.ts';
 import { useLoad, type Loadable } from '../../use-async.ts';
 import '../progress.css';
 import type { ParentSection } from '../sections.ts';
+import { MissedProblems, TrickiestKinds } from '../math-parts.tsx';
 
 const LOAD_FAILED = "Couldn't load the progress. Check the internet and try again.";
 
@@ -54,6 +59,8 @@ interface Part {
   items: ItemData[];
   sessions: Session[];
   progress: ListProgress;
+  /** A math practice type's rules in the lesson (they order its problem kinds). */
+  rules?: Rules;
 }
 
 interface LessonView {
@@ -74,9 +81,11 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
       const [lesson, sessions] = await Promise.all([fetchLesson(lessonId), getStorage().listSessions(profileId, { lessonId })]);
       const parts = PRACTICE_TYPE_IDS.flatMap((id): Part[] => {
         const own = sessions.filter((session) => session.practiceType === id);
-        const items = lesson.lists[id] ?? [];
-        if (items.length === 0 && own.length === 0) return [];
-        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: listProgress(own, items.map((item) => item.target)) }];
+        const items = (isListType(id) ? lesson.lists[id] : undefined) ?? [];
+        const offered = isListType(id) ? items.length > 0 : lesson.rules?.[id] !== undefined;
+        if (!offered && own.length === 0) return [];
+        const rules = isListType(id) ? undefined : lesson.rules?.[id];
+        return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: listProgress(own, items.map((item) => item.target)), rules }];
       });
       return { lesson, parts };
     },
@@ -183,7 +192,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         {type.label}
       </h3>
       <div class="progress-header__facts" data-testid="progress-facts">
-        <span>{countLabel(type, listed.length)}</span>
+        <span>{countLabel(type, isRulesType(type.id) ? SESSION_SIZE : listed.length)}</span>
         <span>Attempts: {progress.attemptCount}</span>
         {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>
@@ -221,7 +230,9 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         </>
       )}
 
-      {type.hasMarks && progress.trickiest.length > 0 && (
+      {isRulesType(type.id) && <TrickiestKinds tally={trickiestKinds(part.sessions, type.id, part.rules)} />}
+
+      {type.hasMarks && !isRulesType(type.id) && progress.trickiest.length > 0 && (
         <>
           <h4 class="progress-heading">Trickiest {type.itemNoun.plural}</h4>
           <ol class="progress-list progress-tricky">
@@ -302,7 +313,10 @@ function RoundBlock({
   type,
   items,
   player,
+  saved,
 }: {
+  /** The round as saved: a math round's problems and tries. */
+  saved?: Round;
   round: RoundSummary;
   type: PracticeType;
   items: Map<string, ItemData>;
@@ -317,11 +331,18 @@ function RoundBlock({
         <span>❌ {round.wrong}</span>
         {!round.finished && <span>(so far)</span>}
       </div>
-      {round.missed.length > 0 && (
+      {round.missed.length > 0 && isRulesType(type.id) && saved && <MissedProblems typeId={type.id} missed={missedProblems(saved)} />}
+      {round.missed.length > 0 && !(isRulesType(type.id) && saved) && (
         <div class="progress-round__missed">
-          {round.missed.map((target) => (
-            <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
-          ))}
+          {round.missed.map((target) =>
+            isRulesType(type.id) ? (
+              <span key={target} class="progress-char">
+                Problem {target}
+              </span>
+            ) : (
+              <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
+            ),
+          )}
         </div>
       )}
     </li>
@@ -339,6 +360,7 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
         if (!part || !attempt) return <p class="notice">We couldn't find this attempt.</p>;
         const items = new Map(part.items.map((item) => [item.target, item]));
         const status = STATUS[attempt.status];
+        const savedRounds = part.sessions.find((s) => s.id === attemptId)?.rounds ?? [];
         return (
           <>
             <a class="parent__entry progress-back" href={parentHref('progress', lessonId)}>
@@ -360,7 +382,14 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
             <ol class="progress-list">
               {attempt.rounds.map((round) =>
                 attempt.hasMarks ? (
-                  <RoundBlock key={round.index} round={round} type={part.type} items={items} player={player} />
+                  <RoundBlock
+                    key={round.index}
+                    round={round}
+                    type={part.type}
+                    items={items}
+                    player={player}
+                    saved={savedRounds.find((r) => r.index === round.index)}
+                  />
                 ) : (
                   <UnmarkedRoundBlock
                     key={round.index}

@@ -4,11 +4,14 @@
 // backup file made by the older app. Both must end up the same: assignments and the practice in progress
 // intact, with Keep going resuming at the exact place. Schema 3 added the stroke order timing settings and schema 4 the
 // learning setting: a learner saved before them (schema v2) gets the defaults and keeps their other settings.
+// Schema 5 added the Math subject (sessions with generated problems and their tries): everything saved before
+// it (a schema v4 device or backup) loads unchanged, and a math session saved at v5 comes back to its exact place.
 import type { Page } from '@playwright/test';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from './backup-driver.ts';
 import { openParentArea, openParentSection, openSettings, setUpLearner } from './parent-driver.ts';
 import { PracticeScreen } from './practice-driver.ts';
+import { FactsScreen } from './math-driver.ts';
 import { savedDataFixture, seedSavedData } from './saved-data.ts';
 import type { LessonData } from '../../src/content/types.ts';
 
@@ -88,8 +91,8 @@ test.describe('saved data from the previous schema', () => {
     // On load the old sessions were stamped with the latest time they are known to have been worked on.
     await openBackupSection(page);
     const before = (await exportBackup(page)).backup;
-    expect(before.schemaVersion).toBe(4);
-    expect(before.data.app.schemaVersion).toBe(4);
+    expect(before.schemaVersion).toBe(5);
+    expect(before.data.app.schemaVersion).toBe(5);
     const stamped = (id: string) => before.data.sessions.find((s) => s.id === id)!.updatedAt;
     const learner = savedDataFixture('schema-v1-learner') as { sessions: Array<{ id: string; status: string }> };
     const active = learner.sessions.find((s) => s.status === 'active')!.id;
@@ -158,5 +161,87 @@ test.describe('saved data from before the stroke order timing settings', () => {
       strokePauseSeconds: 0.5,
       learning: false,
     });
+  });
+});
+
+test.describe('saved data around the Math subject (schema 5)', () => {
+  /** What the schema-v4 fixtures hold: the Chinese practice in progress, and no math. */
+  async function expectV4Intact({ page, audio, loadLesson }: Fixtures): Promise<void> {
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+    await openSettings(page);
+    await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Fast' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '1 s', exact: true })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+
+    await page.goto('./');
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
+    await expect(practice.keepGoing).toHaveCount(1);
+    await expect(practice.keepGoing.getByTestId('round-badge')).toHaveAttribute('aria-label', 'Round 2');
+    await expect(practice.keepGoing.getByTestId('progress-text')).toHaveText('1 / 2');
+    await practice.keepGoing.click();
+    await expect(practice.target).toHaveText('分');
+    await expect(practice.gotIt).toBeVisible();
+  }
+
+  test('a v4 device keeps its settings and its practice in progress', async ({ page, audio, loadLesson }) => {
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // the empty device is prepared
+    await seedSavedData(page, savedDataFixture('schema-v4-learner') as Seed);
+
+    await expectV4Intact({ page, audio, loadLesson });
+  });
+
+  test('a v4 backup file imports unchanged and re-exports at schema 5', async ({ page, audio, loadLesson }) => {
+    await setUpLearner(page, { name: 'Zoe', avatar: '🦁', lessons: ['fixture-five'] });
+    await openBackupSection(page);
+    await chooseBackupFile(page, JSON.stringify(savedDataFixture('schema-v4-export')));
+    await confirmImport(page);
+
+    await expectV4Intact({ page, audio, loadLesson });
+    await page.goto('./');
+    await openBackupSection(page);
+    const { backup } = await exportBackup(page);
+    expect(backup.schemaVersion).toBe(5);
+    expect(backup.data.app.schemaVersion).toBe(5);
+    expect(backup.data.sessions.map((s) => s.id).sort()).toEqual(
+      (savedDataFixture('schema-v4-export') as { data: { sessions: Array<{ id: string }> } }).data.sessions.map((s) => s.id).sort(),
+    );
+  });
+
+  /** The math session in the v5 fixtures: 4 problems done, the fifth (2 + 5) answered wrong once and waiting for the second try. */
+  async function expectMathResumes({ page, audio }: Fixtures): Promise<void> {
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+    const facts = new FactsScreen(page, audio);
+    const card = facts.keepGoing.filter({ hasText: 'Fixture Math' });
+    await expect(card.getByTestId('progress-text')).toHaveText('4 / 20');
+    await card.click();
+
+    await expect(facts.progress).toHaveText('4 / 20');
+    await expect(facts.problem).toContainText('2 + 5 =');
+    await expect(facts.feedback).toContainText('Try again');
+    await facts.submit(7);
+    await expect(facts.feedback).toContainText('got it!');
+    await facts.next.click();
+    await expect(facts.progress).toHaveText('5 / 20');
+  }
+
+  test('a v5 device with a math session in progress resumes at the exact problem and try', async ({ page, audio, loadLesson }) => {
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // the empty device is prepared
+    await seedSavedData(page, savedDataFixture('schema-v5-math-learner') as Seed);
+
+    await expectMathResumes({ page, audio, loadLesson });
+  });
+
+  test('a v5 backup with a math session imports and resumes at the exact problem and try', async ({ page, audio, loadLesson }) => {
+    await setUpLearner(page, { name: 'Zoe', avatar: '🦁', lessons: ['fixture-five'] });
+    await openBackupSection(page);
+    await chooseBackupFile(page, JSON.stringify(savedDataFixture('schema-v5-math-export')));
+    await confirmImport(page);
+
+    await expectMathResumes({ page, audio, loadLesson });
   });
 });

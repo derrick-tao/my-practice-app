@@ -1,0 +1,6 @@
+# Math fixture for the Missing number specs: the default rules (within 20, add and subtract).
+id: fixture-math-missing
+title: Fixture Missing Number
+subject: math
+missing-number:
+  within: 20

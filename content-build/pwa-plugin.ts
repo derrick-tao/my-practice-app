@@ -7,7 +7,7 @@
 // A lesson that references audio or stroke data missing from the output fails the build instead of shipping a worker
 // that could never finish installing.
 import { createHash } from 'node:crypto';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 import { listEntries, type LessonData } from '../src/content/types.ts';
@@ -23,6 +23,12 @@ export interface Precache {
   urls: string[];
 }
 
+const exists = (file: string): Promise<boolean> =>
+  access(file).then(
+    () => true,
+    () => false,
+  );
+
 /** Everything the app needs offline, found in a finished build output folder. */
 export async function collectPrecache(outDir: string): Promise<Precache> {
   const urls = new Set<string>();
@@ -35,7 +41,8 @@ export async function collectPrecache(outDir: string): Promise<Precache> {
 
   const contentDir = path.join(outDir, 'content');
   urls.add('content/manifest.json');
-  urls.add(`content/${FONT_REF}`);
+  // The font exists only when some lesson has Chinese items.
+  if (await exists(path.join(contentDir, FONT_REF))) urls.add(`content/${FONT_REF}`);
   const lessonFiles = (await readdir(path.join(contentDir, 'lessons'))).filter((f) => f.endsWith('.json')).sort();
   for (const file of lessonFiles) {
     urls.add(`content/lessons/${file}`);

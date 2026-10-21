@@ -1,17 +1,17 @@
 # My Practice App
 
-A kid-friendly practice app: a learner works through published lessons on their own and self-grades, while a parent publishes lessons and reviews progress.
+A kid-friendly practice app: a learner works through published lessons on their own and is graded (self-graded in Chinese, checked by the app in math), while a parent publishes lessons and reviews progress.
 
 ## Language
 
 ### Content
 
 **Subject**:
-The school subject a lesson belongs to, e.g. Chinese. A lesson has exactly one; two subjects tested in the same week are two lessons.
+The school subject a lesson belongs to, e.g. Chinese or math. A lesson has exactly one; two subjects tested in the same week are two lessons.
 _Avoid_: Course, class
 
 **Lesson**:
-A published unit of practice for one school test or week in one subject (e.g. "Fall 2026 Assessment"), with a title, subject, script, and optional test dates. It offers one or more practice types, each with its own list.
+A published unit of practice for one school test or week in one subject (e.g. "Fall 2026 Assessment"), with a title, subject, and optional test dates; a Chinese lesson also has a script. It offers one or more practice types, each with its own list.
 _Avoid_: Assessment, unit, word list
 
 **Practice type**:
@@ -19,7 +19,7 @@ A way of practicing, with its own screen (e.g. dictation, phrase recognition).
 _Avoid_: Mode, activity
 
 **List**:
-A lesson's items for one practice type, e.g. the Fall 2026 Assessment's 37 dictation characters or its 44 phrases.
+A lesson's items for one practice type, e.g. the Fall 2026 Assessment's 37 dictation characters or its 44 phrases. In math the list is not written in the lesson: 20 new items are made for each session, following what the practice type teaches.
 _Avoid_: Item set, section
 
 **Dictation**:
@@ -34,8 +34,23 @@ _Avoid_: Phrase flashcards, reading
 The practice type where the learner hears a character, watches it drawn one stroke at a time while copying each stroke on paper, then taps Next. Nothing is graded: it has no marks, so its sessions have a single round. Offered only by lessons that have a list for it. It plays by itself, each stroke followed by a pause to copy it, and the profile's stroke speed and pause settings set the pace; the learner's only control is Replay.
 _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
 
+**Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
+The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ?`); an equation with the blank anywhere (`8 + ? = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
+
+**Rules**:
+A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
+_Avoid_: Config, settings
+
 **Item**:
-One thing to practice in a list. Its target is its identity within that list.
+One thing to practice in a list. In Chinese its target is its identity within that list; in math it is one of the session's numbered spots, with one problem kind and a new problem each round.
+
+**Problem kind**:
+What a math item practices, e.g. "adding across ten". A session's 20 items are spread evenly over the type's kinds.
+_Avoid_: Template, shape, question type
+
+**Problem**:
+The particular numbers a math item shows in one round, e.g. `8 + 6 = ?`. A ❌ item gets a new problem of the same kind in the next round.
+_Avoid_: Question, exercise
 
 **Target**:
 The Chinese text of an item: the character to write in dictation or draw in stroke order, or the phrase to say in phrase recognition.
@@ -53,13 +68,20 @@ _Avoid_: Learn mode, preview, flashcards
 An ordered pass over a set of items; round 1 covers them all, and each later round covers only the items marked ❌ in the round before.
 
 **Mark**:
-The learner's self-grade for an item in a round: ✅ correct or ❌ wrong.
+An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅.
+
+**Try**:
+One answer the learner checks for a math problem. A problem allows two; a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the only time the ❌ sound plays). Right on the second try is still ❌, with a cheerful "got it!".
+_Avoid_: Attempt (the parent area's word for a session)
+
+**Step**:
+One blank of a math problem that has several, such as the Strategies problem `8 + 6`, then `8 + ☐ = 10`, `6 = 2 + ☐`, `10 + 4 = ☐`. Steps are answered one at a time and each has its own two tries; the earlier steps stay on screen with their answers. The problem is ✅ only if every step is right on its first try, and it counts once, after its last step. A problem with a single blank (Facts) has one step.
 
 **Break (prompt)**:
-A pause offered during a round after a set number of marks, or of Next taps in stroke order and learning sessions (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
+A pause offered during a round after a set number of marks (in math, finished problems, not each try), or of Next taps in stroke order and learning sessions (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
 
 **Undo entry**:
-The record of the learner's latest mark, kept so Undo can take that mark back and return to the item. It is dropped when the session ends or the item leaves the list.
+The record of the learner's latest mark, kept so Undo can take that mark back and return to the item. It is dropped when the session ends or the item leaves the list. Math practice types have no Undo, since the app grades.
 _Avoid_: History, redo
 
 ### People and settings

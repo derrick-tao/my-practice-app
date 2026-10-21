@@ -1,0 +1,6 @@
+# Math fixture: Facts with adding only, to check a lesson's rules reach the problems.
+id: fixture-math-add
+title: Fixture Adding Only
+subject: math
+facts:
+  operations: [add]

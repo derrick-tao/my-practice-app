@@ -1,0 +1,27 @@
+/* Word problems (Stories): the story reads as sentences, with a row of emoji for each quantity of 10 or less. */
+.math.math--story {
+  width: 100%;
+  max-width: 36rem;
+}
+
+.math .math__problem--story {
+  font-weight: 700;
+  font-size: clamp(1.35rem, 5.2cqi, 2.1rem);
+  line-height: 1.35;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.math__pictures {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.math__picture-row {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}

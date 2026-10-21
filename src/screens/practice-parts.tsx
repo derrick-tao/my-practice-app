@@ -1,0 +1,94 @@
+// The pieces every practice screen shares: the way home, the not-found notice, the break prompt, the round summary
+// and the completion screen. The screens differ in what they practice, not in how a round ends.
+import { Celebration } from '../practice/celebration.tsx';
+import { HOME_HREF } from '../router.ts';
+
+export function HomeButton() {
+  return (
+    <a class="home-button" href={HOME_HREF}>
+      <span aria-hidden="true">🏠 </span>Home
+    </a>
+  );
+}
+
+/** The address named no lesson we have (unknown lesson, or a subject / practice type it does not belong to). */
+export function LessonNotFound() {
+  return (
+    <main class="screen">
+      <HomeButton />
+      <p class="notice">We couldn't find this lesson.</p>
+    </main>
+  );
+}
+
+export function BreakPrompt({ onKeepGoing, onBreak }: { onKeepGoing: () => void; onBreak: () => void }) {
+  return (
+    <section class="break-prompt" data-testid="break-prompt">
+      <p class="break-prompt__title">
+        <span aria-hidden="true">🌟 </span>Great job! Take a break?
+      </p>
+      <div class="row row--primary">
+        <button type="button" class="btn btn--primary" onClick={onKeepGoing}>
+          <span aria-hidden="true">▶️ </span>Keep going
+        </button>
+        <button type="button" class="btn" onClick={onBreak}>
+          <span aria-hidden="true">🏠 </span>Break
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export function RoundSummary({
+  correct,
+  wrong,
+  retryCount,
+  noun = 'words',
+  onRetry,
+}: {
+  correct: number;
+  wrong: number;
+  /** Missed words that can be practiced again (a miss on a since-removed word cannot). */
+  retryCount: number;
+  /** What the ❌ items are called on the retry button. */
+  noun?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <section class="summary" data-testid="round-summary">
+      <div class="summary__counts">
+        <span class="count count--good">
+          <span aria-hidden="true">✅ </span>
+          <span data-testid="correct-count">{correct}</span>
+        </span>
+        <span class="count count--bad">
+          <span aria-hidden="true">❌ </span>
+          <span data-testid="wrong-count">{wrong}</span>
+        </span>
+      </div>
+      {retryCount > 0 && (
+        <>
+          <p class="summary__more">Let's practice {retryCount} more!</p>
+          <button type="button" class="btn btn--primary btn--retry" onClick={onRetry}>
+            <span aria-hidden="true">🔁 </span>Practice the ❌ {noun}
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+export function Completion({ lines }: { lines: string[] }) {
+  return (
+    <section class="summary completion" data-testid="completion">
+      <Celebration />
+      <p class="completion__title">
+        <span aria-hidden="true">🎉 </span>You did it!
+      </p>
+      {lines.map((line) => (
+        <p class="completion__line">{line}</p>
+      ))}
+      <HomeButton />
+    </section>
+  );
+}

@@ -3,7 +3,7 @@ import { useAppRecord } from '../app-context.tsx';
 import { ConfirmYesNo } from '../confirm.tsx';
 import type { LessonSummary } from '../content/types.ts';
 import { usePublishedLessons } from '../content/use-lessons.ts';
-import { countLabel, PRACTICE_TYPES } from '../practice/practice-types.tsx';
+import { countLabel, PRACTICE_TYPES, subjectLabel } from '../practice/practice-types.tsx';
 import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
@@ -20,6 +20,9 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
   return (
     <section class="lesson-card" role="group" aria-label={lesson.title}>
       <span class="lesson-card__title">{lesson.title}</span>
+      <span class="lesson-card__subject" data-testid="subject-tag">
+        {subjectLabel(subject)}
+      </span>
       {lesson.testDates && (
         <span class="lesson-card__meta">
           <span aria-hidden="true">📅 </span>Test: {lesson.testDates}

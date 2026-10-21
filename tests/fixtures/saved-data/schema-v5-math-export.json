@@ -1,0 +1,317 @@
+{
+  "appId": "my-practice-app",
+  "kind": "backup",
+  "schemaVersion": 5,
+  "exportedAt": "2026-10-12T08:00:00.000Z",
+  "data": {
+    "app": {
+      "schemaVersion": 5,
+      "profiles": [
+        {
+          "id": "5b0b3c1e-61a4-4a3e-9d2e-0f6a1d2c7a10",
+          "name": "Mia",
+          "avatar": "🐼",
+          "createdAt": "2026-09-15T08:00:00.000Z",
+          "settings": {
+            "shuffle": false,
+            "breakEvery": 10,
+            "sounds": true,
+            "strokeSpeed": "fast",
+            "strokePauseSeconds": 1,
+            "learning": false
+          },
+          "assignedLessonIds": [
+            "fixture-three",
+            "fixture-math"
+          ]
+        }
+      ],
+      "activeProfileId": "5b0b3c1e-61a4-4a3e-9d2e-0f6a1d2c7a10",
+      "parent": {}
+    },
+    "sessions": [
+      {
+        "id": "7c1f2f0e-5d1b-4c55-9d3b-0b5f0c0d1e01",
+        "profileId": "5b0b3c1e-61a4-4a3e-9d2e-0f6a1d2c7a10",
+        "subject": "chinese",
+        "practiceType": "dictation",
+        "contentVersion": "saved-before",
+        "status": "active",
+        "startedAt": "2026-10-01T09:00:00.000Z",
+        "rounds": [
+          {
+            "index": 1,
+            "itemIds": [
+              "点",
+              "分",
+              "找"
+            ],
+            "position": 3,
+            "phase": "prompt",
+            "heardCurrent": false,
+            "marks": {
+              "点": "correct",
+              "分": "wrong",
+              "找": "wrong"
+            },
+            "startedAt": "2026-10-01T09:00:00.000Z",
+            "completedAt": "2026-10-01T09:02:00.000Z"
+          },
+          {
+            "index": 2,
+            "itemIds": [
+              "找",
+              "分"
+            ],
+            "position": 1,
+            "phase": "revealed",
+            "heardCurrent": true,
+            "marks": {
+              "找": "correct"
+            },
+            "startedAt": "2026-10-01T09:02:30.000Z"
+          }
+        ],
+        "undo": null,
+        "marksSinceBreak": 4,
+        "lessonId": "fixture-three",
+        "updatedAt": "2026-10-01T09:02:30.000Z"
+      },
+      {
+        "id": "7c1f2f0e-5d1b-4c55-9d3b-0b5f0c0d1e10",
+        "profileId": "5b0b3c1e-61a4-4a3e-9d2e-0f6a1d2c7a10",
+        "subject": "math",
+        "practiceType": "facts",
+        "lessonId": "fixture-math",
+        "contentVersion": "saved-before",
+        "status": "active",
+        "startedAt": "2026-10-02T09:00:00.000Z",
+        "updatedAt": "2026-10-02T09:03:00.000Z",
+        "rounds": [
+          {
+            "index": 1,
+            "itemIds": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "17",
+              "18",
+              "19",
+              "20"
+            ],
+            "position": 4,
+            "phase": "prompt",
+            "heardCurrent": false,
+            "marks": {
+              "1": "correct",
+              "2": "wrong",
+              "3": "correct",
+              "4": "correct"
+            },
+            "startedAt": "2026-10-02T09:00:00.000Z",
+            "problems": {
+              "1": {
+                "kind": "add-within-10",
+                "numbers": [
+                  3,
+                  4
+                ]
+              },
+              "2": {
+                "kind": "subtract-across-ten",
+                "numbers": [
+                  13,
+                  4
+                ]
+              },
+              "3": {
+                "kind": "add-across-ten",
+                "numbers": [
+                  8,
+                  6
+                ]
+              },
+              "4": {
+                "kind": "subtract-within-10",
+                "numbers": [
+                  9,
+                  4
+                ]
+              },
+              "5": {
+                "kind": "add-within-10",
+                "numbers": [
+                  2,
+                  5
+                ]
+              },
+              "6": {
+                "kind": "subtract-across-ten",
+                "numbers": [
+                  15,
+                  7
+                ]
+              },
+              "7": {
+                "kind": "add-across-ten",
+                "numbers": [
+                  9,
+                  5
+                ]
+              },
+              "8": {
+                "kind": "subtract-within-10",
+                "numbers": [
+                  8,
+                  3
+                ]
+              },
+              "9": {
+                "kind": "add-within-10",
+                "numbers": [
+                  6,
+                  1
+                ]
+              },
+              "10": {
+                "kind": "subtract-across-ten",
+                "numbers": [
+                  12,
+                  9
+                ]
+              },
+              "11": {
+                "kind": "add-across-ten",
+                "numbers": [
+                  7,
+                  6
+                ]
+              },
+              "12": {
+                "kind": "subtract-within-10",
+                "numbers": [
+                  10,
+                  6
+                ]
+              },
+              "13": {
+                "kind": "add-within-10",
+                "numbers": [
+                  4,
+                  5
+                ]
+              },
+              "14": {
+                "kind": "subtract-across-ten",
+                "numbers": [
+                  14,
+                  8
+                ]
+              },
+              "15": {
+                "kind": "add-across-ten",
+                "numbers": [
+                  6,
+                  5
+                ]
+              },
+              "16": {
+                "kind": "subtract-within-10",
+                "numbers": [
+                  7,
+                  2
+                ]
+              },
+              "17": {
+                "kind": "add-within-10",
+                "numbers": [
+                  1,
+                  8
+                ]
+              },
+              "18": {
+                "kind": "subtract-across-ten",
+                "numbers": [
+                  11,
+                  3
+                ]
+              },
+              "19": {
+                "kind": "add-across-ten",
+                "numbers": [
+                  9,
+                  8
+                ]
+              },
+              "20": {
+                "kind": "subtract-within-10",
+                "numbers": [
+                  5,
+                  4
+                ]
+              }
+            },
+            "tries": {
+              "1": [
+                {
+                  "answer": "7",
+                  "correct": true
+                }
+              ],
+              "2": [
+                {
+                  "answer": "8",
+                  "correct": false
+                },
+                {
+                  "answer": "9",
+                  "correct": true
+                }
+              ],
+              "3": [
+                {
+                  "answer": "14",
+                  "correct": true
+                }
+              ],
+              "4": [
+                {
+                  "answer": "5",
+                  "correct": true
+                }
+              ],
+              "5": [
+                {
+                  "answer": "8",
+                  "correct": false
+                }
+              ]
+            }
+          }
+        ],
+        "undo": null,
+        "marksSinceBreak": 4,
+        "mathRules": {
+          "within": 20,
+          "operations": [
+            "add",
+            "subtract"
+          ]
+        }
+      }
+    ]
+  }
+}

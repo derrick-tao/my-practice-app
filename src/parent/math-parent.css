@@ -1,0 +1,78 @@
+/* Parent area: the math parts of Progress and Lesson preview (src/parent/sections/math-parts.tsx). */
+.preview-rules {
+  margin: 0 0 8px;
+}
+
+.preview-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.preview-kind {
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 2px solid var(--accent);
+}
+
+.preview-samples {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-sample {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 2px solid var(--accent);
+}
+
+.preview-sample__problem {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.preview-sample__answer {
+  font-size: 1.1rem;
+}
+
+.preview-samples__shuffle {
+  min-height: 56px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.progress-tricky__kind {
+  font-weight: 700;
+}
+
+.progress-missed-problem {
+  display: inline-flex;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 0 12px 4px 0;
+}
+
+.progress-missed-problem__equation {
+  font-size: 1.3rem;
+  font-weight: 700;
+}

@@ -3,7 +3,17 @@
 // keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
 import type { ComponentType } from 'preact';
 import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
-import { DictationScreen, PhraseRecognitionScreen, StrokeOrderScreen, type PracticeRouteProps } from '../screens/practice.tsx';
+import {
+  DictationScreen,
+  FactsScreen,
+  MissingNumberScreen,
+  PhraseRecognitionScreen,
+  StrategiesScreen,
+  StrokeOrderScreen,
+  TrueOrFalseScreen,
+  WordProblemsScreen,
+  type PracticeRouteProps,
+} from '../screens/practice.tsx';
 
 export interface PracticeType {
   id: PracticeTypeId;
@@ -43,6 +53,46 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     hasMarks: true,
     screen: PhraseRecognitionScreen,
   },
+  facts: {
+    id: 'facts',
+    label: 'Facts',
+    icon: '⚡',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: FactsScreen,
+  },
+  'missing-number': {
+    id: 'missing-number',
+    label: 'Missing',
+    icon: '🔍',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: MissingNumberScreen,
+  },
+  'true-or-false': {
+    id: 'true-or-false',
+    label: 'True?',
+    icon: '⚖️',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: TrueOrFalseScreen,
+  },
+  'word-problems': {
+    id: 'word-problems',
+    label: 'Stories',
+    icon: '📖',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: WordProblemsScreen,
+  },
+  strategies: {
+    id: 'strategies',
+    label: 'Tricks',
+    icon: '🧠',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: StrategiesScreen,
+  },
 };
 
 /** "37 characters", "1 phrase". */
@@ -52,3 +102,9 @@ export const countLabel = (type: PracticeType, count: number): string =>
 /** "5 characters · 6 phrases": the sizes of a lesson's lists, one per practice type it offers. */
 export const listCountsLabel = (lesson: Pick<LessonSummary, 'practiceTypes'>): string =>
   lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
+
+const SUBJECT_LABELS: Record<string, string> = { chinese: 'Chinese', math: 'Math' };
+
+/** A subject's name as shown to people ("Math"); an unknown subject shows its id with a capital. */
+export const subjectLabel = (subject: string): string =>
+  SUBJECT_LABELS[subject] ?? subject.charAt(0).toUpperCase() + subject.slice(1);

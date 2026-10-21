@@ -1,7 +1,16 @@
 // Validation of lesson files. Every problem names the file, the practice type and item (when relevant) and the rule.
 import { parse as parseYaml } from 'yaml';
 import * as OpenCC from 'opencc-js';
-import { PRACTICE_TYPE_IDS, type PracticeTypeId, type Script } from '../src/content/types.ts';
+import {
+  PRACTICE_TYPE_IDS,
+  PRACTICE_TYPE_SUBJECTS,
+  isListType,
+  type ListTypeId,
+  type PracticeTypeId,
+  type RulesTypeId,
+  type Script,
+} from '../src/content/types.ts';
+import { DEFAULT_RULES, MAX_WITHIN, MIN_WITHIN, OPERATIONS, isOperation, type Rules } from '../src/math/rules.ts';
 
 export interface SourceItem {
   target: string;
@@ -14,10 +23,13 @@ export interface SourceLesson {
   id: string;
   title: string;
   subject: string;
-  script: Script;
+  /** Chinese lessons only. */
+  script?: Script;
   testDates?: string;
-  /** The lesson's lists, one per practice type it offers (each non-empty). */
-  lists: Partial<Record<PracticeTypeId, SourceItem[]>>;
+  /** The lesson's lists, one per list practice type it offers (each non-empty). */
+  lists: Partial<Record<ListTypeId, SourceItem[]>>;
+  /** The lesson's rules, one per rules practice type it offers (math lessons). */
+  rules: Partial<Record<RulesTypeId, Rules>>;
 }
 
 export interface Issue {
@@ -44,11 +56,14 @@ export function formatIssue(issue: Issue): string {
 const SCRIPTS: readonly string[] = ['simplified', 'traditional'];
 const LESSON_KEYS: readonly string[] = ['id', 'title', 'subject', 'script', 'testDates'];
 /** The fields an item may have, per practice type. A lesson's keys are LESSON_KEYS plus one list key per practice type. */
-const ITEM_KEYS: Record<PracticeTypeId, readonly string[]> = {
+const ITEM_KEYS: Record<ListTypeId, readonly string[]> = {
   dictation: ['target', 'clue', 'pinyin', 'say'],
   'stroke-order': ['target', 'clue', 'pinyin', 'say'],
   'phrase-recognition': ['target', 'pinyin', 'say'],
 };
+/** Subjects whose lessons have no script (nothing in them is written text). */
+const SUBJECTS_WITHOUT_SCRIPT: readonly string[] = ['math'];
+const RULES_KEYS: readonly string[] = ['within', 'operations'];
 const HAN = /^\p{Script=Han}+$/u;
 
 const toTraditional = OpenCC.Converter({ from: 'cn', to: 't' });
@@ -94,7 +109,11 @@ export function validateLessonFile(file: string, text: string): FileResult {
   const id = requiredString(doc, 'id', fail);
   const title = requiredString(doc, 'title', fail);
   const subject = requiredString(doc, 'subject', fail);
-  const script = requiredString(doc, 'script', fail);
+  const usesScript = subject === undefined || !SUBJECTS_WITHOUT_SCRIPT.includes(subject);
+  if (!usesScript && doc.script !== undefined) {
+    fail('unknown-key', `unknown lesson field "script" (a ${subject} lesson has no script)`);
+  }
+  const script = usesScript ? requiredString(doc, 'script', fail) : undefined;
   const testDates = optionalString(doc, 'testDates', fail);
 
   const expectedId = file.replace(/^.*\//, '').replace(/\.yaml$/, '');
@@ -109,12 +128,26 @@ export function validateLessonFile(file: string, text: string): FileResult {
   }
 
   const lists: SourceLesson['lists'] = {};
+  const rules: SourceLesson['rules'] = {};
   const present = PRACTICE_TYPE_IDS.filter((type) => doc[type] !== undefined);
   if (present.length === 0) {
-    fail('no-lists', `a lesson needs at least one list of items: ${PRACTICE_TYPE_IDS.map((t) => `"${t}"`).join(' or ')}`);
+    fail('no-lists', `a lesson needs at least one practice type: ${PRACTICE_TYPE_IDS.map((t) => `"${t}"`).join(' or ')}`);
   }
   for (const type of present) {
+    if (subject !== undefined && PRACTICE_TYPE_SUBJECTS[type] !== subject) {
+      fail(
+        'wrong-subject',
+        `"${type}" is a ${PRACTICE_TYPE_SUBJECTS[type]} practice type, but this lesson's subject is "${subject}"`,
+        { practiceType: type },
+      );
+      continue;
+    }
     const raw = doc[type];
+    if (!isListType(type)) {
+      const checked = validateRules(type, raw, fail);
+      if (checked) rules[type] = checked;
+      continue;
+    }
     if (!Array.isArray(raw) || raw.length === 0) {
       fail('empty-list', `the "${type}" list must contain at least one item`, { practiceType: type });
       continue;
@@ -122,7 +155,7 @@ export function validateLessonFile(file: string, text: string): FileResult {
     lists[type] = validateList(type, raw, { subject, script, fail, warnings, file });
   }
 
-  if (errors.length > 0 || !id || !title || !subject || !script) {
+  if (errors.length > 0 || !id || !title || !subject || (usesScript && !script)) {
     return { errors, warnings };
   }
   return {
@@ -130,13 +163,55 @@ export function validateLessonFile(file: string, text: string): FileResult {
       id,
       title,
       subject,
-      script: script as Script,
+      ...(script !== undefined && { script: script as Script }),
       ...(testDates !== undefined && { testDates }),
       lists,
+      rules,
     },
     errors,
     warnings,
   };
+}
+
+/** Validate a rules practice type's rules (a mapping, possibly empty); returns them with the defaults filled in. */
+function validateRules(type: PracticeTypeId, raw: unknown, fail: (rule: string, message: string, at?: Place) => void): Rules | undefined {
+  const at: Place = { practiceType: type };
+  if (raw === null) return { ...DEFAULT_RULES, operations: [...DEFAULT_RULES.operations] };
+  if (!isRecord(raw)) {
+    fail('invalid-value', `the "${type}" rules must be a mapping (such as "within: 20"), not a list or a single value`, at);
+    return undefined;
+  }
+  let ok = true;
+  const invalid = (rule: string, message: string): void => {
+    ok = false;
+    fail(rule, message, at);
+  };
+  for (const key of Object.keys(raw)) {
+    if (!RULES_KEYS.includes(key)) invalid('unknown-key', `unknown rule "${key}" (allowed: ${RULES_KEYS.join(', ')})`);
+  }
+
+  let within = DEFAULT_RULES.within;
+  if (raw.within !== undefined) {
+    const value = raw.within;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < MIN_WITHIN || value > MAX_WITHIN) {
+      invalid('invalid-value', `"within" must be a whole number from ${MIN_WITHIN} to ${MAX_WITHIN} (got ${JSON.stringify(value)})`);
+    } else {
+      within = value;
+    }
+  }
+
+  let operations: Rules['operations'] = [...DEFAULT_RULES.operations];
+  if (raw.operations !== undefined) {
+    const value = raw.operations;
+    if (!Array.isArray(value) || value.length === 0) {
+      invalid('invalid-value', `"operations" must be a list with at least one of ${OPERATIONS.join(', ')}`);
+    } else {
+      const unknown = value.filter((op) => !isOperation(op));
+      for (const op of unknown) invalid('invalid-value', `"operations" has "${String(op)}", which is not one of ${OPERATIONS.join(', ')}`);
+      if (unknown.length === 0) operations = OPERATIONS.filter((op) => value.includes(op));
+    }
+  }
+  return ok ? { within, operations } : undefined;
 }
 
 interface Place {
@@ -154,7 +229,7 @@ interface ListContext {
 }
 
 /** Validate one practice type's list; returns the items that are usable (the caller only keeps them when the file has no errors). */
-function validateList(type: PracticeTypeId, rawItems: unknown[], context: ListContext): SourceItem[] {
+function validateList(type: ListTypeId, rawItems: unknown[], context: ListContext): SourceItem[] {
   const { file, subject, script, fail, warnings } = context;
   const itemKeys = ITEM_KEYS[type];
   const items: SourceItem[] = [];

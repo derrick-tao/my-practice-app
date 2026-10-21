@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { fetchLessonWithVersion } from '../content/client.ts';
-import type { ItemData, LessonData, PracticeTypeId, Rendition } from '../content/types.ts';
+import { isRulesType, type ItemData, type LessonData, type ListTypeId, type PracticeTypeId, type Rendition } from '../content/types.ts';
 import { useAudioPlayer } from '../practice/audio.ts';
-import { Celebration } from '../practice/celebration.tsx';
 import { createEffects } from '../practice/effects.ts';
 import { loadKaiFont } from '../practice/kai-font.ts';
-import { createRandomSource } from '../practice/random.ts';
+import { realEnv } from '../practice/real-env.ts';
 import { currentSettings, openSession } from '../practice/resume.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
 import {
@@ -38,25 +37,11 @@ import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import type { ProfileSettings } from '../storage/types.ts';
 import { useLoad } from '../use-async.ts';
+import { MathRun } from './math-practice.tsx';
 import { flowOf, NoScope, type FlowProps } from './practice-flows.tsx';
+import { BreakPrompt, Completion, HomeButton, LessonNotFound, RoundSummary } from './practice-parts.tsx';
 
-function HomeButton() {
-  return (
-    <a class="home-button" href={HOME_HREF}>
-      <span aria-hidden="true">🏠 </span>Home
-    </a>
-  );
-}
-
-/** The address named no lesson we have (unknown lesson, or a subject / practice type it does not belong to). */
-export function LessonNotFound() {
-  return (
-    <main class="screen">
-      <HomeButton />
-      <p class="notice">We couldn't find this lesson.</p>
-    </main>
-  );
-}
+export { LessonNotFound };
 
 /** What a practice screen is given by its route. */
 export interface PracticeRouteProps {
@@ -66,6 +51,11 @@ export interface PracticeRouteProps {
 
 export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
 export const StrokeOrderScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="stroke-order" />;
+export const FactsScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="facts" />;
+export const MissingNumberScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="missing-number" />;
+export const TrueOrFalseScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="true-or-false" />;
+export const WordProblemsScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="word-problems" />;
+export const StrategiesScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="strategies" />;
 export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
   <PracticeScreen {...props} practiceType="phrase-recognition" />
 );
@@ -114,12 +104,6 @@ const AFTER_EFFECT_GAP_MS = 50;
  */
 const MAX_HELD_AUDIO_MS = 900;
 
-const realEnv = (): PracticeEnv => ({
-  random: createRandomSource(),
-  now: () => new Date().toISOString(),
-  newId: () => crypto.randomUUID(),
-});
-
 /** Continues the saved session for this lesson and practice type, or starts and saves a new one, before showing practice. */
 function OpenPractice({
   lesson,
@@ -145,6 +129,9 @@ function OpenPractice({
   const result = opened.status === 'ready' ? opened.value : undefined;
   if (result) {
     const { session, resumed, breakEvery, sounds, strokeSpeed, strokePauseSeconds } = result;
+    if (isRulesType(practiceType)) {
+      return <MathRun lesson={lesson} practiceType={practiceType} env={env} initial={session} breakEvery={breakEvery} sounds={sounds} />;
+    }
     return (
       <PracticeRun
         lesson={lesson}
@@ -183,7 +170,7 @@ function PracticeRun({
   strokePauseSeconds,
 }: {
   lesson: LessonData;
-  practiceType: PracticeTypeId;
+  practiceType: ListTypeId;
   env: PracticeEnv;
   initial: Session;
   /** Continuing saved progress: audio must wait for the child's tap (iOS gesture rules). */
@@ -430,71 +417,3 @@ function PracticeRun({
   );
 }
 
-function BreakPrompt({ onKeepGoing, onBreak }: { onKeepGoing: () => void; onBreak: () => void }) {
-  return (
-    <section class="break-prompt" data-testid="break-prompt">
-      <p class="break-prompt__title">
-        <span aria-hidden="true">🌟 </span>Great job! Take a break?
-      </p>
-      <div class="row row--primary">
-        <button type="button" class="btn btn--primary" onClick={onKeepGoing}>
-          <span aria-hidden="true">▶️ </span>Keep going
-        </button>
-        <button type="button" class="btn" onClick={onBreak}>
-          <span aria-hidden="true">🏠 </span>Break
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function RoundSummary({
-  correct,
-  wrong,
-  retryCount,
-  onRetry,
-}: {
-  correct: number;
-  wrong: number;
-  /** Missed words that can be practiced again (a miss on a since-removed word cannot). */
-  retryCount: number;
-  onRetry: () => void;
-}) {
-  return (
-    <section class="summary" data-testid="round-summary">
-      <div class="summary__counts">
-        <span class="count count--good">
-          <span aria-hidden="true">✅ </span>
-          <span data-testid="correct-count">{correct}</span>
-        </span>
-        <span class="count count--bad">
-          <span aria-hidden="true">❌ </span>
-          <span data-testid="wrong-count">{wrong}</span>
-        </span>
-      </div>
-      {retryCount > 0 && (
-        <>
-          <p class="summary__more">Let's practice {retryCount} more!</p>
-          <button type="button" class="btn btn--primary btn--retry" onClick={onRetry}>
-            <span aria-hidden="true">🔁 </span>Practice the ❌ words
-          </button>
-        </>
-      )}
-    </section>
-  );
-}
-
-function Completion({ lines }: { lines: string[] }) {
-  return (
-    <section class="summary completion" data-testid="completion">
-      <Celebration />
-      <p class="completion__title">
-        <span aria-hidden="true">🎉 </span>You did it!
-      </p>
-      {lines.map((line) => (
-        <p class="completion__line">{line}</p>
-      ))}
-      <HomeButton />
-    </section>
-  );
-}

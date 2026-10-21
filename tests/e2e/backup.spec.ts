@@ -111,7 +111,7 @@ function withLearner(backup: BackupJson, change: Record<string, unknown>): strin
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
 const TWO_LEARNERS: SavedData = {
   app: {
-    schemaVersion: 4,
+    schemaVersion: 5,
     profiles: [
       profile('p-leo', 'Leo', '🦊'),
       withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5, learning: false }),
@@ -149,7 +149,7 @@ test.describe('export', () => {
       expect.objectContaining({
         appId: 'my-practice-app',
         kind: 'backup',
-        schemaVersion: 4,
+        schemaVersion: 5,
         exportedAt: expect.stringMatching(/^2026-10-18T12:00:/),
       }),
     );
@@ -328,6 +328,38 @@ test.describe('import', () => {
     await expect(page.getByRole('heading', { name: 'Hi 🦁 Zoe!' })).toBeVisible();
   });
 
+  test('a backup with a true-or-false session holding a subtraction (a negative saved number) imports and comes back unchanged', async ({ page }) => {
+    await setUpLearner(page, { name: 'Mia', avatar: '🐼' });
+    // `7 = 8 − 1` is saved as the numbers [7, 8, -1]: a negative second addend means a subtraction.
+    const mathSession: SessionJson = {
+      ...session('s-math', 'p-zoe', 'fixture-math', 'active', '2026-10-10T12:00:00.000Z'),
+      subject: 'math',
+      practiceType: 'true-or-false',
+      mathRules: { within: 20, operations: ['add', 'subtract'] },
+      rounds: [
+        {
+          index: 1,
+          itemIds: ['1', '2'],
+          position: 1,
+          phase: 'prompt',
+          heardCurrent: false,
+          marks: { '1': 'correct' },
+          startedAt: '2026-10-10T12:00:00.000Z',
+          problems: { '1': { kind: 'answer-left', numbers: [7, 8, -1] }, '2': { kind: 'answer-left', numbers: [9, 8, -1] } },
+          tries: { '1': [{ answer: 'true', correct: true }] },
+        },
+      ],
+    };
+    const data: SavedData = { app: TWO_LEARNERS.app, sessions: [mathSession] };
+
+    await openBackupSection(page);
+    await chooseBackupFile(page, backupFile(data, '2026-10-12T08:00:00.000Z'));
+    await expect(page.getByTestId('import-attempts')).toHaveText('1');
+    await confirmImport(page);
+
+    expect(await savedNow(page)).toEqual({ ...data, app: { ...data.app, parent: {} } });
+  });
+
   test('a file that is not a backup is rejected with a message, and nothing changes', async ({ page }) => {
     await setUpLearner(page, { name: 'Mia', avatar: '🐼' });
     const before = await savedNow(page);
@@ -371,8 +403,8 @@ test.describe('import', () => {
     const before = await savedNow(page);
     const newer = {
       ...backupFile(TWO_LEARNERS, '2026-10-12T08:00:00.000Z'),
-      schemaVersion: 5,
-      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 5, somethingNew: true } },
+      schemaVersion: 6,
+      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 6, somethingNew: true } },
     };
 
     await chooseBackupFile(page, JSON.stringify(newer));

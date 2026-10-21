@@ -1,7 +1,8 @@
 // Finding and (re)opening the learner's sessions through the StorageAdapter.
-import type { LessonData, PracticeTypeId } from '../content/types.ts';
+import { isListType, isRulesType, type LessonData, type PracticeTypeId } from '../content/types.ts';
 import { activeProfileOf } from '../profiles.ts';
 import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
+import { createMathSession } from './math-session.ts';
 import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
 
 /** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
@@ -60,7 +61,7 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
  */
 export async function openSession(
   storage: StorageAdapter,
-  lesson: Pick<LessonData, 'id' | 'subject' | 'lists'>,
+  lesson: Pick<LessonData, 'id' | 'subject' | 'lists' | 'rules'>,
   options: { practiceType: PracticeTypeId; contentVersion: string; shuffle: boolean; learning: boolean },
   env: PracticeEnv,
 ): Promise<OpenedSession | undefined> {
@@ -68,7 +69,19 @@ export async function openSession(
   const saved = (
     await storage.listSessions(profileId, { lessonId: lesson.id, practiceType: options.practiceType, status: 'active' })
   ).reduce<Session | undefined>((best, session) => (best ? moreRecentlyUsed(best, session) : session), undefined);
-  const items = lesson.lists[options.practiceType];
+  if (isRulesType(options.practiceType)) {
+    // A math session holds generated problems, not a list: there is nothing to reconcile with the lesson, and a
+    // saved session carries the rules it started with. Only a lesson that dropped the practice type stops it.
+    const offered = lesson.rules?.[options.practiceType] !== undefined;
+    if (saved) {
+      const kept = offered ? saved : { ...saved, status: 'stopped' as const, undo: null };
+      return { session: await storage.putSession(kept), resumed: true };
+    }
+    if (!offered) return undefined;
+    const session = createMathSession(lesson, { ...options, practiceType: options.practiceType, profileId }, env);
+    return { session: await storage.putSession(session), resumed: false };
+  }
+  const items = isListType(options.practiceType) ? lesson.lists[options.practiceType] : undefined;
   if (saved) {
     // Reconcile with the lesson as it is now (the parent may have edited it since the session was saved).
     const settled = reconcileWithList(saved, new Set((items ?? []).map((item) => item.target)), env);

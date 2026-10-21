@@ -1,0 +1,21 @@
+/* The True and False buttons of a true-or-false math problem: far bigger than a number key, side by side. */
+.true-false-pad {
+  gap: 16px;
+}
+
+.true-false-pad__button {
+  min-height: 132px;
+  font-size: clamp(2rem, 8vmin, 3rem);
+}
+
+/* A whole equation is longer than a sum to work out ("12 + 7 = 7 + 12"), so it is set smaller, with the verdict under it. */
+.math__problem--equation {
+  font-size: clamp(1.8rem, 8.5vw, 3.2rem);
+}
+
+.math__problem--equation .math__answer {
+  display: block;
+  margin: 8px auto 0;
+  min-width: 0;
+  width: fit-content;
+}
