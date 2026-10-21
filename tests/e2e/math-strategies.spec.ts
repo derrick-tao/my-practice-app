@@ -69,7 +69,7 @@ test.describe('a Tricks session', () => {
       const kind = kindOfShown(problem);
       expect(STEPS_OF[kind]).toContain(problem.lines.length);
       checkShape(problem); // the school's worked form of that kind, with its arithmetic right
-      for (const earlier of problem.lines.slice(0, -1)) expect(earlier).not.toContain('?');
+      for (const earlier of problem.lines.slice(0, -1)) expect(earlier).not.toContain('☐');
       for (const number of (problem.lines.join(' ') + (problem.given ?? '')).match(/\d+/g)!) expect(Number(number)).toBeLessThanOrEqual(20);
     }
     await expect(tricks.completion).toBeVisible();
@@ -92,7 +92,7 @@ test.describe('a Tricks session', () => {
     const tricks = await start({ page, audio });
     const first = await tricks.read();
     expect(first.lines).toHaveLength(1);
-    expect(first.lines[0]).toContain('?');
+    expect(first.lines[0]).toContain('☐');
     await expect(page.getByTestId('answer')).toHaveCount(1);
     for (const digit of '0123456789') await expect(page.getByRole('button', { name: digit, exact: true })).toBeVisible();
     await expect(tricks.undo).toHaveCount(0);
@@ -102,8 +102,8 @@ test.describe('a Tricks session', () => {
 
     const second = await tricks.read();
     expect(second.lines).toHaveLength(2);
-    expect(second.lines[0]).not.toContain('?'); // the first step stays, with its answer
-    expect(second.lines[1]).toContain('?');
+    expect(second.lines[0]).not.toContain('☐'); // the first step stays, with its answer
+    expect(second.lines[1]).toContain('☐');
     await expect(page.getByTestId('answer')).toHaveCount(1);
     await expect(tricks.progress).toHaveText('0 / 20'); // not counted until the whole problem is done
   });
@@ -121,7 +121,8 @@ test.describe('a Tricks session', () => {
     await page.getByRole('button', { name: wrongDigit, exact: true }).click();
     await expect(page.getByTestId('answer')).toHaveText(wrongDigit);
     await page.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByTestId('answer')).toHaveText('?');
+    await expect(page.getByTestId('answer')).toHaveText('');
+    await expect(page.getByTestId('answer')).toHaveAccessibleName('blank');
     await tricks.submit(answer);
 
     await expect(tricks.steps).toHaveCount(2);
@@ -166,7 +167,7 @@ test.describe('marks: ✅ only if every step is right on its first try', () => {
     await tricks.next.click();
     await expect(tricks.steps).toHaveCount(2);
     await expect(tricks.feedback).toHaveCount(0);
-    expect((await tricks.read()).lines[0]).not.toContain('?');
+    expect((await tricks.read()).lines[0]).not.toContain('☐');
   });
 
   test('wrong twice on a step shows its answer and a one-line explanation, plays the ❌ sound only then, and moves on to the next step', async ({
@@ -400,7 +401,7 @@ test.describe('reloading resumes the exact state, mid-problem too', () => {
     const rest = await tricks.playRound();
     expect(rest).toHaveLength(18);
     expect(rest[0]!.given).toBe(shown.given);
-    const firstLine = shown.lines[0]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('\\?', '\\d+');
+    const firstLine = shown.lines[0]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('☐', '\\d+');
     expect(rest[0]!.lines[0]).toMatch(new RegExp(`^${firstLine}$`)); // the same problem, its blank now filled
   });
 

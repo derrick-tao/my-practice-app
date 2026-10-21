@@ -40,10 +40,10 @@ export interface MathPracticeType {
   equation(problem: Problem): string;
   /**
    * A type whose answer is not at the end of the equation (a blank in the middle, or on the left of "=") gives the
-   * text on each side of the blank, and the glyph that marks it while it is empty. The screen puts the learner's
-   * digits in the blank. A type without `frame` ends its `equation` where the answer goes.
+   * text on each side of the blank. The screen draws the blank as a box and puts the learner's digits in it (plain
+   * text, as in the parent area, writes it as ☐). A type without `frame` ends its `equation` where the answer goes.
    */
-  frame?(problem: Problem): { before: string; after: string; blank: string };
+  frame?(problem: Problem): { before: string; after: string };
   /** The number that is the answer (for a true-false type, 1 or 0). */
   answer(problem: Problem): number;
   /**

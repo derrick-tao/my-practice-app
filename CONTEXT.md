@@ -35,7 +35,7 @@ The practice type where the learner hears a character, watches it drawn one stro
 _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
 
 **Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
-The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ?`); an equation with the blank anywhere (`8 + ? = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
+The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ☐`); an equation with the blank anywhere (`8 + ☐ = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
 
 **Rules**:
 A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
@@ -49,7 +49,7 @@ What a math item practices, e.g. "adding across ten". A session's 20 items are s
 _Avoid_: Template, shape, question type
 
 **Problem**:
-The particular numbers a math item shows in one round, e.g. `8 + 6 = ?`. A ❌ item gets a new problem of the same kind in the next round.
+The particular numbers a math item shows in one round, e.g. `8 + 6 = ☐`. A ❌ item gets a new problem of the same kind in the next round.
 _Avoid_: Question, exercise
 
 **Target**:

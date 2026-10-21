@@ -95,7 +95,8 @@ test.describe('a Stories session', () => {
 
     await stories.read();
     for (const digit of '0123456789') await expect(page.getByRole('button', { name: digit, exact: true })).toBeVisible();
-    await expect(stories.answerBox).toHaveText('?');
+    await expect(stories.answerBox).toHaveText('');
+    await expect(stories.answerBox).toHaveAccessibleName('blank');
     await expect(stories.undo).toHaveCount(0);
     await expect(page.getByTestId('timer')).toHaveCount(0);
   });
@@ -183,9 +184,9 @@ test.describe('tries and the worked equation', () => {
         // It adds in an adding story and takes away in the rest, the whole first when it takes away.
         expect(op, strategy).toBe(ADDING_KINDS.includes(story.kind) ? '+' : '−');
         if (op === '−') expect(a, strategy).toBeGreaterThan(result);
-        // The unknown shows as "?" in the equation first when the story asks for the change or the start.
+        // The unknown shows as ☐ in the equation first when the story asks for the change or the start (never as a "?").
         const asksForPart = ['add-change', 'add-start', 'take-change', 'take-start'].includes(story.kind);
-        expect(strategy.includes('?'), strategy).toBe(asksForPart);
+        expect(strategy.includes('☐'), strategy).toBe(asksForPart);
         expect(strategy, strategy).toContain(String(story.answer));
       },
     );

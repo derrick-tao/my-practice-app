@@ -95,7 +95,8 @@ test.describe('a Facts session', () => {
     await page.getByRole('button', { name: String((answer + 3) % 10), exact: true }).click();
     await expect(facts.problem).toContainText(`= ${(answer + 3) % 10}`);
     await page.getByRole('button', { name: 'Delete' }).click();
-    await expect(facts.problem).toContainText('= ?');
+    await expect(facts.problem.getByRole('img', { name: 'blank' })).toBeVisible();
+    await expect(facts.problem).not.toContainText('?');
     await facts.submit(answer);
 
     await expect(facts.progress).toHaveText('1 / 20');

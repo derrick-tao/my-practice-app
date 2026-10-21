@@ -9,7 +9,7 @@ import type { RandomSource } from '../practice/random.ts';
 import type { Problem } from './problem.ts';
 import type { Operation, Rules } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
-import { MINUS } from './util.ts';
+import { BLANK, MINUS } from './util.ts';
 
 type StoryKind =
   | 'add-result'
@@ -156,13 +156,13 @@ export const wordProblems: MathPracticeType = {
     // The equation the story is about, with the answer in place; stories that ask for a part show the unknown first.
     switch (kind) {
       case 'add-change':
-        return `${x} + ? = ${z}, so ${x} + ${y} = ${z}`;
+        return `${x} + ${BLANK} = ${z}, so ${x} + ${y} = ${z}`;
       case 'add-start':
-        return `? + ${y} = ${z}, so ${x} + ${y} = ${z}`;
+        return `${BLANK} + ${y} = ${z}, so ${x} + ${y} = ${z}`;
       case 'take-change':
-        return `${z} ${MINUS} ? = ${x}, so ${z} ${MINUS} ${y} = ${x}`;
+        return `${z} ${MINUS} ${BLANK} = ${x}, so ${z} ${MINUS} ${y} = ${x}`;
       case 'take-start':
-        return `? ${MINUS} ${y} = ${x}, so ${z} ${MINUS} ${y} = ${x}`;
+        return `${BLANK} ${MINUS} ${y} = ${x}, so ${z} ${MINUS} ${y} = ${x}`;
       case 'apart-part':
       case 'compare-difference':
         return `${z} ${MINUS} ${x} = ${y}`;

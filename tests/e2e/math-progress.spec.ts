@@ -182,10 +182,10 @@ test.describe('parent progress for a math lesson', () => {
     await expect(rounds.nth(0)).toContainText('❌ 3');
     const first = rounds.nth(0).getByTestId('missed-problem');
     await expect(first).toHaveCount(3);
-    await expect(first.nth(0)).toHaveText('13 − 4 = ?answered 8, then 9');
-    await expect(first.nth(1)).toHaveText('15 − 7 = ?answered 9, then 6');
-    await expect(first.nth(2)).toHaveText('9 + 4 = ?answered 12, then 13');
-    await expect(rounds.nth(1).getByTestId('missed-problem')).toHaveText(['16 − 9 = ?answered 8, then 7']);
+    await expect(first.nth(0)).toHaveText('13 − 4 = ☐answered 8, then 9');
+    await expect(first.nth(1)).toHaveText('15 − 7 = ☐answered 9, then 6');
+    await expect(first.nth(2)).toHaveText('9 + 4 = ☐answered 12, then 13');
+    await expect(rounds.nth(1).getByTestId('missed-problem')).toHaveText(['16 − 9 = ☐answered 8, then 7']);
     await expect(rounds.nth(2).getByTestId('missed-problem')).toHaveCount(0);
     await expect(page.getByText(/Problem \d/)).toHaveCount(0);
   });
@@ -197,7 +197,7 @@ test.describe('parent progress for a math lesson', () => {
 
     await facts(page).getByTestId('attempt').nth(1).click(); // Oct 3, stopped
     await expect(page.getByTestId('round')).toHaveCount(1);
-    await expect(page.getByTestId('missed-problem')).toHaveText(['17 − 8 = ?answered 8, then 10']);
+    await expect(page.getByTestId('missed-problem')).toHaveText(['17 − 8 = ☐answered 8, then 10']);
   });
 });
 
@@ -225,7 +225,7 @@ test.describe('progress after real Facts practice', () => {
     await expect(tricky).toContainText(labels[kindOf(missedProblem)]!);
     await expect(tricky).toContainText('❌ 1 of 5'); // a session spreads its 20 problems evenly: 5 of each kind
     await facts(page).getByTestId('attempt').click();
-    await expect(page.getByTestId('missed-problem')).toHaveText([`${textOf(missedProblem)} = ?answered ${wrongAnswer}, then ${wrongAnswer}`]);
+    await expect(page.getByTestId('missed-problem')).toHaveText([`${textOf(missedProblem)} = ☐answered ${wrongAnswer}, then ${wrongAnswer}`]);
   });
 });
 
