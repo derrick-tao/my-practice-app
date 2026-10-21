@@ -1,0 +1,6 @@
+# Math fixture: true-or-false with subtracting only, to check a lesson's rules reach the problems.
+id: fixture-math-tf-sub
+title: Fixture Subtracting Only
+subject: math
+true-or-false:
+  operations: [subtract]

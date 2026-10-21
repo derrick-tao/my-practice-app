@@ -41,8 +41,21 @@ function sample(type: MathPracticeType, rules: Rules, kind: string, count: numbe
   });
   const fresh = distinct.filter((problem) => !used.has(type.key(problem)));
   const rest = distinct.filter((problem) => used.has(type.key(problem)));
-  const picked = [...fresh, ...rest].slice(0, count);
+  const picked = [...balanced(type, fresh, random), ...rest].slice(0, count);
   // A pool smaller than the need (never so for the shipped rules) cycles rather than failing.
   while (picked.length < count) picked.push(picked[picked.length % Math.max(1, picked.length)] ?? distinct[0]!);
   return picked;
+}
+
+/** For a type with groups (true, false): the problems taken alternately from each group, starting with a random one. */
+function balanced(type: MathPracticeType, problems: Problem[], random: RandomSource): Problem[] {
+  if (!type.groupOf) return problems;
+  const groups = new Map<string, Problem[]>();
+  for (const problem of problems) {
+    const name = type.groupOf(problem);
+    groups.set(name, [...(groups.get(name) ?? []), problem]);
+  }
+  const lists = shuffled([...groups.values()], random);
+  const longest = Math.max(0, ...lists.map((list) => list.length));
+  return Array.from({ length: longest }, (_, i) => lists.flatMap((list) => (i < list.length ? [list[i]!] : []))).flat();
 }
