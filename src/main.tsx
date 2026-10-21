@@ -8,3 +8,6 @@ import './practice.css';
 render(<App />, document.getElementById('app')!);
 void requestPersistenceOnFirstRun();
 registerServiceWorker();
+
+// iOS Safari ignores user-scalable=no for pinch, so cancel the pinch gesture itself.
+document.addEventListener('gesturestart', (event) => event.preventDefault());

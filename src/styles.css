@@ -17,6 +17,12 @@ body {
   min-height: 100dvh;
 }
 
+/* No zoom: children zoom by accident on a tablet. "manipulation" stops double-tap zoom (pinch is cancelled in main.tsx). */
+html,
+body {
+  touch-action: manipulation;
+}
+
 .screen {
   max-width: 960px;
   margin: 0 auto;
