@@ -9,6 +9,10 @@
 export interface Problem {
   kind: string;
   numbers: number[];
+  /** Word problems: who the story is about, the second person if it has one, and the object (one emoji). */
+  name?: string;
+  friend?: string;
+  object?: string;
 }
 
 /** One answer the learner submitted for a problem. */

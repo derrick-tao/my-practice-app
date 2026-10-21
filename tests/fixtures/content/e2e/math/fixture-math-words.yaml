@@ -1,0 +1,6 @@
+# Math fixture for the Word problems (Stories) specs: default rules (within 20, add and subtract).
+id: fixture-math-words
+title: Fixture Stories
+subject: math
+word-problems:
+  within: 20

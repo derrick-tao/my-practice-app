@@ -1,0 +1,6 @@
+# Math fixture: Stories with adding only, to check a lesson's rules reach the stories.
+id: fixture-math-words-add
+title: Fixture Adding Stories
+subject: math
+word-problems:
+  operations: [add]

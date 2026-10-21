@@ -4,6 +4,7 @@
 import type { ComponentType } from 'preact';
 import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
 import { DictationScreen, FactsScreen, PhraseRecognitionScreen, StrokeOrderScreen, type PracticeRouteProps } from '../screens/practice.tsx';
+import { WordProblemsScreen } from '../screens/practice.tsx';
 
 export interface PracticeType {
   id: PracticeTypeId;
@@ -50,6 +51,14 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     itemNoun: { singular: 'problem', plural: 'problems' },
     hasMarks: true,
     screen: FactsScreen,
+  },
+  'word-problems': {
+    id: 'word-problems',
+    label: 'Stories',
+    icon: '📖',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: WordProblemsScreen,
   },
 };
 

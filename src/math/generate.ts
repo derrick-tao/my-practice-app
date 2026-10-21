@@ -19,7 +19,7 @@ export function generateProblems(type: MathPracticeType, rules: Rules, random: R
     const share = Math.floor(count / kinds.length) + (extra.has(kind) ? 1 : 0);
     for (const problem of sample(type, rules, kind, share, used, random)) {
       used.add(type.key(problem));
-      chosen.push(problem);
+      chosen.push(decorated(type, problem, random));
     }
   }
   return shuffled(chosen, random);
@@ -27,8 +27,11 @@ export function generateProblems(type: MathPracticeType, rules: Rules, random: R
 
 /** A new problem of the same kind for a retry round: one the session has not used (`used` holds their keys) while the pool lasts. */
 export function generateReplacement(type: MathPracticeType, rules: Rules, kind: string, used: ReadonlySet<string>, random: RandomSource): Problem {
-  return sample(type, rules, kind, 1, used, random)[0]!;
+  return decorated(type, sample(type, rules, kind, 1, used, random)[0]!, random);
 }
+
+/** The problem with what the practice type chooses at random (a story's names and object) filled in. */
+const decorated = (type: MathPracticeType, problem: Problem, random: RandomSource): Problem => type.decorate?.(problem, random) ?? problem;
 
 /** `count` distinct problems of a kind, preferring ones not in `used`; repeats only if the pool is smaller than the need. */
 function sample(type: MathPracticeType, rules: Rules, kind: string, count: number, used: ReadonlySet<string>, random: RandomSource): Problem[] {

@@ -29,6 +29,7 @@ import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
+import './math-stories.css';
 
 /** The answer is at most 100: three digits are enough. */
 const MAX_DIGITS = 3;
@@ -132,6 +133,14 @@ export function MathRun({
   const settled = round.phase === 'revealed';
   const onBreakPrompt = breakDue(session, breakEvery);
   const spots = new Set(round.itemIds);
+  /** A type with pictures tells stories: the text, the pictures, and then the answer box. */
+  const story = type.pictures !== undefined;
+  const pictures = problem ? (type.pictures?.(problem) ?? []) : [];
+  const answerBox = problem && (
+    <span class="math__answer" data-testid="answer">
+      {settled ? type.answer(problem) : entry === '' ? '?' : entry}
+    </span>
+  );
 
   return (
     <main class="screen practice">
@@ -146,13 +155,21 @@ export function MathRun({
       {!onBreakPrompt && problem && !isRoundOver(round) && (
         <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
           <div class="practice__stage">
-            <div class="math">
-              <p class="math__problem" data-testid="problem">
-                {type.equation(problem)}{' '}
-                <span class="math__answer" data-testid="answer">
-                  {settled ? type.answer(problem) : entry === '' ? '?' : entry}
-                </span>
+            <div class={story ? 'math math--story' : 'math'}>
+              <p class={story ? 'math__problem math__problem--story' : 'math__problem'} data-testid="problem">
+                {type.equation(problem)}
+                {!story && <> {answerBox}</>}
               </p>
+              {pictures.length > 0 && (
+                <div class="math__pictures" data-testid="pictures" aria-hidden="true">
+                  {pictures.map((row, i) => (
+                    <p class="math__picture-row" data-testid="picture-row" key={i}>
+                      {row}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {story && <p class="math__problem">{answerBox}</p>}
               {outcome && (
                 <p class="math__feedback" role="status" data-testid="feedback">
                   {outcome === 'missed' ? `The answer is ${type.answer(problem)}` : FEEDBACK[outcome]}
