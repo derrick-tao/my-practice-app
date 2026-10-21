@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks';
-import { useAppRecord } from '../app-context.tsx';
+import { useAppRecord, useProblemCount } from '../app-context.tsx';
 import { ConfirmYesNo } from '../confirm.tsx';
 import type { LessonSummary } from '../content/types.ts';
 import { usePublishedLessons } from '../content/use-lessons.ts';
-import { countLabel, PRACTICE_TYPES, subjectLabel } from '../practice/practice-types.tsx';
+import { countLabel, itemsIn, PRACTICE_TYPES, subjectLabel } from '../practice/practice-types.tsx';
 import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
@@ -17,6 +17,7 @@ import { useSave } from '../use-save.ts';
 
 /** A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count. */
 function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
+  const problemCount = useProblemCount();
   return (
     <section class="lesson-card" role="group" aria-label={lesson.title}>
       <span class="lesson-card__title">{lesson.title}</span>
@@ -33,7 +34,7 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
         return (
           <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
             <span aria-hidden="true">{type.icon} </span>
-            {type.label} · {countLabel(type, itemCount)}
+            {type.label} · {countLabel(type, itemsIn(id, itemCount, problemCount))}
             <span class="sr-only"> for {lesson.title}</span>
           </a>
         );

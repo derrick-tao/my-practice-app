@@ -3,10 +3,10 @@
 // #/parent/lesson-preview/<lessonId> is one lesson's preview. A math practice type shows its rules, problem kinds and
 // 5 sample problems with a 🔀 for new ones (src/parent/math-parts.tsx).
 import { useMemo } from 'preact/hooks';
+import { useProblemCount } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
 import { listEntries, rulesEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
-import { SESSION_SIZE } from '../../math/rules.ts';
 import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
@@ -68,6 +68,7 @@ function PreviewSection({ player, type, items }: { player: AudioPlayer; type: Pr
 }
 
 function Preview({ lesson }: { lesson: LessonData }) {
+  const problemCount = useProblemCount();
   const player = useAudioPlayer();
   const lists = listEntries(lesson.lists);
   const rules = rulesEntries(lesson.rules);
@@ -86,7 +87,7 @@ function Preview({ lesson }: { lesson: LessonData }) {
             <span key={id}>{countLabel(PRACTICE_TYPES[id], items.length)}</span>
           ))}
           {rules.map(([id]) => (
-            <span key={id}>{countLabel(PRACTICE_TYPES[id], SESSION_SIZE)}</span>
+            <span key={id}>{countLabel(PRACTICE_TYPES[id], problemCount)}</span>
           ))}
         </div>
       </div>
@@ -118,6 +119,7 @@ function LessonPreview({ lessonId }: { lessonId: string }) {
 
 function Lessons() {
   const lessons = usePublishedLessons();
+  const problemCount = useProblemCount();
   if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
   if (lessons.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
   return (
@@ -126,7 +128,7 @@ function Lessons() {
         <li key={lesson.id}>
           <a class="parent__entry" href={parentHref('lesson-preview', lesson.id)}>
             {lesson.title}
-            <span> · {listCountsLabel(lesson)}</span>
+            <span> · {listCountsLabel(lesson, problemCount)}</span>
           </a>
         </li>
       ))}

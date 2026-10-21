@@ -1,5 +1,5 @@
 // Math practice state: the same Session -> Round -> Mark shape as every practice type, with a generated Problem at
-// each of the round's numbered spots ("1" to "20") and the Tries made at it. Pure like session.ts: each function
+// each of the round's numbered spots ("1" to the session's size) and the Tries made at it. Pure like session.ts: each function
 // takes a session and returns the next one (or the same object when the action does not apply).
 //
 // One problem is one or more steps (blanks): Facts has one, a Strategies problem several. Each step goes: first try
@@ -37,13 +37,14 @@ export interface MathLesson {
   rules?: Partial<Record<RulesTypeId, Rules>>;
 }
 
+/** A new session of `problemCount` problems (the profile's setting when it starts). The size is then fixed: it is the number of the round's spots. */
 export function createMathSession(
   lesson: MathLesson,
-  options: { practiceType: RulesTypeId; contentVersion: string; profileId?: string },
+  options: { practiceType: RulesTypeId; contentVersion: string; profileId?: string; problemCount: number },
   env: PracticeEnv,
 ): Session {
   const rules = lesson.rules?.[options.practiceType] ?? DEFAULT_RULES;
-  const generated = generateProblems(MATH_TYPES[options.practiceType], rules, env.random);
+  const generated = generateProblems(MATH_TYPES[options.practiceType], rules, env.random, options.problemCount);
   const now = env.now();
   return {
     id: env.newId(),

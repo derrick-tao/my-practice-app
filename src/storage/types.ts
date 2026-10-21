@@ -1,10 +1,11 @@
 // The StorageAdapter: the only way the UI and the practice flow reach learner data. v1 implements it
 // with IndexedDB (idb.ts); a future implementation can talk to a database API. Everything it stores is
 // plain JSON, so the same shapes serve the backup file (ticket 13) and a future API.
+import { DEFAULT_PROBLEM_COUNT, type ProblemCount } from '../math/rules.ts';
 import type { Session } from '../practice/session.ts';
 
 /** Bump when the stored shape changes, and add the step to migrations.ts. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export interface ProfileSettings {
   shuffle: boolean;
@@ -17,6 +18,8 @@ export interface ProfileSettings {
   strokePauseSeconds: 0.5 | 1 | 2 | 3;
   /** New phrase recognition sessions are learning sessions: each phrase is shown and heard, then Next, with no marks. */
   learning: boolean;
+  /** How many problems a new math session has (Chinese practice is unaffected). A session keeps the size it started with. */
+  problemCount: ProblemCount;
 }
 
 export const DEFAULT_SETTINGS: ProfileSettings = {
@@ -26,6 +29,7 @@ export const DEFAULT_SETTINGS: ProfileSettings = {
   strokeSpeed: 'normal',
   strokePauseSeconds: 0.5,
   learning: false,
+  problemCount: DEFAULT_PROBLEM_COUNT,
 };
 
 export interface Profile {

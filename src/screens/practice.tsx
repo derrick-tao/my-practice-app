@@ -119,8 +119,8 @@ function OpenPractice({
   const opened = useLoad(
     async () => {
       const storage = getStorage();
-      const { breakEvery, shuffle, sounds, strokeSpeed, strokePauseSeconds, learning } = await currentSettings(storage);
-      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle, learning }, env);
+      const { breakEvery, shuffle, sounds, strokeSpeed, strokePauseSeconds, learning, problemCount } = await currentSettings(storage);
+      const result = await openSession(storage, lesson, { practiceType, contentVersion, shuffle, learning, problemCount }, env);
       return result && { ...result, breakEvery, sounds, strokeSpeed, strokePauseSeconds };
     },
     [openTries],

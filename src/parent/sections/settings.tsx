@@ -1,10 +1,11 @@
-// Parent area section: the active learner's settings (shuffle, break cadence, sounds, learning, and the stroke order
-// speed and pause). Each control shows the SAVED value: it changes only after the write, and a failed write
+// Parent area section: the active learner's settings (shuffle, break cadence, sounds, learning, problems per practice, and
+// the stroke order speed and pause). Each control shows the SAVED value: it changes only after the write, and a failed write
 // offers a retry.
 import { useState } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { activeProfileOf, setSettings } from '../../profiles.ts';
 import { SaveFailed } from '../../save-failed.tsx';
+import { PROBLEM_COUNTS } from '../../math/rules.ts';
 import type { ProfileSettings } from '../../storage/types.ts';
 import { useSave } from '../../use-save.ts';
 import type { ParentSection } from '../sections.ts';
@@ -16,6 +17,11 @@ const BREAK_CHOICES: ReadonlyArray<{ value: ProfileSettings['breakEvery']; label
   { value: 10, label: '10' },
   { value: 15, label: '15' },
 ];
+
+const PROBLEM_COUNT_CHOICES: ReadonlyArray<{ value: ProfileSettings['problemCount']; label: string }> = PROBLEM_COUNTS.map((value) => ({
+  value,
+  label: String(value),
+}));
 
 const STROKE_SPEED_CHOICES: ReadonlyArray<{ value: ProfileSettings['strokeSpeed']; label: string }> = [
   { value: 'slow', label: 'Slow' },
@@ -37,7 +43,7 @@ function Settings() {
   const [lastChange, setLastChange] = useState<Partial<ProfileSettings>>({});
 
   if (!profile) return null;
-  const { shuffle, breakEvery, sounds, learning, strokeSpeed, strokePauseSeconds } = profile.settings;
+  const { shuffle, breakEvery, sounds, learning, problemCount, strokeSpeed, strokePauseSeconds } = profile.settings;
 
   const save = (change: Partial<ProfileSettings>): Promise<void> => {
     setLastChange(change);
@@ -82,6 +88,26 @@ function Settings() {
               aria-checked={breakEvery === value}
               class={`choice${breakEvery === value ? ' choice--chosen' : ''}`}
               onClick={() => void save({ breakEvery: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div class="field">
+        <span class="field__label" id="problem-count-label">
+          Problems per practice
+        </span>
+        <p class="field__note">Math only: how many problems a new session has. Practice already started keeps its size. Chinese is not affected</p>
+        <div class="choices" role="radiogroup" aria-labelledby="problem-count-label">
+          {PROBLEM_COUNT_CHOICES.map(({ value, label }) => (
+            <button
+              type="button"
+              key={value}
+              role="radio"
+              aria-checked={problemCount === value}
+              class={`choice${problemCount === value ? ' choice--chosen' : ''}`}
+              onClick={() => void save({ problemCount: value })}
             >
               {label}
             </button>

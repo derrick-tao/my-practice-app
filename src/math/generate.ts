@@ -3,16 +3,16 @@
 import { shuffled, type RandomSource } from '../practice/random.ts';
 import type { Problem } from './problem.ts';
 import type { Rules } from './rules.ts';
-import { SESSION_SIZE } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
 
 /**
- * `count` problems: spread evenly over the kinds the rules allow (any remainder goes to randomly chosen kinds),
- * in random order, with no problem twice. Within a kind the problems are sampled from its whole pool.
+ * `count` problems (the session's size: 10, 15 or 20): spread evenly over the kinds the rules allow (any remainder
+ * goes to randomly chosen kinds, shared between a type's halves in turn), in random order, with no problem twice.
+ * Within a kind the problems are sampled from its whole pool.
  */
-export function generateProblems(type: MathPracticeType, rules: Rules, random: RandomSource, count = SESSION_SIZE): Problem[] {
+export function generateProblems(type: MathPracticeType, rules: Rules, random: RandomSource, count: number): Problem[] {
   const kinds = type.kinds(rules);
-  const extra = new Set(shuffled(kinds, random).slice(0, count % kinds.length));
+  const extra = new Set(kindsGettingExtra(type, kinds, count % kinds.length, random));
   const chosen: Problem[] = [];
   const used = new Set<string>();
   for (const kind of kinds) {
@@ -23,6 +23,18 @@ export function generateProblems(type: MathPracticeType, rules: Rules, random: R
     }
   }
   return shuffled(chosen, random);
+}
+
+/** The `n` kinds that take one problem more than the rest: random ones, alternating between the type's halves when it has them. */
+function kindsGettingExtra(type: MathPracticeType, kinds: string[], n: number, random: RandomSource): string[] {
+  const halves = new Map<string, string[]>();
+  for (const kind of shuffled(kinds, random)) {
+    const half = type.halfOf?.(kind) ?? '';
+    halves.set(half, [...(halves.get(half) ?? []), kind]);
+  }
+  const lists = shuffled([...halves.values()], random);
+  const longest = Math.max(0, ...lists.map((list) => list.length));
+  return Array.from({ length: longest }, (_, i) => lists.flatMap((list) => (i < list.length ? [list[i]!] : []))).flat().slice(0, n);
 }
 
 /** A new problem of the same kind for a retry round: one the session has not used (`used` holds their keys) while the pool lasts. */

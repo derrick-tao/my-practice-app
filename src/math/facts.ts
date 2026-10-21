@@ -39,6 +39,7 @@ const sum = ([a, b]: number[]): number => a! + b!;
 
 export const facts: MathPracticeType = {
   kinds: (rules) => rules.operations.flatMap((operation) => KINDS_BY_OPERATION[operation]),
+  halfOf: (kind) => (kind.endsWith('within-10') ? 'within-10' : 'across-ten'),
   pool,
   key: (p) => (isSubtract(p.kind) ? `${p.kind}:${p.numbers.join(',')}` : `${p.kind}:${[...p.numbers].sort((x, y) => x - y).join(',')}`),
   equation: (p) => `${p.numbers[0]} ${isSubtract(p.kind) ? MINUS : '+'} ${p.numbers[1]} =`,

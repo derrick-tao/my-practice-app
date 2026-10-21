@@ -2,7 +2,8 @@
 // ("✏️ Write"), the noun for its items ("37 characters"), and the screen that practices it. Being a Record
 // keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
 import type { ComponentType } from 'preact';
-import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
+import { isRulesType, type LessonSummary, type PracticeTypeId } from '../content/types.ts';
+import { DEFAULT_PROBLEM_COUNT } from '../math/rules.ts';
 import {
   DictationScreen,
   FactsScreen,
@@ -99,9 +100,17 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
 export const countLabel = (type: PracticeType, count: number): string =>
   `${count} ${count === 1 ? type.itemNoun.singular : type.itemNoun.plural}`;
 
-/** "5 characters · 6 phrases": the sizes of a lesson's lists, one per practice type it offers. */
-export const listCountsLabel = (lesson: Pick<LessonSummary, 'practiceTypes'>): string =>
-  lesson.practiceTypes.map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemCount)).join(' · ');
+/**
+ * How many items a practice type has in a session: a list's length for Chinese, the profile's "Problems per practice"
+ * for math (a math lesson holds rules, not items, so the manifest's count is only the default size).
+ */
+export const itemsIn = (id: PracticeTypeId, itemCount: number, problemCount: number): number => (isRulesType(id) ? problemCount : itemCount);
+
+/** "5 characters · 6 phrases": the sizes of a lesson's lists, one per practice type it offers (math: the profile's problem count). */
+export const listCountsLabel = (lesson: Pick<LessonSummary, 'practiceTypes'>, problemCount: number = DEFAULT_PROBLEM_COUNT): string =>
+  lesson.practiceTypes
+    .map(({ id, itemCount }) => countLabel(PRACTICE_TYPES[id], itemsIn(id, itemCount, problemCount)))
+    .join(' · ');
 
 const SUBJECT_LABELS: Record<string, string> = { chinese: 'Chinese', math: 'Math' };
 

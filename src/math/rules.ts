@@ -17,8 +17,10 @@ export const DEFAULT_RULES: Rules = { within: 20, operations: ['add', 'subtract'
 export const MIN_WITHIN = 20;
 export const MAX_WITHIN = 100;
 
-/** A session is this many numbered problems, whatever the rules. */
-export const SESSION_SIZE = 20;
+/** The sizes a math session can have ("Problems per practice"), and the one a profile starts with. */
+export const PROBLEM_COUNTS = [10, 15, 20] as const;
+export type ProblemCount = (typeof PROBLEM_COUNTS)[number];
+export const DEFAULT_PROBLEM_COUNT: ProblemCount = 20;
 
 export const isOperation = (value: unknown): value is Operation => (OPERATIONS as readonly unknown[]).includes(value);
 

@@ -14,10 +14,10 @@
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
-import { useAppRecord } from '../../app-context.tsx';
+import { useAppRecord, useProblemCount } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
 import { isListType, isRulesType, PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
-import { SESSION_SIZE, type Rules } from '../../math/rules.ts';
+import type { Rules } from '../../math/rules.ts';
 import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
@@ -184,6 +184,7 @@ function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptS
 
 function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part; player: AudioPlayer }) {
   const { type, items: listed, progress } = part;
+  const problemCount = useProblemCount();
   const items = new Map(listed.map((item) => [item.target, item]));
   return (
     <section class="progress-part" data-testid={`progress-part-${type.id}`}>
@@ -192,7 +193,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         {type.label}
       </h3>
       <div class="progress-header__facts" data-testid="progress-facts">
-        <span>{countLabel(type, isRulesType(type.id) ? SESSION_SIZE : listed.length)}</span>
+        <span>{countLabel(type, isRulesType(type.id) ? problemCount : listed.length)}</span>
         <span>Attempts: {progress.attemptCount}</span>
         {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>
@@ -411,6 +412,7 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
 
 function Lessons() {
   const lessons = usePublishedLessons();
+  const problemCount = useProblemCount();
   if (lessons.status === 'loading') return <p class="notice">Loading…</p>;
   if (lessons.status === 'error') return <p class="notice">{LOAD_FAILED}</p>;
   return (
@@ -421,7 +423,7 @@ function Lessons() {
           <li key={lesson.id}>
             <a class="parent__entry" href={parentHref('progress', lesson.id)}>
               {lesson.title}
-              <span> · {listCountsLabel(lesson)}</span>
+              <span> · {listCountsLabel(lesson, problemCount)}</span>
             </a>
           </li>
         ))}

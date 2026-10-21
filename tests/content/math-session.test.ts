@@ -6,7 +6,7 @@ import { DEFAULT_RULES } from '../../src/math/rules.ts';
 
 const env = { random: () => 0.5, now: () => '2026-10-20T09:00:00.000Z', newId: () => 's-1' };
 const lesson = { id: 'm', subject: 'math' };
-const options = { practiceType: 'facts', contentVersion: 'v' } as const;
+const options = { practiceType: 'facts', contentVersion: 'v', problemCount: 20 } as const;
 
 describe('createMathSession rules', () => {
   it('saves a copy of the default rules, not the shared object', () => {

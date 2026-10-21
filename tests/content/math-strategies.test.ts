@@ -18,7 +18,7 @@ describe('strategies kinds follow the operations rule', () => {
 
   it('subtracting only leaves just the break-down-to-ten trick, and a session still gets 20 problems of it', () => {
     expect(strategies.kinds(SUBTRACT)).toEqual(['break-down-to-ten']);
-    const problems = generateProblems(strategies, SUBTRACT, Math.random);
+    const problems = generateProblems(strategies, SUBTRACT, Math.random, 20);
     expect(problems).toHaveLength(20);
     expect(new Set(problems.map((p) => p.kind))).toEqual(new Set(['break-down-to-ten']));
   });
