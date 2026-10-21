@@ -37,6 +37,10 @@ _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-al
 **Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
 The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ☐`); an equation with the blank anywhere (`8 + ☐ = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
 
+**Trick**:
+The child-facing name for one strategy in the Strategies practice type, e.g. "Make a ten" (seven in all: swap the order, make ten with three numbers, count on, make a ten, break down to ten, related fact, near doubles). Each has plain Grade-1 help: what it is, why it helps, and a worked example of the same lines the practice screen shows, with the answers filled in and numbers other than the current problem's.
+_Avoid_: Strategy (in the child's screens; fine in code)
+
 **Rules**:
 A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
 _Avoid_: Config, settings

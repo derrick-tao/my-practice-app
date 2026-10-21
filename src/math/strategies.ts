@@ -140,6 +140,81 @@ const TITLES: Record<StrategyKind, string> = {
   'near-doubles': 'Near doubles',
 };
 
+/** What a trick is, in a child's words, and a worked example to go with it. */
+interface TrickHelpText {
+  whatItIs: string;
+  whyItHelps: string;
+  /** The numbers of the worked example, in the order of the trick's own problems (`Problem.numbers`). */
+  example: number[];
+  /** Used instead when `example` is the problem the child is on, so the help never gives the answer away. */
+  otherExample: number[];
+}
+
+/** Help for each trick, keyed by kind so a new trick cannot be added without it. Plain Grade-1 words, text only. */
+const HELP: Record<StrategyKind, TrickHelpText> = {
+  'swap-order': {
+    whatItIs: 'You can add two numbers in any order.',
+    whyItHelps: 'The answer stays the same, so you can start with the bigger number.',
+    example: [8, 3],
+    otherExample: [9, 4],
+  },
+  'make-ten-three': {
+    whatItIs: 'Find two numbers that make 10 and add them first.',
+    whyItHelps: 'Adding to 10 is easy, then you only add the first number.',
+    example: [2, 6, 4],
+    otherExample: [3, 7, 3],
+  },
+  'count-on': {
+    whatItIs: 'Start at the big number and count up the small number.',
+    whyItHelps: 'You do not need to count from 1 again.',
+    example: [7, 2],
+    otherExample: [5, 3],
+  },
+  'make-ten': {
+    whatItIs: 'Take some from the second number to make the first number a 10.',
+    whyItHelps: 'A 10 is easy to add to, so the rest is easy too.',
+    example: [8, 6],
+    otherExample: [9, 5],
+  },
+  'break-down-to-ten': {
+    whatItIs: 'Take away just enough to get down to a 10, then take away the rest.',
+    whyItHelps: 'Taking away from a 10 is easy.',
+    example: [13, 4],
+    otherExample: [15, 7],
+  },
+  'related-fact': {
+    whatItIs: 'An adding fact and a taking away fact use the same three numbers.',
+    whyItHelps: 'If you know the adding fact, you know the taking away fact.',
+    example: [8, 4],
+    otherExample: [7, 5],
+  },
+  'near-doubles': {
+    whatItIs: 'A near double is a double with 1 more.',
+    whyItHelps: 'Doubles are easy to remember, so add the 1 more last.',
+    example: [6, 7],
+    otherExample: [4, 5],
+  },
+};
+
+const sameNumbers = (x: number[], y: number[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
+
+/**
+ * The help sheet for a trick: what it is, why it helps, and a worked example made of the lines the child sees on the
+ * practice screen with every blank answered. The example avoids the current problem's numbers (in either order).
+ */
+export function trickHelp(current: Problem): { whatItIs: string; whyItHelps: string; example: string[] } {
+  const kind = current.kind as StrategyKind;
+  const help = HELP[kind];
+  const numbers = sameNumbers(help.example, current.numbers) ? help.otherExample : help.example;
+  const example = { kind, numbers };
+  const line = given(example);
+  return {
+    whatItIs: help.whatItIs,
+    whyItHelps: help.whyItHelps,
+    example: [...(line ? [line] : []), ...steps(example).map((step) => `${step.before}${step.answer}${step.after}`)],
+  };
+}
+
 export const strategies: MathPracticeType = {
   kinds(rules) {
     const adds = rules.operations.includes('add');
