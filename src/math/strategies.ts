@@ -4,7 +4,7 @@
 // with one blank; the learner fills them in order, so the earlier lines (with their answers) are the worked trick.
 import type { Problem } from './problem.ts';
 import type { Rules } from './rules.ts';
-import type { MathPracticeType, Step } from './types.ts';
+import type { MathPracticeType, Step, TrickHelp } from './types.ts';
 import { MINUS, range } from './util.ts';
 
 const ARROW = '→';
@@ -202,7 +202,7 @@ const sameNumbers = (x: number[], y: number[]) => x.length === y.length && [...x
  * The help sheet for a trick: what it is, why it helps, and a worked example made of the lines the child sees on the
  * practice screen with every blank answered. The example avoids the current problem's numbers (in either order).
  */
-export function trickHelp(current: Problem): { whatItIs: string; whyItHelps: string; example: string[] } {
+export function trickHelp(current: Problem): TrickHelp {
   const kind = current.kind as StrategyKind;
   const help = HELP[kind];
   const numbers = sameNumbers(help.example, current.numbers) ? help.otherExample : help.example;
@@ -225,6 +225,7 @@ export const strategies: MathPracticeType = {
   key: (p) => `${p.kind}:${p.numbers.join(',')}`,
   equation: given,
   title: (p) => TITLES[p.kind as StrategyKind],
+  help: trickHelp,
   steps,
   answer: (p) => steps(p).at(-1)!.answer,
   strategy: (p) => steps(p).map((step) => step.explanation).join(' · '),

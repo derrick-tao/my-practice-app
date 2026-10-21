@@ -2,10 +2,13 @@
 // then one line per step reached so far, each with a one-line hint. A finished step stays on screen with its answer,
 // and only the step the child is on has a blank to fill, so the lines read as the worked trick.
 import type { StepPlace } from '../practice/math-session.ts';
+import type { TrickHelp } from '../math/types.ts';
 import { MathBlank } from './math-blank.tsx';
+import { TrickBadge } from './trick-help.tsx';
 
 export function StepsProblem({
   title,
+  help,
   given,
   place,
   settled,
@@ -13,6 +16,8 @@ export function StepsProblem({
 }: {
   /** The trick's name ("Make a ten"), shown as a badge above the question. */
   title?: string;
+  /** The trick's help, opened from a "?" on the badge; without it the badge has no "?". */
+  help?: TrickHelp;
   given: string;
   place: StepPlace;
   settled: boolean;
@@ -20,11 +25,7 @@ export function StepsProblem({
 }) {
   return (
     <div class="math__steps" data-testid="problem">
-      {title !== undefined && (
-        <p class="math__badge" data-testid="title">
-          💡 {title}
-        </p>
-      )}
+      {title !== undefined && <TrickBadge title={title} help={help} />}
       {given !== '' && (
         <p class="math__question" data-testid="given">
           {given}
