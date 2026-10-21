@@ -49,6 +49,7 @@ function AssignLessons() {
           lessons={lessons.value}
           assigned={new Set(profile.assignedLessonIds)}
           busy={saving}
+          problemCount={profile.settings.problemCount}
           onToggle={(lessonId, on) => void save({ lessonId, on })}
         />
       )}

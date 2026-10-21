@@ -12,6 +12,8 @@
 //   4 -> 5  the math subject: a session may hold generated `problems` and `tries` in its rounds and the lesson's
 //           `mathRules`. All of it is optional and absent for every Chinese session, so the data is unchanged; the
 //           step exists so that an app from before math (schema 4) refuses a backup that has math sessions.
+//   5 -> 6  the problems-per-practice setting: every profile gets `problemCount` 20, which is how big a math session
+//           always was. A math session needs no step: its size is the number of spots it already holds.
 import { DEFAULT_SETTINGS, NewerSchemaError, SCHEMA_VERSION, type StoredData } from './types.ts';
 
 export interface Migration {
@@ -95,11 +97,27 @@ function mathSubjectAdded(data: StoredData): StoredData {
   return { app: { ...data.app, schemaVersion: 5 }, sessions: data.sessions };
 }
 
+/** Saved data as schema version 5 wrote it: a profile whose settings lack the problem count. */
+type V5Profile = { settings: Record<string, unknown>; [field: string]: unknown };
+
+function problemCountBecameSetting(data: StoredData): StoredData {
+  const { problemCount } = DEFAULT_SETTINGS;
+  const profiles = (data.app.profiles as unknown as V5Profile[]).map((profile) => ({
+    ...profile,
+    settings: { problemCount, ...profile.settings },
+  }));
+  return {
+    app: { ...data.app, schemaVersion: 6, profiles: profiles as unknown as StoredData['app']['profiles'] },
+    sessions: data.sessions,
+  };
+}
+
 export const MIGRATIONS: readonly Migration[] = [
   { from: 1, up: listsBecameLessons },
   { from: 2, up: strokeTimingBecameSettings },
   { from: 3, up: learningBecameSetting },
   { from: 4, up: mathSubjectAdded },
+  { from: 5, up: problemCountBecameSetting },
 ];
 
 /**

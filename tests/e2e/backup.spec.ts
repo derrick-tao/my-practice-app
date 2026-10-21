@@ -50,7 +50,7 @@ function profile(id: string, name: string, avatar: string): ProfileJson {
     name,
     avatar,
     createdAt: '2026-09-01T09:00:00.000Z',
-    settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3, learning: false },
+    settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 3, learning: false, problemCount: 20 },
     assignedLessonIds: ['fixture-three', 'fixture-five'],
   };
 }
@@ -111,7 +111,7 @@ function withLearner(backup: BackupJson, change: Record<string, unknown>): strin
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
 const TWO_LEARNERS: SavedData = {
   app: {
-    schemaVersion: 5,
+    schemaVersion: 6,
     profiles: [
       profile('p-leo', 'Leo', '🦊'),
       withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5, learning: false }),
@@ -149,7 +149,7 @@ test.describe('export', () => {
       expect.objectContaining({
         appId: 'my-practice-app',
         kind: 'backup',
-        schemaVersion: 5,
+        schemaVersion: 6,
         exportedAt: expect.stringMatching(/^2026-10-18T12:00:/),
       }),
     );
@@ -157,7 +157,7 @@ test.describe('export', () => {
       expect.objectContaining({
         name: 'Mia',
         avatar: '🐼',
-        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 0.5, learning: false },
+        settings: { shuffle: true, breakEvery: 10, sounds: true, strokeSpeed: 'normal', strokePauseSeconds: 0.5, learning: false, problemCount: 20 },
       }),
     ]);
     expect(backup.data.sessions).toEqual([
@@ -377,6 +377,7 @@ test.describe('import', () => {
       ['a learner whose break setting is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), breakEvery: 7 } })],
       ['a learner whose stroke speed is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), strokeSpeed: 'warp' } })],
       ['a learner whose stroke pause is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), strokePauseSeconds: 5 } })],
+      ['a learner whose problems per practice is not one of the choices', withLearner(good, { settings: { ...settingsOf(good), problemCount: 12 } })],
       ['a learner without assigned lessons', withLearner(good, { assignedLessonIds: undefined })],
       ['an attempt with no rounds', withAttempt(good, { rounds: [] })],
       ['an attempt with an unknown status', withAttempt(good, { status: 'paused' })],
@@ -403,8 +404,8 @@ test.describe('import', () => {
     const before = await savedNow(page);
     const newer = {
       ...backupFile(TWO_LEARNERS, '2026-10-12T08:00:00.000Z'),
-      schemaVersion: 6,
-      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 6, somethingNew: true } },
+      schemaVersion: 7,
+      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 7, somethingNew: true } },
     };
 
     await chooseBackupFile(page, JSON.stringify(newer));

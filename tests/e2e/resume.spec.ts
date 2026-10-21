@@ -390,8 +390,8 @@ test.describe('saved data', () => {
     await page.goto('./');
     await openBackupSection(page);
     const { backup } = await exportBackup(page);
-    expect(backup.schemaVersion).toBe(5);
-    expect(backup.data.app.schemaVersion).toBe(5);
+    expect(backup.schemaVersion).toBe(6);
+    expect(backup.data.app.schemaVersion).toBe(6);
     await practice.reopenViaKeepGoing();
     await expect(practice.progressText()).toHaveText('1 / 3');
   });
@@ -411,7 +411,7 @@ test.describe('saved data', () => {
     await expect(practice.keepGoing).toContainText('Fixture Three');
     await practice.keepGoing.click();
     await expect(practice.progressText()).toHaveText('1 / 2');
-    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 5 }));
+    expect(await savedAppRecord(page)).toEqual(expect.objectContaining({ schemaVersion: 6 }));
   });
 
   /** The fixture's active Fixture Three session with its first round replaced (ids may be ones the lesson no longer has). */

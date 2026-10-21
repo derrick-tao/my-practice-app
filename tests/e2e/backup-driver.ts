@@ -41,6 +41,7 @@ export interface ProfileJson {
     strokeSpeed: 'slow' | 'normal' | 'fast';
     strokePauseSeconds: 0.5 | 1 | 2 | 3;
     learning: boolean;
+    problemCount: 10 | 15 | 20;
   };
   assignedLessonIds: string[];
 }

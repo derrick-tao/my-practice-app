@@ -28,6 +28,11 @@ export interface MathPracticeType {
   /** Every problem of this kind the rules allow (commutative twins included); a session samples from it without repeats. */
   pool(kind: string, rules: Rules): Problem[];
   /**
+   * Optional. Names the half a kind belongs to (Facts: within 10 or across ten). When a session's size does not divide
+   * evenly over the kinds, the extra problems go to the halves in turn, so the halves stay as close as the size allows.
+   */
+  halfOf?(kind: string): string;
+  /**
    * Optional. Names a group for each problem (true or false); the problems of a kind in a session are then drawn
    * alternately from each group, so the groups are balanced to within one.
    */
