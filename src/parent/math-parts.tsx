@@ -3,6 +3,7 @@
 // practice type added later shows up without a change here.
 import { useRef, useState } from 'preact/hooks';
 import type { RulesTypeId } from '../content/types.ts';
+import { answerLine, problemLine } from '../math/display.ts';
 import { kindLabel } from '../math/kind-label.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import { rulesSummary, type Rules } from '../math/rules.ts';
@@ -38,8 +39,8 @@ export function MathPreviewSection({ typeId, rules }: { typeId: RulesTypeId; rul
       <ol class="preview-samples" aria-label="Sample problems">
         {samples.map((problem, index) => (
           <li key={index} class="preview-sample" data-testid="preview-sample">
-            <span class="preview-sample__problem">{math.equation(problem)} ?</span>
-            <span class="preview-sample__answer">Answer: {math.answer(problem)}</span>
+            <span class="preview-sample__problem">{problemLine(math, problem)}</span>
+            <span class="preview-sample__answer">{answerLine(math, problem)}</span>
           </li>
         ))}
       </ol>
@@ -85,7 +86,7 @@ export function MissedProblems({ typeId, missed }: { typeId: RulesTypeId; missed
         <span key={spot} class="progress-missed-problem" data-testid="missed-problem">
           {problem ? (
             <>
-              <span class="progress-missed-problem__equation">{math.equation(problem)} ?</span>
+              <span class="progress-missed-problem__equation">{problemLine(math, problem)}</span>
               <span class="progress-missed-problem__answered">{enteredAnswers(tries)}</span>
             </>
           ) : (

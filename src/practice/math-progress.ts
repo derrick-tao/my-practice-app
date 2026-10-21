@@ -63,7 +63,14 @@ export function missedProblems(round: Round): MissedProblem[] {
     .map((spot) => ({ spot, problem: round.problems?.[spot], tries: round.tries?.[spot] ?? [] }));
 }
 
-/** "answered 8", or "answered 8, then 9" after a second try; nothing when no try was saved. */
+/**
+ * "answered 8", or "answered 8, then 9" after a second try; nothing when no try was saved. A multi-step problem gives
+ * each step's answers on their own: "step 1: answered 2; step 2: answered 4, then 5".
+ */
 export function enteredAnswers(tries: readonly Try[]): string {
-  return tries.length === 0 ? '' : `answered ${tries.map((t) => t.answer).join(', then ')}`;
+  if (tries.length === 0) return '';
+  const list = (of: readonly Try[]): string => `answered ${of.map((t) => t.answer).join(', then ')}`;
+  if (!tries.some((t) => t.step !== undefined)) return list(tries);
+  const steps = [...new Set(tries.map((t) => t.step ?? 0))].sort((x, y) => x - y);
+  return steps.map((step) => `step ${step + 1}: ${list(tries.filter((t) => (t.step ?? 0) === step))}`).join('; ');
 }

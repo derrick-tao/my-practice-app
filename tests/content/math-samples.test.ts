@@ -2,6 +2,7 @@
 // later is covered without a change here). A sample is a problem the type could really ask under the lesson's rules.
 import { describe, expect, it } from 'vitest';
 import { MATH_TYPES } from '../../src/math/index.ts';
+import { problemLine } from '../../src/math/display.ts';
 import { kindLabel } from '../../src/math/kind-label.ts';
 import { DEFAULT_RULES, type Rules } from '../../src/math/rules.ts';
 import { SAMPLE_COUNT, sampleProblems } from '../../src/math/samples.ts';
@@ -32,8 +33,7 @@ describe.each(Object.entries(MATH_TYPES))('%s sample problems', (_id, type) => {
       for (const problem of samples) {
         expect(type.kinds(rules)).toContain(problem.kind);
         expect(type.pool(problem.kind, rules).map((p) => type.key(p))).toContain(type.key(problem));
-        // A multi-step type's equation is only the line above its steps, and empty for some kinds.
-        if (!type.steps) expect(type.equation(problem)).not.toBe('');
+        expect(problemLine(type, problem)).not.toBe('');
         expect(Number.isInteger(type.answer(problem))).toBe(true);
       }
     }
