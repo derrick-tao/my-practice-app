@@ -3,9 +3,27 @@
   gap: 16px;
 }
 
-.true-false-pad__button {
+/* Blue and orange: a colour-blind-safe pair, white text at 4.5:1 or better on each. Neither is the purple accent,
+   the good green or the bad red, which already mean other things. */
+.true-false-pad .true-false-pad__button {
+  --true-false-blue: #1f6fd1; /* 4.9:1 with white */
+  --true-false-orange: #b85700; /* 4.8:1 with white */
   min-height: 132px;
+  border-radius: 48px;
+  padding: 0 12px;
   font-size: clamp(2rem, 8vmin, 3rem);
+  white-space: nowrap;
+  color: #fff;
+}
+
+.true-false-pad .true-false-pad__button--true {
+  border-color: var(--true-false-blue);
+  background: var(--true-false-blue);
+}
+
+.true-false-pad .true-false-pad__button--false {
+  border-color: var(--true-false-orange);
+  background: var(--true-false-orange);
 }
 
 /* A whole equation is longer than a sum to work out ("12 + 7 = 7 + 12"), so it is set smaller, with the verdict under it. */

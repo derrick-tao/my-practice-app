@@ -15,9 +15,15 @@ import {
   STRATEGY_TITLES,
   StrategiesScreen,
   type How,
+  type Layout,
 } from './strategies-driver.ts';
 
 const LESSON = 'Fixture Strategies';
+
+/** The app's normal ink colour (--ink: #2b2250), as the browser reports it. */
+const DARK_INK = 'rgb(43, 34, 80)';
+/** The app's purple accent (--accent: #6c4ff5), the badge's colour. */
+const ACCENT_PURPLE = 'rgb(108, 79, 245)';
 
 interface Fixtures {
   page: Page;
@@ -70,8 +76,8 @@ test.describe('a Tricks session', () => {
       const kind = kindOfShown(problem);
       expect(STEPS_OF[kind]).toContain(problem.lines.length);
       checkShape(problem); // the school's worked form of that kind, with its arithmetic right
-      // Its title (with the given line, when it has one) and a short plain hint under every line.
-      expect(problem.title).toBe(problem.given === null ? STRATEGY_TITLES[kind] : `${STRATEGY_TITLES[kind]}: ${problem.given}`);
+      // Its trick badge (the name with an emoji), and a short plain hint under every line.
+      expect(problem.title).toBe(`💡 ${STRATEGY_TITLES[kind]}`);
       expect(problem.hints).toHaveLength(problem.lines.length);
       for (const hint of problem.hints) {
         expect(hint.length, hint).toBeGreaterThan(0);
@@ -83,6 +89,34 @@ test.describe('a Tricks session', () => {
     }
     await expect(tricks.completion).toBeVisible();
     await expect(page.getByText('20 of 20 on the first try!')).toBeVisible();
+  });
+
+  test('the trick badge and the question are on separate lines, even when a problem has no given line', async ({ page, audio }) => {
+    const tricks = await start({ page, audio });
+    const layouts: Layout[] = [];
+
+    const shown = await tricks.playRound(undefined, async () => {
+      layouts.push(await tricks.layout());
+    });
+
+    expect(layouts).toHaveLength(20);
+    expect(shown.some((problem) => problem.given === null)).toBe(true); // swap order, make ten with three, related fact
+    expect(shown.some((problem) => problem.given !== null)).toBe(true);
+    shown.forEach((problem, i) => {
+      const { badge, question, firstStepTop } = layouts[i]!;
+      expect(question === null, `${problem.title}: question line present iff there is a given line`).toBe(problem.given === null);
+      if (question !== null) {
+        expect(badge.bottom, 'the badge is above the question').toBeLessThanOrEqual(question.top);
+        expect(question.bottom, 'the question is above the steps').toBeLessThanOrEqual(firstStepTop);
+        expect(question.fontSize, 'the question is larger than the badge').toBeGreaterThan(badge.fontSize);
+        expect(question.color, 'the question is in the normal dark ink').toBe(DARK_INK);
+      } else {
+        expect(badge.bottom, 'the badge is above the steps').toBeLessThanOrEqual(firstStepTop);
+      }
+    });
+    // One purple for all seven tricks, and unlike the question's ink.
+    expect(new Set(layouts.map(({ badge }) => badge.background)).size).toBe(1);
+    expect(layouts[0]!.badge.background).toBe(ACCENT_PURPLE);
   });
 
   test('follows the lesson rules: a lesson that only adds has no subtraction kinds', async ({ page, audio }) => {
@@ -174,7 +208,7 @@ test.describe('marks: ✅ only if every step is right on its first try', () => {
 
     await expect(tricks.feedback).toContainText('got it!');
     await expect(tricks.strategy).toHaveCount(0);
-    expect(await audio.effects()).toEqual([]);
+    await expect.poll(() => audio.effects()).toEqual(['chime']); // a right second try chimes
     await expect(tricks.progress).toHaveText('0 / 20'); // the problem is not over: later steps remain
     await tricks.next.click();
     await expect(tricks.steps).toHaveCount(2);

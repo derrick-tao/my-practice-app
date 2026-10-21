@@ -2,7 +2,8 @@
 // operation the lesson leaves out is not asked.
 import { describe, expect, it } from 'vitest';
 import { generateProblems } from '../../src/math/generate.ts';
-import { strategies } from '../../src/math/strategies.ts';
+import type { Problem } from '../../src/math/problem.ts';
+import { strategies, trickHelp } from '../../src/math/strategies.ts';
 import type { Rules } from '../../src/math/rules.ts';
 
 const ADD: Rules = { within: 20, operations: ['add'] };
@@ -76,5 +77,83 @@ describe('strategies titles and hints', () => {
   it('hints the make-ten steps the way a child would say them', () => {
     const hints = strategies.steps!({ kind: 'make-ten', numbers: [8, 6] }).map((s) => s.hint);
     expect(hints).toEqual(['How many more makes 8 into 10?', 'Split 6 into 2 and what is left', 'Now add: 10 + 4']);
+  });
+});
+
+describe('trick help', () => {
+  const kinds = Object.keys(KINDS_AND_TITLES);
+  const everyProblem = kinds.flatMap((kind) => strategies.pool(kind, BOTH));
+
+  /** The example problem the help shows, read back from the numbers in its first line. */
+  const exampleFor = (current: Problem): Problem => {
+    const numbers = (trickHelp(current).example[0] ?? '').match(/\d+/g)!.map(Number);
+    return { kind: current.kind, numbers: current.kind === 'make-ten-three' ? numbers.slice(0, 3) : numbers.slice(0, 2) };
+  };
+
+  it('gives every trick a plain "what it is" and "why it helps" line', () => {
+    for (const kind of kinds) {
+      const help = trickHelp(strategies.pool(kind, BOTH)[0]!);
+      for (const line of [help.whatItIs, help.whyItHelps]) {
+        expect(line.trim(), kind).not.toBe('');
+        expect(line, kind).not.toMatch(/\n|undefined|NaN/);
+        expect(line, kind).not.toMatch(/commutative|addend|minuend|subtrahend|sum of|difference/i);
+      }
+    }
+  });
+
+  it('shows the make-ten example the way the practice screen reads, answers filled in', () => {
+    const help = trickHelp({ kind: 'make-ten', numbers: [7, 5] });
+    expect(help.example).toEqual(['8 + 6', '8 + 2 = 10', '6 = 2 + 4', '10 + 4 = 14']);
+  });
+
+  it('puts the given line first only for tricks that have one', () => {
+    expect(trickHelp({ kind: 'count-on', numbers: [3, 2] }).example).toEqual(['7, count on 2', '7 → 8', '8 → 9']);
+    expect(trickHelp({ kind: 'swap-order', numbers: [2, 3] }).example).toEqual(['8 + 3 = 11', 'So 3 + 8 = 11']);
+  });
+
+  it('switches to the next example that shares nothing when the first has the current numbers, in either order', () => {
+    expect(trickHelp({ kind: 'make-ten', numbers: [7, 5] }).example[0]).toBe('8 + 6');
+    expect(trickHelp({ kind: 'make-ten', numbers: [8, 6] }).example[0]).toBe('7 + 8');
+    expect(trickHelp({ kind: 'make-ten', numbers: [6, 8] }).example[0]).toBe('7 + 8');
+    expect(trickHelp({ kind: 'swap-order', numbers: [3, 8] }).example[0]).toBe('9 + 4 = 13');
+  });
+
+  it('never shows a line that is a step of the current problem, answer filled in, for any problem of any trick', () => {
+    const wide: Rules = { within: 20, operations: ['add', 'subtract'] };
+    for (const kind of kinds) {
+      for (const problem of strategies.pool(kind, wide)) {
+        const own = new Set(strategies.steps!(problem).map((s) => `${s.before}${s.answer}${s.after}`));
+        const shared = trickHelp(problem).example.filter((line) => own.has(line));
+        expect(shared, `${kind} ${problem.numbers}`).toEqual([]);
+      }
+    }
+  });
+
+  it('does not reveal the first blank of a make-ten, count-on or break-down-to-ten problem', () => {
+    expect(trickHelp({ kind: 'make-ten', numbers: [8, 5] }).example).not.toContain('8 + 2 = 10');
+    expect(trickHelp({ kind: 'count-on', numbers: [7, 3] }).example).not.toContain('7 → 8');
+    expect(trickHelp({ kind: 'break-down-to-ten', numbers: [13, 5] }).example).not.toContain('13 − 3 = 10');
+  });
+
+  it('builds the example from the trick steps and ends with every blank answered correctly', () => {
+    for (const problem of everyProblem) {
+      const exampleProblem = exampleFor(problem);
+      const steps = strategies.steps!(exampleProblem);
+      const lines = steps.map((s) => `${s.before}${s.answer}${s.after}`);
+      const given = strategies.equation(exampleProblem);
+      const { example } = trickHelp(problem);
+      expect(example, `${problem.kind} ${problem.numbers}`).toEqual(given ? [given, ...lines] : lines);
+      expect(example.join(' '), problem.kind).not.toMatch(/undefined|NaN|☐/);
+    }
+  });
+
+  it('uses an example that is a real problem of the trick, and never the current numbers in either order', () => {
+    const sorted = (p: Problem) => [...p.numbers].sort((x, y) => x - y).join(',');
+    for (const problem of everyProblem) {
+      const exampleProblem = exampleFor(problem);
+      const real = strategies.pool(problem.kind, BOTH).map((p) => p.numbers.join(','));
+      expect(real, `${problem.kind} ${exampleProblem.numbers}`).toContain(exampleProblem.numbers.join(','));
+      expect(sorted(exampleProblem), `${problem.kind} ${problem.numbers}`).not.toBe(sorted(problem));
+    }
   });
 });

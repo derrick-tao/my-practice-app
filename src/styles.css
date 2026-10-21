@@ -17,6 +17,12 @@ body {
   min-height: 100dvh;
 }
 
+/* No zoom: children zoom by accident on a tablet. "manipulation" stops double-tap zoom (pinch is cancelled in main.tsx). */
+html,
+body {
+  touch-action: manipulation;
+}
+
 .screen {
   max-width: 960px;
   margin: 0 auto;
@@ -418,6 +424,13 @@ body {
 .numpad__key--ok {
   color: #fff;
   background: var(--accent);
+}
+
+/* The Check key's glyph: heavy, and sized to sit comfortably inside a digit-sized key. */
+.numpad__glyph {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 /* Parent area */

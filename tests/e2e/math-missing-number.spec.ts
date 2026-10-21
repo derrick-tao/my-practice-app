@@ -182,7 +182,7 @@ test.describe('tries and marks', () => {
     expect(await audio.effects()).toEqual(['chime']);
   });
 
-  test('wrong then right shows "got it!" with the blank filled in, counts as ❌, and makes no ❌ sound', async ({ page, audio }) => {
+  test('wrong then right shows "got it!" with the blank filled in, counts as ❌, and chimes on the right second try', async ({ page, audio }) => {
     const missing = await start({ page, audio });
     const problem = await missing.answerWrong();
 
@@ -194,7 +194,7 @@ test.describe('tries and marks', () => {
     await missing.submit(answerOf(problem));
     await expect(missing.feedback).toContainText('got it!');
     await expect(missing.problem).toContainText(problem.text.replace('☐', String(answerOf(problem))));
-    expect(await audio.effects()).toEqual([]);
+    await expect.poll(() => audio.effects()).toEqual(['chime']);
 
     await missing.next.click();
     await missing.playRound();

@@ -133,21 +133,9 @@ export class TrueOrFalseScreen {
     return statement;
   }
 
-  /** Wrong, then right (shows "got it!"), then Next. */
-  async solveSecondTry(): Promise<Statement> {
-    const statement = await this.answerWrong();
-    await expect(this.feedback).toContainText('Try again');
-    await this.tap(isTrue(statement));
-    await expect(this.feedback).toContainText('got it!');
-    await this.next.click();
-    return statement;
-  }
-
-  /** Wrong twice (shows the answer and why), then Next. */
+  /** Wrong: there is no second try, so the answer and why show at once. Then Next. */
   async solveMissed(): Promise<Statement> {
     const statement = await this.answerWrong();
-    await expect(this.feedback).toContainText('Try again');
-    await this.tap(!isTrue(statement));
     await expect(this.strategy).toBeVisible();
     await this.next.click();
     return statement;
@@ -166,10 +154,10 @@ export class TrueOrFalseScreen {
   }
 
   /**
-   * Play the round to its end. `howToSolve(statement, index)` picks how each problem goes: 'first', 'second' or
-   * 'missed'. Break prompts are answered with Keep going. Returns the problems in the order shown.
+   * Play the round to its end. `howToSolve(statement, index)` picks how each problem goes: 'first' or 'missed'
+   * (True or false has no second try). Break prompts are answered with Keep going. Returns the problems in the order shown.
    */
-  async playRound(howToSolve: (statement: Statement, index: number) => 'first' | 'second' | 'missed' = () => 'first'): Promise<Statement[]> {
+  async playRound(howToSolve: (statement: Statement, index: number) => 'first' | 'missed' = () => 'first'): Promise<Statement[]> {
     const shown: Statement[] = [];
     for (;;) {
       await expect(this.problem.or(this.summary).or(this.completion).or(this.breakPrompt)).toBeVisible();
@@ -185,15 +173,7 @@ export class TrueOrFalseScreen {
         const before = await this.progressNumber();
         await this.tap(isTrue(statement));
         await this.waitPast(before);
-      } else if (how === 'second') {
-        await this.tap(!isTrue(statement));
-        await expect(this.feedback).toContainText('Try again');
-        await this.tap(isTrue(statement));
-        await expect(this.feedback).toContainText('got it!');
-        await this.next.click();
       } else {
-        await this.tap(!isTrue(statement));
-        await expect(this.feedback).toContainText('Try again');
         await this.tap(!isTrue(statement));
         await expect(this.strategy).toBeVisible();
         await this.next.click();

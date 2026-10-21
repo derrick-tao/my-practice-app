@@ -525,19 +525,118 @@
   gap: 8px;
 }
 
-.math__given,
+.math__question,
 .math__step {
   margin: 0;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.math__given {
-  font-size: clamp(1.5rem, 6vw, 2rem);
-  color: var(--accent);
-  /* A long trick title ("Make ten with three numbers: ...") may wrap on a narrow screen. */
-  white-space: normal;
+/* The question to solve ("8 + 6"): large, in the normal ink. */
+.math__question {
+  font-size: clamp(1.8rem, 7.5vw, 2.6rem);
+  color: var(--ink);
+}
+
+/* The trick's name: a small rounded purple badge on its own line above the question. */
+.math__badge {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
+  font-weight: 700;
+  /* A long trick name ("Make ten with three numbers") may wrap on a narrow screen. */
   text-align: center;
+}
+
+/* The badge and its "?" button side by side on one line. */
+.math__badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* The "?" that opens the trick's help sheet: a big round touch target next to the badge. */
+.math__help {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 4px solid var(--accent);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--accent);
+  font: inherit;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The help sheet: a native modal dialog over the practice screen (so nothing behind it moves), big text for a tablet. */
+.help-sheet {
+  width: min(92vw, 560px);
+  max-height: 90dvh;
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 4px solid var(--accent);
+  border-radius: 24px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 1.25rem;
+  touch-action: manipulation;
+}
+
+.help-sheet::backdrop {
+  background: rgb(43 34 80 / 55%);
+}
+
+.help-sheet__content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.help-sheet__title {
+  margin: 0;
+  font-size: 1.7rem;
+  text-align: center;
+}
+
+.help-sheet__part h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.help-sheet__part p {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* The worked example: the same lines the practice screen shows, with the answers filled in. */
+.help-sheet__example {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.help-sheet__example p {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.help-sheet__close {
+  width: 100%;
 }
 
 .math__step {

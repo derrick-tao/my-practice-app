@@ -17,6 +17,13 @@ export interface Step {
   hint?: string;
 }
 
+/** Plain help for a trick (Strategies): what it is, why it helps, and a worked example as the lines the practice screen shows, answers filled in. */
+export interface TrickHelp {
+  whatItIs: string;
+  whyItHelps: string;
+  example: string[];
+}
+
 export interface MathPracticeType {
   /**
    * How the learner answers: absent means the number pad. 'true-false' means two big True and False buttons; the
@@ -60,6 +67,8 @@ export interface MathPracticeType {
    * Each is try-limited on its own, and the problem is ✅ only if every one is right on the first try.
    */
   steps?(problem: Problem): Step[];
+  /** Optional: help for the problem's trick, opened from a "?" on its badge. Only Strategies has tricks. The example avoids the problem's own numbers. */
+  help?(problem: Problem): TrickHelp | undefined;
   /** The worked strategy shown after two wrong tries: "8 + 6 = 8 + 2 + 4 = 14". */
   strategy(problem: Problem): string;
 }

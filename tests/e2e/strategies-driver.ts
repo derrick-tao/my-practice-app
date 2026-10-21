@@ -34,7 +34,7 @@ export interface Shown {
   given: string | null;
   /** Earlier steps with their answers filled in, then the current line with its "☐" (or digits). */
   lines: string[];
-  /** The title line as shown: the trick's name, then ": " and the given line when there is one. Null when none shows. */
+  /** The trick badge as shown: an emoji, then the trick's name ("💡 Make a ten"). Null when none shows. */
   title: string | null;
   /** The hint under each shown line, in order. */
   hints: string[];
@@ -179,10 +179,18 @@ export const identityOfShown = ({ given, lines }: Shown): string => [given ?? ''
 
 export type How = 'first' | 'second' | 'missed';
 
+/** How the badge and the question sit on screen: where each is, and how it looks. The question is null when the problem has no given line. */
+export interface Layout {
+  badge: { top: number; bottom: number; fontSize: number; background: string };
+  question: { top: number; bottom: number; fontSize: number; color: string } | null;
+  /** The top of the first step line. */
+  firstStepTop: number;
+}
+
 export class StrategiesScreen {
   readonly problem: Locator;
   readonly given: Locator;
-  /** The trick's title with the given line ("Make a ten: 8 + 6"). */
+  /** The trick badge ("💡 Make a ten"); the question ("8 + 6") is `given`. */
   readonly title: Locator;
   /** The one-line hint under each shown step. */
   readonly hints: Locator;
@@ -244,6 +252,25 @@ export class StrategiesScreen {
     const title = (await this.title.count()) === 0 ? null : ((await this.title.textContent()) ?? '').replace(/\s+/g, ' ').trim();
     const hints = (await this.hints.allTextContents()).map((hint) => hint.replace(/\s+/g, ' ').trim());
     return { given, lines, title, hints };
+  }
+
+  /** Where the badge and the question are on screen, and how they look. Waits for the problem to show. */
+  async layout(): Promise<Layout> {
+    await expect(this.title).toBeVisible();
+    const look = (locator: Locator) =>
+      locator.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return { top: box.top, bottom: box.bottom, fontSize: parseFloat(style.fontSize), color: style.color, background: style.backgroundColor };
+      });
+    const badge = await look(this.title);
+    const question = (await this.given.count()) === 0 ? null : await look(this.given);
+    const firstStep = await look(this.steps.first());
+    return {
+      badge: { top: badge.top, bottom: badge.bottom, fontSize: badge.fontSize, background: badge.background },
+      question: question && { top: question.top, bottom: question.bottom, fontSize: question.fontSize, color: question.color },
+      firstStepTop: firstStep.top,
+    };
   }
 
   /** The blank the child is on: the number the last line needs. */
@@ -351,9 +378,9 @@ export class StrategiesScreen {
 
   /**
    * Play the round to its end. `howAt(index, step)` picks how each blank of each problem goes (default: all first
-   * try). Break prompts are answered with Keep going. Returns the problems as they showed at their last blank, in order.
+   * try). Break prompts are answered with Keep going. Returns the problems as they showed at their last blank, in order. `onProblem` runs as each problem first shows.
    */
-  async playRound(howAt: (index: number, step: number) => How = () => 'first'): Promise<Shown[]> {
+  async playRound(howAt: (index: number, step: number) => How = () => 'first', onProblem?: (index: number) => Promise<void>): Promise<Shown[]> {
     const shown: Shown[] = [];
     for (;;) {
       await expect(this.problem.or(this.summary).or(this.completion).or(this.breakPrompt)).toBeVisible();
@@ -363,6 +390,7 @@ export class StrategiesScreen {
       }
       if (!(await this.problem.isVisible())) return shown;
       const index = shown.length;
+      await onProblem?.(index);
       shown.push(await this.solveProblem((step) => howAt(index, step)));
     }
   }

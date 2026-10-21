@@ -26,7 +26,7 @@ export interface Try {
   step?: number;
 }
 
-/** A problem has two tries: the second comes after a wrong first. */
+/** The most tries a step allows: number-pad types have two (the second comes after a wrong first), True or false has one. */
 export const MAX_TRIES = 2;
 
 /** No problem has more blanks than this (the most is three today); saved data with more is not ours. */

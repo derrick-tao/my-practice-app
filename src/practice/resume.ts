@@ -3,7 +3,7 @@ import { isListType, isRulesType, type LessonData, type PracticeTypeId } from '.
 import { activeProfileOf } from '../profiles.ts';
 import { DEFAULT_SETTINGS, type ProfileSettings, type StorageAdapter } from '../storage/types.ts';
 import type { ProblemCount } from '../math/rules.ts';
-import { createMathSession } from './math-session.ts';
+import { createMathSession, settleSavedTries } from './math-session.ts';
 import { createSession, DEFAULT_PROFILE_ID, reconcileWithList, type PracticeEnv, type Session } from './session.ts';
 
 /** The active profile's id, or the implicit default profile of sessions saved before profiles existed (the app never gets here without a profile; the first one adopts those sessions, see profiles.ts). */
@@ -75,7 +75,7 @@ export async function openSession(
     // saved session carries the rules it started with. Only a lesson that dropped the practice type stops it.
     const offered = lesson.rules?.[options.practiceType] !== undefined;
     if (saved) {
-      const kept = offered ? saved : { ...saved, status: 'stopped' as const, undo: null };
+      const kept = offered ? settleSavedTries(saved, env) : { ...saved, status: 'stopped' as const, undo: null };
       return { session: await storage.putSession(kept), resumed: true };
     }
     if (!offered) return undefined;

@@ -39,6 +39,9 @@ import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 import './math-stories.css';
 
+/** The Check key's face: a heavy check mark in text presentation (U+FE0E), never the self-grading ✅ emoji. */
+const CHECK_GLYPH = '✔︎';
+
 const FEEDBACK = {
   'try-again': 'Not quite. Try again!',
   'second-try-right': 'You got it!',
@@ -91,8 +94,10 @@ export function MathRun({
     if (!after) return;
     setEntry('');
     if (after.status === 'completed') effects.play('fanfare');
-    else if (outcomeOf(after) === 'missed') effects.play('gentle'); // only now: a second wrong answer
-    else if (finishedFirstTry(before, after)) effects.play('chime');
+    // The ❌ sound: a wrong True or false answer, or a second wrong try on the number pad.
+    else if (outcomeOf(after) === 'missed') effects.play('gentle');
+    // The chime: a right first try (✅), or a right second try (still marked ❌).
+    else if (finishedFirstTry(before, after) || outcomeOf(after) === 'second-try-right') effects.play('chime');
   };
   const onSubmit = (): void => submit(entry);
 
@@ -163,7 +168,7 @@ export function MathRun({
           <div class="practice__stage">
             <div class={`math${story ? ' math--story' : ''}${outcome === 'try-again' ? ' math--wobble' : ''}`}>
               {type.steps ? (
-                <StepsProblem title={type.title?.(problem)} given={type.equation(problem)} place={place} settled={settled} entry={entry} />
+                <StepsProblem title={type.title?.(problem)} help={type.help?.(problem)} given={type.equation(problem)} place={place} settled={settled} entry={entry} />
               ) : story ? (
                 <>
                   <p class="math__problem math__problem--story" data-testid="problem">
@@ -213,7 +218,8 @@ export function MathRun({
                 onDigit={(digit) => setEntry((current) => addDigit(current, digit))}
                 onDelete={() => setEntry((current) => current.slice(0, -1))}
                 onSubmit={onSubmit}
-                submitLabel="Check"
+                submitLabel={CHECK_GLYPH}
+                submitName="Check"
               />
             )}
           </div>

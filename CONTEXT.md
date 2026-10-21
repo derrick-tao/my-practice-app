@@ -37,6 +37,10 @@ _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-al
 **Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
 The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ☐`); an equation with the blank anywhere (`8 + ☐ = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
 
+**Trick**:
+The child-facing name for one strategy in the Strategies practice type, e.g. "Make a ten" (seven in all: swap the order, make ten with three numbers, count on, make a ten, break down to ten, related fact, near doubles). Each has plain Grade-1 help: what it is, why it helps, and a worked example of the same lines the practice screen shows, with the answers filled in and numbers other than the current problem's.
+_Avoid_: Strategy (in the child's screens; fine in code)
+
 **Rules**:
 A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
 _Avoid_: Config, settings
@@ -68,14 +72,14 @@ _Avoid_: Learn mode, preview, flashcards
 An ordered pass over a set of items; round 1 covers them all, and each later round covers only the items marked ❌ in the round before.
 
 **Mark**:
-An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅.
+An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅ (so a True or false problem that is wrong is ❌ at once).
 
 **Try**:
-One answer the learner checks for a math problem. A problem allows two; a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the only time the ❌ sound plays). Right on the second try is still ❌, with a cheerful "got it!".
+One answer the learner checks for a math problem. A number-pad problem allows two: a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the ❌ sound plays then). Right on the second try is still ❌, with a cheerful "got it!" and the chime. True or false allows one, since with two choices a second try is only a guess: a wrong answer shows the answer and how to get it straight away, with the ❌ sound. A session saved with one wrong True or false try on record loads as missed.
 _Avoid_: Attempt (the parent area's word for a session)
 
 **Step**:
-One blank of a math problem that has several, such as the Strategies problem `8 + 6`, then `8 + ☐ = 10`, `6 = 2 + ☐`, `10 + 4 = ☐`. Steps are answered one at a time and each has its own two tries; the earlier steps stay on screen with their answers. The problem is ✅ only if every step is right on its first try, and it counts once, after its last step. A problem with a single blank (Facts) has one step.
+One blank of a math problem that has several, such as the Strategies problem `8 + 6`, then `8 + ☐ = 10`, `6 = 2 + ☐`, `10 + 4 = ☐`. Steps are answered one at a time and each has its own tries (two on the number pad); the earlier steps stay on screen with their answers. The problem is ✅ only if every step is right on its first try, and it counts once, after its last step. A problem with a single blank (Facts) has one step.
 
 **Break (prompt)**:
 A pause offered during a round after a set number of marks (in math, finished problems, not each try), or of Next taps in stroke order and learning sessions (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
@@ -95,7 +99,7 @@ The grown-up part of the app behind the parent gate: profiles, lesson assignment
 _Avoid_: Admin, settings screen
 
 **Sounds setting**:
-A per-profile choice to play sound effects on ✅, ❌ and finishing. It never silences the item audio.
+A per-profile choice to play sound effects on ✅, ❌ and finishing. The chime plays for a right answer, even a right second try that is still marked ❌. It never silences the item audio.
 _Avoid_: Mute, volume
 
 **Learning setting**:
