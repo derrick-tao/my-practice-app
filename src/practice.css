@@ -525,18 +525,29 @@
   gap: 8px;
 }
 
-.math__given,
+.math__question,
 .math__step {
   margin: 0;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.math__given {
-  font-size: clamp(1.5rem, 6vw, 2rem);
-  color: var(--accent);
-  /* A long trick title ("Make ten with three numbers: ...") may wrap on a narrow screen. */
-  white-space: normal;
+/* The question to solve ("8 + 6"): large, in the normal ink. */
+.math__question {
+  font-size: clamp(1.8rem, 7.5vw, 2.6rem);
+  color: var(--ink);
+}
+
+/* The trick's name: a small rounded purple badge on its own line above the question. */
+.math__badge {
+  margin: 0;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: clamp(0.95rem, 3.6vw, 1.1rem);
+  font-weight: 700;
+  /* A long trick name ("Make ten with three numbers") may wrap on a narrow screen. */
   text-align: center;
 }
 

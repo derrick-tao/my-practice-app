@@ -1,6 +1,6 @@
-// A multi-step math problem (Strategies): the trick's title with the given line, then one line per step reached so far,
-// each with a one-line hint. A finished step stays on screen with its answer, and only the step the child is on has a
-// blank to fill, so the lines read as the worked trick.
+// A multi-step math problem (Strategies): the trick's badge on its own line, the question (the given line) on the next,
+// then one line per step reached so far, each with a one-line hint. A finished step stays on screen with its answer,
+// and only the step the child is on has a blank to fill, so the lines read as the worked trick.
 import type { StepPlace } from '../practice/math-session.ts';
 import { MathBlank } from './math-blank.tsx';
 
@@ -11,7 +11,7 @@ export function StepsProblem({
   settled,
   entry,
 }: {
-  /** The trick's name ("Make a ten"), shown with the given line ("Make a ten: 8 + 6"). */
+  /** The trick's name ("Make a ten"), shown as a badge above the question. */
   title?: string;
   given: string;
   place: StepPlace;
@@ -20,21 +20,15 @@ export function StepsProblem({
 }) {
   return (
     <div class="math__steps" data-testid="problem">
-      {title !== undefined ? (
-        <p class="math__given" data-testid="title">
-          {title}
-          {given !== '' && (
-            <>
-              : <span data-testid="given">{given}</span>
-            </>
-          )}
+      {title !== undefined && (
+        <p class="math__badge" data-testid="title">
+          💡 {title}
         </p>
-      ) : (
-        given !== '' && (
-          <p class="math__given" data-testid="given">
-            {given}
-          </p>
-        )
+      )}
+      {given !== '' && (
+        <p class="math__question" data-testid="given">
+          {given}
+        </p>
       )}
       {place.steps.slice(0, place.index + 1).map((step, i) => {
         const current = i === place.index;
