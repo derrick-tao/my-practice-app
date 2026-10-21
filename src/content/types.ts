@@ -9,7 +9,7 @@ export const LIST_TYPE_IDS = ['dictation', 'stroke-order', 'phrase-recognition']
 export type ListTypeId = (typeof LIST_TYPE_IDS)[number];
 
 /** Practice types whose lesson holds rules; the items are generated when a session starts (the Math subject). */
-export const RULES_TYPE_IDS = ['facts'] as const;
+export const RULES_TYPE_IDS = ['facts', 'missing-number'] as const;
 export type RulesTypeId = (typeof RULES_TYPE_IDS)[number];
 
 /** The practice-type id space, in registry order (the order buttons appear in). */
@@ -22,6 +22,7 @@ export const PRACTICE_TYPE_SUBJECTS: Record<PracticeTypeId, string> = {
   'stroke-order': 'chinese',
   'phrase-recognition': 'chinese',
   facts: 'math',
+  'missing-number': 'math',
 };
 
 export const isPracticeTypeId = (value: string): value is PracticeTypeId =>
