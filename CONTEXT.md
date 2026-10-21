@@ -72,14 +72,14 @@ _Avoid_: Learn mode, preview, flashcards
 An ordered pass over a set of items; round 1 covers them all, and each later round covers only the items marked ❌ in the round before.
 
 **Mark**:
-An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅.
+An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅ (so a True or false problem that is wrong is ❌ at once).
 
 **Try**:
-One answer the learner checks for a math problem. A problem allows two; a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the only time the ❌ sound plays). Right on the second try is still ❌, with a cheerful "got it!".
+One answer the learner checks for a math problem. A number-pad problem allows two: a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the only time the ❌ sound plays). Right on the second try is still ❌, with a cheerful "got it!". True or false allows one, since with two choices a second try is only a guess: a wrong answer shows the answer and how to get it straight away, with the ❌ sound. A session saved with one wrong True or false try on record loads as missed.
 _Avoid_: Attempt (the parent area's word for a session)
 
 **Step**:
-One blank of a math problem that has several, such as the Strategies problem `8 + 6`, then `8 + ☐ = 10`, `6 = 2 + ☐`, `10 + 4 = ☐`. Steps are answered one at a time and each has its own two tries; the earlier steps stay on screen with their answers. The problem is ✅ only if every step is right on its first try, and it counts once, after its last step. A problem with a single blank (Facts) has one step.
+One blank of a math problem that has several, such as the Strategies problem `8 + 6`, then `8 + ☐ = 10`, `6 = 2 + ☐`, `10 + 4 = ☐`. Steps are answered one at a time and each has its own tries (two on the number pad); the earlier steps stay on screen with their answers. The problem is ✅ only if every step is right on its first try, and it counts once, after its last step. A problem with a single blank (Facts) has one step.
 
 **Break (prompt)**:
 A pause offered during a round after a set number of marks (in math, finished problems, not each try), or of Next taps in stroke order and learning sessions (the profile's break setting; off means never). The learner chooses Keep going or Break, and the count starts again either way.
