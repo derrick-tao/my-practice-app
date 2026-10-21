@@ -10,8 +10,9 @@ export function isValidEntry(type: MathPracticeType, entry: string): boolean {
   return type.input === 'true-false' ? (TRUE_FALSE_ENTRIES as readonly string[]).includes(entry) : /^\d{1,4}$/.test(entry);
 }
 
-export function isCorrectEntry(type: MathPracticeType, problem: Problem, entry: string): boolean {
-  return type.input === 'true-false' ? (entry === 'true') === (type.answer(problem) === 1) : Number(entry) === type.answer(problem);
+/** `answer` is the number the entry is checked against: the problem's, or the current step's in a multi-step problem. */
+export function isCorrectEntry(type: MathPracticeType, problem: Problem, entry: string, answer = type.answer(problem)): boolean {
+  return type.input === 'true-false' ? (entry === 'true') === (answer === 1) : Number(entry) === answer;
 }
 
 /** The answer as the learner sees it: "14", or "True" / "False". */

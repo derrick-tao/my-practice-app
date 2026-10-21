@@ -16,7 +16,7 @@
 // A file written by an older schema is accepted: checkBackup migrates its data to the current schema
 // (src/storage/migrations.ts) before checking it, so everything after that sees one shape.
 import { isPracticeTypeId, isRulesType, type PracticeTypeId } from '../content/types.ts';
-import { MAX_TRIES } from '../math/problem.ts';
+import { MAX_STEPS, MAX_TRIES } from '../math/problem.ts';
 import { isOperation, MAX_WITHIN, MIN_WITHIN } from '../math/rules.ts';
 import { migrate } from '../storage/migrations.ts';
 import { SCHEMA_VERSION, type StoredData } from '../storage/types.ts';
@@ -91,15 +91,19 @@ function isProfile(value: unknown): boolean {
 const isProblem = (value: unknown): boolean =>
   isObject(value) && isString(value.kind) && Array.isArray(value.numbers) && value.numbers.every(isNonNegativeInteger);
 
-const isTry = (value: unknown): boolean => isObject(value) && isString(value.answer) && typeof value.correct === 'boolean';
+const isTry = (value: unknown): boolean =>
+  isObject(value) &&
+  isString(value.answer) &&
+  typeof value.correct === 'boolean' &&
+  (value.step === undefined || (isNonNegativeInteger(value.step) && value.step < MAX_STEPS));
 
-/** A math round's problems (one per spot) and tries (at most two per spot), when it has them. */
+/** A math round's problems (one per spot) and tries (at most two per step of a spot), when it has them. */
 function hasValidMathFields(round: Record<string, unknown>): boolean {
   const { problems, tries } = round;
   return (
     (problems === undefined || (isObject(problems) && Object.values(problems).every(isProblem))) &&
     (tries === undefined ||
-      (isObject(tries) && Object.values(tries).every((spot) => Array.isArray(spot) && spot.length <= MAX_TRIES && spot.every(isTry))))
+      (isObject(tries) && Object.values(tries).every((spot) => Array.isArray(spot) && spot.length <= MAX_TRIES * MAX_STEPS && spot.every(isTry))))
   );
 }
 

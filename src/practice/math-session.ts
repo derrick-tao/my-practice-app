@@ -2,16 +2,19 @@
 // each of the round's numbered spots ("1" to "20") and the Tries made at it. Pure like session.ts: each function
 // takes a session and returns the next one (or the same object when the action does not apply).
 //
-// One problem goes: first try right -> ✅ and on to the next problem; first try wrong -> the same problem again
-// (phase stays `prompt`, one try on record); second try right -> ❌ ("got it!", phase `revealed`, Next moves on);
-// second try wrong -> ❌ and the answer with its strategy (phase `revealed`, Next moves on). The mark is saved the
-// moment it is decided, so a reload shows the same screen. A retry round puts a new problem of the same kind at each
-// ❌ spot. There is no undo and no timer.
+// One problem is one or more steps (blanks): Facts has one, a Strategies problem several. Each step goes: first try
+// right -> on to the next step; first try wrong -> the same step again (phase stays `prompt`, one try on record);
+// second try right -> "got it!" (phase `revealed`, Next moves on); second try wrong -> the answer with its explanation
+// (phase `revealed`, Next moves on). The problem is ✅ only if every step was right on its first try, and its mark is
+// decided, and saved, the moment its last step is settled, so a reload shows the same screen. Which step the learner is
+// on is never saved on its own: it is read back from the tries (each says its step) and the phase. A retry round puts a
+// new problem of the same kind at each ❌ spot. There is no undo and no timer.
 import type { RulesTypeId } from '../content/types.ts';
 import { isCorrectEntry, isValidEntry } from '../math/answer.ts';
 import { generateProblems, generateReplacement } from '../math/generate.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import { MAX_TRIES, type Problem, type Try } from '../math/problem.ts';
+import type { Step } from '../math/types.ts';
 import { DEFAULT_RULES, type Rules } from '../math/rules.ts';
 import {
   canRetry,
@@ -84,17 +87,49 @@ export function currentProblem(session: Session): Problem | undefined {
   return id === undefined ? undefined : round.problems?.[id];
 }
 
-/** The tries made so far at the current spot (none for a fresh problem, one while the second try is pending). */
-export function currentTries(session: Session): Try[] {
-  const round = currentRound(session);
-  const id = currentItemId(round);
-  return (id === undefined ? undefined : round.tries?.[id]) ?? [];
+/** The blanks of a problem, in order. A type without `steps` (Facts) has the one blank at the end of its equation. */
+function stepsOf(session: Session, problem: Problem): Step[] {
+  const type = typeOf(session);
+  return type.steps?.(problem) ?? [{ before: `${type.equation(problem)} `, after: '', answer: type.answer(problem), explanation: type.strategy(problem) }];
 }
 
-/** Where the current problem stands once a try has been made (read back from the saved tries, so a reload shows the same thing). */
+const stepOfTry = (attempt: Try): number => attempt.step ?? 0;
+const triesAt = (tries: Try[], step: number): Try[] => tries.filter((attempt) => stepOfTry(attempt) === step);
+/** A step is over once it is answered right or both tries are used. */
+const isStepSettled = (tries: Try[]): boolean => tries.some((attempt) => attempt.correct) || tries.length >= MAX_TRIES;
+
+/** Where the learner is within the current problem: the step shown, how many there are, and the tries at that step. */
+export interface StepPlace {
+  index: number;
+  steps: Step[];
+  /** The step on screen (its answer and explanation are what feedback shows). */
+  step: Step;
+  /** The tries made at this step: none for a fresh one, one while the second try is pending. */
+  tries: Try[];
+}
+
+/** `undefined` when the round is over. Read back from the saved tries and phase, so a reload lands on the same step. */
+export function currentStep(session: Session): StepPlace | undefined {
+  const problem = currentProblem(session);
+  if (!problem) return undefined;
+  const steps = stepsOf(session, problem);
+  const all = currentRound(session).tries?.[currentItemId(currentRound(session))!] ?? [];
+  // `revealed` is a settled step waiting for Next: it is the step of the latest try. Otherwise it is the first step not settled.
+  const settledFirst = steps.findIndex((_, i) => !isStepSettled(triesAt(all, i)));
+  const index =
+    currentRound(session).phase === 'revealed' ? stepOfTry(all.at(-1)!) : settledFirst === -1 ? steps.length - 1 : settledFirst;
+  return { index, steps, step: steps[index]!, tries: triesAt(all, index) };
+}
+
+/** The tries made so far at the current step. */
+export function currentTries(session: Session): Try[] {
+  return currentStep(session)?.tries ?? [];
+}
+
+/** Where the current step stands once a try has been made (read back from the saved tries, so a reload shows the same thing). */
 export type TryOutcome = 'try-again' | 'second-try-right' | 'missed';
 
-/** `undefined` for a problem with no try yet. */
+/** `undefined` for a step with no try yet. */
 export function outcomeOf(session: Session): TryOutcome | undefined {
   const last = currentTries(session).at(-1);
   if (!last) return undefined;
@@ -102,35 +137,47 @@ export function outcomeOf(session: Session): TryOutcome | undefined {
   return last.correct ? 'second-try-right' : 'missed';
 }
 
-/** Submit what was typed (digits) or tapped ("true" / "false"); nothing happens for anything else, a finished problem or a finished round. */
+/** Submit what was typed (digits) or tapped ("true" / "false"). Nothing happens for anything else, a settled step or a finished round. */
 export function submitAnswer(session: Session, entry: string, env: PracticeEnv): Session {
   if (session.status !== 'active' || !isValidEntry(typeOf(session), entry)) return session;
   const before = currentRound(session);
   const id = currentItemId(before);
-  const problem = id === undefined ? undefined : before.problems?.[id];
-  if (id === undefined || !problem || before.phase !== 'prompt') return session;
-  const prior = before.tries?.[id] ?? [];
-  if (prior.length >= MAX_TRIES) return session;
+  const place = currentStep(session);
+  const problem = currentProblem(session);
+  if (id === undefined || !problem || !place || before.phase !== 'prompt') return session;
+  if (place.tries.length >= MAX_TRIES) return session;
 
-  const correct = isCorrectEntry(typeOf(session), problem, entry);
-  const tries = [...prior, { answer: entry, correct }];
-  const settledRight = correct && prior.length === 0;
-  const settled = correct || tries.length >= MAX_TRIES;
+  const correct = isCorrectEntry(typeOf(session), problem, entry, place.step.answer);
+  // Facts has one step and saves no step number, so what it saved before multi-step problems is unchanged.
+  const attempt: Try = { answer: entry, correct, ...(place.steps.length > 1 && { step: place.index }) };
+  const all = [...(before.tries?.[id] ?? []), attempt];
+  const tries = triesAt(all, place.index);
+  const firstTryRight = correct && tries.length === 1;
+  if (!isStepSettled(tries)) return withCurrentRound(session, (round) => ({ ...round, tries: { ...round.tries, [id]: all } })); // wrong the first time: the same step again
 
-  const updated = withCurrentRound(session, (round) => {
-    const withTry = { ...round, tries: { ...round.tries, [id]: tries } };
-    if (!settled) return withTry; // wrong the first time: the same problem again
-    const marked = { ...withTry, marks: { ...round.marks, [id]: settledRight ? ('correct' as const) : ('wrong' as const) } };
-    return settledRight ? moveOn(marked, env) : { ...marked, phase: 'revealed' as const };
+  const isLast = place.index === place.steps.length - 1;
+  // ✅ only if every step was right on its first try.
+  const clean = place.steps.every((_, i) => {
+    const at = triesAt(all, i);
+    return at.length === 1 && at[0]!.correct;
   });
-  return settledRight ? afterFinished(updated, env) : updated;
+  const updated = withCurrentRound(session, (round) => {
+    const withTry = { ...round, tries: { ...round.tries, [id]: all } };
+    if (!isLast) return firstTryRight ? withTry : { ...withTry, phase: 'revealed' as const };
+    const marked = { ...withTry, marks: { ...round.marks, [id]: clean ? ('correct' as const) : ('wrong' as const) } };
+    return firstTryRight ? moveOn(marked, env) : { ...marked, phase: 'revealed' as const };
+  });
+  return isLast && firstTryRight ? afterFinished(updated, env) : updated;
 }
 
-/** Next: the answer (and strategy) has been seen, so move to the next problem. */
+/** Next: the answer (and explanation) has been seen, so move to the next step, or after the last one to the next problem. */
 export function nextProblem(session: Session, env: PracticeEnv): Session {
   if (session.status !== 'active') return session;
-  if (currentRound(session).phase !== 'revealed' || isRoundOver(currentRound(session))) return session;
-  return afterFinished(withCurrentRound(session, (round) => moveOn(round, env)), env);
+  const round = currentRound(session);
+  const place = currentStep(session);
+  if (round.phase !== 'revealed' || isRoundOver(round) || !place) return session;
+  if (place.index < place.steps.length - 1) return withCurrentRound(session, (r) => ({ ...r, phase: 'prompt' as const })); // the problem goes on
+  return afterFinished(withCurrentRound(session, (r) => moveOn(r, env)), env);
 }
 
 /** The next spot: the learner's place moves on and the round is over after the last one. */

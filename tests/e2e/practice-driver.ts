@@ -38,7 +38,15 @@ export const allowAudioPlayback = (page: Page): Promise<void> =>
 export const lessonGroup = (page: Page, title: string): Locator => page.getByRole('group', { name: title, exact: true });
 
 /** The button label a child sees for each practice type (see the practice-type registry). */
-const BUTTON_LABEL: Record<PracticeTypeId, string> = { dictation: 'Write', 'stroke-order': 'Draw', 'phrase-recognition': 'Say', facts: 'Facts', 'missing-number': 'Missing', 'true-or-false': 'True?' };
+const BUTTON_LABEL: Record<PracticeTypeId, string> = {
+  dictation: 'Write',
+  'stroke-order': 'Draw',
+  'phrase-recognition': 'Say',
+  facts: 'Facts',
+  'missing-number': 'Missing',
+  'true-or-false': 'True?',
+  strategies: 'Tricks',
+};
 
 export class PracticeScreen {
   readonly listen: Locator;

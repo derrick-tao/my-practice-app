@@ -1,0 +1,6 @@
+# Math fixture for the Seam 1 Strategies specs: default rules (within 20, add and subtract).
+id: fixture-strategies
+title: Fixture Strategies
+subject: math
+strategies:
+  within: 20

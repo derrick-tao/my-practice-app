@@ -54,6 +54,7 @@ export const StrokeOrderScreen = (props: PracticeRouteProps) => <PracticeScreen 
 export const FactsScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="facts" />;
 export const MissingNumberScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="missing-number" />;
 export const TrueOrFalseScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="true-or-false" />;
+export const StrategiesScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="strategies" />;
 export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
   <PracticeScreen {...props} practiceType="phrase-recognition" />
 );

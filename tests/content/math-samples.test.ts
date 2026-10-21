@@ -32,7 +32,8 @@ describe.each(Object.entries(MATH_TYPES))('%s sample problems', (_id, type) => {
       for (const problem of samples) {
         expect(type.kinds(rules)).toContain(problem.kind);
         expect(type.pool(problem.kind, rules).map((p) => type.key(p))).toContain(type.key(problem));
-        expect(type.equation(problem)).not.toBe('');
+        // A multi-step type's equation is only the line above its steps, and empty for some kinds.
+        if (!type.steps) expect(type.equation(problem)).not.toBe('');
         expect(Number.isInteger(type.answer(problem))).toBe(true);
       }
     }

@@ -12,7 +12,7 @@ import type { Problem } from '../math/problem.ts';
 import type { MathPracticeType } from '../math/types.ts';
 import { NumberPad } from '../number-pad.tsx';
 import { createEffects } from '../practice/effects.ts';
-import { currentProblem, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
+import { currentProblem, currentStep, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
 import {
   breakDue,
@@ -32,6 +32,7 @@ import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { TrueFalsePad } from '../true-false-pad.tsx';
+import { StepsProblem } from './math-steps.tsx';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 
@@ -136,6 +137,7 @@ export function MathRun({
 
   const round = currentRound(session);
   const problem = currentProblem(session);
+  const place = currentStep(session);
   const outcome = outcomeOf(session);
   const frame = problem ? blankFrame(type, problem) : { before: '', after: '', blank: '?' };
   const settled = round.phase === 'revealed';
@@ -152,27 +154,31 @@ export function MathRun({
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
-      {!onBreakPrompt && problem && !isRoundOver(round) && (
+      {!onBreakPrompt && problem && place && !isRoundOver(round) && (
         <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
           <div class="practice__stage">
             <div class="math">
-              <p class={trueFalse ? 'math__problem math__problem--equation' : 'math__problem'} data-testid="problem">
-                {frame.before}
-                {(!trueFalse || settled) && (
-                  <span class="math__answer" data-testid="answer">
-                    {settled ? answerText(type, problem) : entry === '' ? frame.blank : entry}
-                  </span>
-                )}
-                {frame.after}
-              </p>
+              {type.steps ? (
+                <StepsProblem given={type.equation(problem)} place={place} settled={settled} entry={entry} />
+              ) : (
+                <p class={trueFalse ? 'math__problem math__problem--equation' : 'math__problem'} data-testid="problem">
+                  {frame.before}
+                  {(!trueFalse || settled) && (
+                    <span class="math__answer" data-testid="answer">
+                      {settled ? answerText(type, problem) : entry === '' ? frame.blank : entry}
+                    </span>
+                  )}
+                  {frame.after}
+                </p>
+              )}
               {outcome && (
                 <p class="math__feedback" role="status" data-testid="feedback">
-                  {outcome === 'missed' ? `The answer is ${answerText(type, problem)}` : FEEDBACK[outcome]}
+                  {outcome === 'missed' ? `The answer is ${type.steps ? place.step.answer : answerText(type, problem)}` : FEEDBACK[outcome]}
                 </p>
               )}
               {outcome === 'missed' && (
                 <p class="math__strategy" data-testid="strategy">
-                  {type.strategy(problem)}
+                  {place.step.explanation}
                 </p>
               )}
             </div>

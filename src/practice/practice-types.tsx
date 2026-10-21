@@ -3,7 +3,16 @@
 // keeps every practice type covered: adding an id to PRACTICE_TYPE_IDS fails to compile until it has an entry.
 import type { ComponentType } from 'preact';
 import type { LessonSummary, PracticeTypeId } from '../content/types.ts';
-import { DictationScreen, FactsScreen, MissingNumberScreen, PhraseRecognitionScreen, StrokeOrderScreen, TrueOrFalseScreen, type PracticeRouteProps } from '../screens/practice.tsx';
+import {
+  DictationScreen,
+  FactsScreen,
+  MissingNumberScreen,
+  PhraseRecognitionScreen,
+  StrategiesScreen,
+  StrokeOrderScreen,
+  TrueOrFalseScreen,
+  type PracticeRouteProps,
+} from '../screens/practice.tsx';
 
 export interface PracticeType {
   id: PracticeTypeId;
@@ -66,6 +75,14 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     itemNoun: { singular: 'problem', plural: 'problems' },
     hasMarks: true,
     screen: TrueOrFalseScreen,
+  },
+  strategies: {
+    id: 'strategies',
+    label: 'Tricks',
+    icon: '🧠',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: StrategiesScreen,
   },
 };
 
