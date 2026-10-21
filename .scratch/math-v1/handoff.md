@@ -1,8 +1,8 @@
 # Handoff: math as a second subject (deferred)
 
-**Status:** deferred on 2026-10-19. Not needed yet; nothing is implemented. This records a design grilling session (`/grill-with-docs`) so it can be picked up later without redoing it. Written against commit `966caef`.
+**Status:** design complete on 2026-10-20; nothing is implemented. This records a design grilling session (`/grill-with-docs`, deferred 2026-10-19) so it can be picked up without redoing it. Rounds 1–4 are all settled (the final round was accepted as recommended on 2026-10-20). Written against commit `966caef`; codebase facts re-checked against `a80650f` (see "Drift since `966caef`").
 
-**To resume:** answer the open final round below (Q1 is a correction that must be accepted or replaced), then apply the draft glossary entries to `CONTEXT.md`, add the draft ADR as `docs/adr/0002-…`, and turn this into a spec issue with sub-issues per `docs/agents/issue-tracker.md`. Re-check the codebase facts first; they may have moved.
+**To resume:** apply the draft glossary entries to `CONTEXT.md`, add the draft ADR as `docs/adr/0003-…` (0002 is taken), and turn this into a spec issue with sub-issues per `docs/agents/issue-tracker.md` (the work split is Round 4, item 9). One item is still assumed rather than confirmed: the math test dates (Round 3, item 8).
 
 ## The ask
 
@@ -25,7 +25,7 @@ The school's text, verbatim:
 > 1.OA.7 Understand the meaning of the equal sign, and determine if equations involving addition and subtraction are true or false. For example, which of the following equations are true and which are false? 6 = 6, 7 = 8 – 1, 5 + 2 = 2 + 5, 4 + 1 = 5 + 2.
 > 1.OA.8 Determine the unknown whole number in an addition or subtraction equation relating three whole numbers. For example, determine the unknown number that makes the equation true in each of the equations 8 + ? = 11, 5 = ☐ – 3, 6 + 6 = ☐.
 
-## Codebase facts that shaped the design (at `966caef`)
+## Codebase facts that shaped the design (at `966caef`; still true at `a80650f` unless the drift section says otherwise)
 
 - A lesson has exactly one `subject`. It shows in the folder (`content/chinese/`), the address (`#/chinese/dictation/<lessonId>`, `src/router.ts`), the manifest grouping (`Manifest.subjects`), and every saved `Session.subject`.
 - Lesson ids are unique across all subjects (`id-unique` in `content-build/validate.ts`), so a math lesson can't reuse `fall-2026-assessment`.
@@ -36,6 +36,21 @@ The school's text, verbatim:
 - Saved data is at schema v2 with ordered migrations (`src/storage/migrations.ts`) and saved-data fixtures for old versions.
 - The parent progress page shows attempts, first-try trend, best score, trickiest items, and each round's missed items. The lesson preview lists items.
 - ADR-0001 kept a lesson's practice types in one lesson because the family sees them as one test.
+
+## Drift since `966caef` (re-checked at `a80650f`)
+
+Landed since: Pre-K lesson (#33), **stroke order / Draw** practice type (#42, #43, #47), the **learning setting** for Say (#44, ADR 0002), audio release fix (#45). What it changes for math:
+
+- **Saved data is now schema v4**, so math's additive change is **v5**.
+- **ADR 0002 is taken** (`0002-learning-is-a-setting-not-a-practice-type.md`); the math ADR is `0003`.
+- `PRACTICE_TYPE_IDS` is now `dictation`, `stroke-order`, `phrase-recognition`. The registry order drives button order; math types are appended after them. `PRACTICE_TYPES` in `src/practice/practice-types.tsx` is the registry to extend with a subject.
+- **Sessions no longer always have marks.** `hasMarks(session)` (`src/practice/session.ts`) is false for stroke order and learning sessions, and Progress, break count and completion branch on it. Math sessions *have* marks, but a mark needs the try count (first-try vs second-try) that today's `Mark` (`correct`/`wrong`) does not carry, so math rounds need their own saved shape for tries (Round 4, item 4 already says "each try's answer").
+- **Screens are now flow components**: `src/screens/practice-flows.tsx` holds per-kind flows (stroke order, learning) and `practice.tsx` was slimmed. Math's number-pad flow belongs there as a new flow.
+- **Break prompt** counts marks *or* Next taps (`marksSinceBreak`). Math counts a mark when a problem is finished (right first try, right second try, or answer shown), not each try.
+- **Parent Progress** now lists learning sessions apart from attempts and has per-kind handling; math adds "by problem kind" to that. The Progress/lesson-preview files (`src/parent/sections/progress.tsx`, `lesson-preview.tsx`) changed a lot, so re-read them when slicing issue 6.
+- **`CONTEXT.md`** now has **Subject**, **Stroke order**, **Learning session**, **Learning setting**; **Item**, **Mark**, **Session**, **Break (prompt)** and **Undo entry** are still the Chinese-only wording the draft changes below replace.
+- **Two Chinese lessons** exist (`fall-2026-assessment`, `prek-2026-10-19`). Lesson ids are still unique across subjects, so `fall-2026-math-assessment` is fine.
+- Still true: Chinese-only content build (`target-cjk`, `script` in `LESSON_KEYS`, pinyin, audio, Kai font in `content-build/`), `id-unique`, router `#/<subject>/<practiceType>/<lessonId>`, injected `RandomSource`, ordered migrations with saved-data fixtures per version.
 
 ## Settled decisions
 
@@ -79,14 +94,14 @@ The school's text, verbatim:
 5. **Parent progress uses the same layout.** *Trickiest* becomes problem kinds ("subtract across ten: ❌ 4 of 6"), and missed items show the problem and what the child entered (`13 − 4 = ?`, answered 8).
 6. **Parent lesson preview** shows each type's rules, its problem kinds, and 5 sample problems, with a 🔀 button for new samples.
 7. **A wrong first try is gentle:** a soft wobble and "Try again!" with no ❌ sound. The ❌ sound plays only after the second wrong try. With the Sounds setting off, there's no sound at all.
-8. **First lesson:** `content/math/fall-2026-math-assessment.yaml`, title "Fall 2026 Math Assessment", test dates 2026-10-26 to 2026-10-30 (the same as the Chinese one; confirm), all five types `within: 20`.
+8. **First lesson:** `content/math/fall-2026-math-assessment.yaml`, title "Fall 2026 Math Assessment", test dates 2026-10-26 to 2026-10-30 (assumed the same as the Chinese one; confirm before publishing), all five types `within: 20`.
 
-## Open: final round (how it's built), recommendations not yet answered
+### Round 4: how it's built (accepted as recommended, 2026-10-20)
 
-1. **Correction: what makes a math item unique.** Rounds 2–3 assumed an item's identity is its problem kind. That fails: 20 items over as few as 4 kinds means items share a kind, and rounds key marks by item id. *Recommended:* a math item is one of the session's 20 numbered spots ("problem 7"), with one problem kind for the whole session and a new problem each round. Progress still totals by kind. The draft glossary and ADR below already assume this.
+1. **Correction to rounds 2–3: what makes a math item unique.** Rounds 2–3 assumed an item's identity is its problem kind. That fails: 20 items over as few as 4 kinds means items share a kind, and rounds key marks by item id. *Decided:* a math item is one of the session's 20 numbered spots ("problem 7"), with one problem kind for the whole session and a new problem each round. Progress still totals by kind. The draft glossary and ADR below already assume this.
 2. **One practice-type registry, each type tagged with a subject.** Validation rejects a math type in a Chinese lesson. Ids: `facts`, `missing-number`, `true-or-false`, `word-problems`, `strategies`. Addresses like `#/math/facts/fall-2026-math-assessment`.
 3. **Problems are made in the app** when a session or retry round starts, using the injected random source (seeded in e2e). The content build only validates rules. Works offline; fresh problems need no deploy.
-4. **Rounds save problems as data**, not text: kind, numbers, which spot is blank, and for word problems the name and object picked, plus each try's answer. The screen renders from that, so resume is exact. Saved-data schema v3, additive only, so Chinese sessions and v2 backups import unchanged.
+4. **Rounds save problems as data**, not text: kind, numbers, which spot is blank, and for word problems the name and object picked, plus each try's answer. The screen renders from that, so resume is exact. Saved-data schema v5 (next after the current v4), additive only, so Chinese sessions and v4 (and older) backups import unchanged.
 5. **Lesson file shape:**
 
    ```yaml
@@ -106,7 +121,7 @@ The school's text, verbatim:
 7. **Home has no subject picker** (the v1 spec skipped it only while there was one subject). Each lesson card gets a small subject tag (Chinese / Math). Keep going cards are unchanged.
 8. **Profile settings:** *Shuffle* doesn't apply to math (always mixed), and the parent area says so next to it. *Break* and *Sounds* work as now.
 9. **Work split:** a spec issue with sub-issues:
-   1. Math subject plus *Facts* end to end: lesson file and validation, subject-tagged registry, generation, number-pad screen, two tries, retry rounds, save and resume, schema v3.
+   1. Math subject plus *Facts* end to end: lesson file and validation, subject-tagged registry, generation, number-pad screen, two tries, retry rounds, save and resume, schema v5.
    2. *Missing number*.
    3. *True or false*.
    4. *Strategies*.
@@ -130,9 +145,10 @@ Apply these when the work starts, not before: `CONTEXT.md` describes what the ap
 - **Problem**: the particular numbers a math item shows in one round, e.g. `? + 5 = 12`. _Avoid_: question, exercise.
 - **Mark**: an item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅.
 - **Try**: one answer the learner checks for a math problem. A problem allows two; after a second wrong try the app shows the answer and how to get it. _Avoid_: attempt (the parent area's word for a session).
+- **Session** and **Break (prompt)**: a math session has marks and rounds like Chinese graded ones; a break counts a finished problem (not each try).
 - **Undo entry**: add "Math practice types have no Undo, since the app grades."
 
-## Draft ADR (becomes `docs/adr/0002-…` when the work starts)
+## Draft ADR (becomes `docs/adr/0003-…` when the work starts)
 
 > # Math items are generated: a new problem each session and round
 >
