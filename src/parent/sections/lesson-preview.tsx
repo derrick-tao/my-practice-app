@@ -1,17 +1,19 @@
 // Parent area section: preview a published lesson (every item's target, pinyin and clue, with its audio)
 // to check the voice and the readings before the child practices. #/parent/lesson-preview shows the lessons;
-// #/parent/lesson-preview/<lessonId> is one lesson's preview.
+// #/parent/lesson-preview/<lessonId> is one lesson's preview. A math practice type shows its rules, problem kinds and
+// 5 sample problems with a 🔀 for new ones (src/parent/math-parts.tsx).
 import { useMemo } from 'preact/hooks';
 import { fetchLesson } from '../../content/client.ts';
 import { listEntries, rulesEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
-import { rulesSummary, SESSION_SIZE, type Rules } from '../../math/rules.ts';
+import { SESSION_SIZE } from '../../math/rules.ts';
 import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
 import { useLoad } from '../../use-async.ts';
 import '../lesson-preview.css';
 import type { ParentSection } from '../sections.ts';
+import { MathPreviewSection } from '../math-parts.tsx';
 
 const SCRIPT_LABEL = { simplified: 'Simplified', traditional: 'Traditional' } as const;
 
@@ -65,19 +67,6 @@ function PreviewSection({ player, type, items }: { player: AudioPlayer; type: Pr
   );
 }
 
-/** A math practice type has rules, not items: the preview says what its problems are like. */
-function RulesPreviewSection({ type, rules }: { type: PracticeType; rules: Rules }) {
-  return (
-    <section class="preview-section" data-testid="preview-section">
-      <h3 class="preview-section__title">
-        <span aria-hidden="true">{type.icon} </span>
-        {type.label}
-      </h3>
-      <p>New problems every time: {rulesSummary(rules)}</p>
-    </section>
-  );
-}
-
 function Preview({ lesson }: { lesson: LessonData }) {
   const player = useAudioPlayer();
   const lists = listEntries(lesson.lists);
@@ -105,7 +94,7 @@ function Preview({ lesson }: { lesson: LessonData }) {
         <PreviewSection key={id} player={player} type={PRACTICE_TYPES[id]} items={items} />
       ))}
       {rules.map(([id, rule]) => (
-        <RulesPreviewSection key={id} type={PRACTICE_TYPES[id]} rules={rule} />
+        <MathPreviewSection key={`:`} typeId={id} rules={rule} />
       ))}
     </>
   );
