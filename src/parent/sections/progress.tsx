@@ -22,7 +22,7 @@ import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
-import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
+import { countLabel, itemsIn, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
   listProgress,
   type AttemptSummary,
@@ -193,7 +193,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         {type.label}
       </h3>
       <div class="progress-header__facts" data-testid="progress-facts">
-        <span>{countLabel(type, isRulesType(type.id) ? problemCount : listed.length)}</span>
+        <span>{countLabel(type, itemsIn(type.id, listed.length, problemCount))}</span>
         <span>Attempts: {progress.attemptCount}</span>
         {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>

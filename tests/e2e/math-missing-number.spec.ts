@@ -109,13 +109,17 @@ test.describe('a Missing number session', () => {
     const empty = await missing.blank.boundingBox();
 
     await page.getByRole('button', { name: '7', exact: true }).click();
-    const filled = await missing.problem.getByTestId('answer').boundingBox();
+    const oneDigit = await missing.problem.getByTestId('answer').boundingBox();
+    await page.getByRole('button', { name: '1', exact: true }).click();
+    const twoDigits = await missing.problem.getByTestId('answer').boundingBox();
 
-    expect(filled!.width).toBeCloseTo(empty!.width, 0);
-    expect(filled!.height).toBeCloseTo(empty!.height, 0);
+    for (const filled of [oneDigit!, twoDigits!]) {
+      expect(filled.width).toBeCloseTo(empty!.width, 0);
+      expect(filled.height).toBeCloseTo(empty!.height, 0);
+    }
   });
 
-  test('follows the lesson rules: adding only',async ({ page, audio }) => {
+  test('follows the lesson rules: adding only', async ({ page, audio }) => {
     const missing = await start({ page, audio }, 'Fixture Missing Adding Only');
 
     const shown = await missing.playRound();
