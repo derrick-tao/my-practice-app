@@ -19,7 +19,7 @@ A way of practicing, with its own screen (e.g. dictation, phrase recognition).
 _Avoid_: Mode, activity
 
 **List**:
-A lesson's items for one practice type, e.g. the Fall 2026 Assessment's 37 dictation characters or its 44 phrases. In math the list is not written in the lesson: 20 new items are made for each session, following what the practice type teaches.
+A lesson's items for one practice type, e.g. the Fall 2026 Assessment's 37 dictation characters or its 44 phrases. In math the list is not written in the lesson: new items are made for each session (as many as the profile's problems per practice setting, 20 unless changed), following what the practice type teaches.
 _Avoid_: Item set, section
 
 **Dictation**:
@@ -35,7 +35,7 @@ The practice type where the learner hears a character, watches it drawn one stro
 _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
 
 **Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
-The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ?`); an equation with the blank anywhere (`8 + ? = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
+The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ☐`); an equation with the blank anywhere (`8 + ☐ = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
 
 **Rules**:
 A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
@@ -45,11 +45,11 @@ _Avoid_: Config, settings
 One thing to practice in a list. In Chinese its target is its identity within that list; in math it is one of the session's numbered spots, with one problem kind and a new problem each round.
 
 **Problem kind**:
-What a math item practices, e.g. "adding across ten". A session's 20 items are spread evenly over the type's kinds.
+What a math item practices, e.g. "adding across ten". A session's items are spread evenly over the type's kinds, with any remainder going to different kinds (15 over 4 kinds is 4, 4, 4 and 3); Facts keeps half within 10 and half across ten as close as the size allows.
 _Avoid_: Template, shape, question type
 
 **Problem**:
-The particular numbers a math item shows in one round, e.g. `8 + 6 = ?`. A ❌ item gets a new problem of the same kind in the next round.
+The particular numbers a math item shows in one round, e.g. `8 + 6 = ☐`. A ❌ item gets a new problem of the same kind in the next round.
 _Avoid_: Question, exercise
 
 **Target**:
@@ -101,3 +101,7 @@ _Avoid_: Mute, volume
 **Learning setting**:
 A per-profile choice, off by default, for a learner who hasn't memorized the phrases yet: while it is on, their new phrase recognition sessions are learning sessions. It is not a practice type; the learner still sees Say.
 _Avoid_: Learn mode
+
+**Problems per practice setting**:
+A per-profile choice of 10, 15 or 20 (20 by default) for how many problems a new math session has. It applies when a session starts: a session in progress keeps its size, and its retry rounds cover only the problems missed. It never affects Chinese, whose sessions are as long as their lists. Where a lesson says how many problems it has, it shows this number.
+_Avoid_: Session length, quiz size

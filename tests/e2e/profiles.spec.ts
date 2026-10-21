@@ -126,15 +126,15 @@ test.describe('profiles: switching', () => {
 
     await openSettings(page); // Mia's
     await page.getByRole('switch', { name: 'Shuffle the first round' }).click();
-    await page.getByRole('radio', { name: '5', exact: true }).click();
-    await expect(page.getByRole('radio', { name: '5', exact: true })).toBeChecked();
+    await page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '5', exact: true }).click();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '5', exact: true })).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
 
     await switcher(page).getByRole('button', { name: 'Leo' }).click();
     await openSettings(page);
     await expect(page.getByText('Settings for 🦊 Leo')).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '10', exact: true })).toBeChecked();
   });
 });
 

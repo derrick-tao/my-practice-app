@@ -58,18 +58,18 @@ test.describe('settings: saved per learner', () => {
     const sounds = page.getByRole('switch', { name: 'Sound effects' });
     await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).toBeChecked();
     await expect(sounds).toBeChecked();
-    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '10', exact: true })).toBeChecked();
 
     await sounds.click();
     await expect(sounds).not.toBeChecked();
-    await page.getByRole('radio', { name: '15', exact: true }).click();
-    await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
+    await page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '15', exact: true }).click();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '15', exact: true })).toBeChecked();
 
     await page.reload(); // the gate locks again on reload
     await passGate(page);
     await expect(page.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
     await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '15', exact: true })).toBeChecked();
   });
 
   test('the learning setting starts off, survives a reload, and is per learner', async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe('settings: saved per learner', () => {
     await passGate(page);
     await expect(page.getByRole('radio', { name: 'Slow' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '3 s' })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked(); // the other choices stay as they were
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '10', exact: true })).toBeChecked(); // the other choices stay as they were
   });
 
   test('sounds off mutes effects only: the character audio still plays', async ({ page, audio, loadLesson }) => {

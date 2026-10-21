@@ -22,7 +22,7 @@ async function start(
   await setUpLearner(page);
   if (options.breakEvery !== undefined) {
     await openSettings(page);
-    const choice = page.getByRole('radio', { name: String(options.breakEvery), exact: true });
+    const choice = page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: String(options.breakEvery), exact: true });
     await choice.click();
     await expect(choice).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();

@@ -9,7 +9,7 @@ import {
   type LessonSummary,
   type Manifest,
 } from '../src/content/types.ts';
-import { SESSION_SIZE } from '../src/math/rules.ts';
+import { DEFAULT_PROBLEM_COUNT } from '../src/math/rules.ts';
 import { formatIssue, validateAcrossFiles, validateLessonFile, type Issue, type SourceLesson } from './validate.ts';
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
@@ -125,8 +125,8 @@ function buildManifest(lessons: LessonData[], contentVersion: string, fileOf: (l
       ...(lesson.testDates !== undefined && { testDates: lesson.testDates }),
       practiceTypes: [
         ...listEntries(lesson.lists).map(([id, items]) => ({ id, itemCount: items.length })),
-        // Generated problems: a session is always the same size.
-        ...rulesEntries(lesson.rules).map(([id]) => ({ id, itemCount: SESSION_SIZE })),
+        // Generated problems: the session's size is the learner's setting, so this is only the default (the app shows the setting).
+        ...rulesEntries(lesson.rules).map(([id]) => ({ id, itemCount: DEFAULT_PROBLEM_COUNT })),
       ],
     });
   }

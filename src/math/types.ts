@@ -13,6 +13,8 @@ export interface Step {
   after: string;
   answer: number;
   explanation: string;
+  /** Optional: a short plain-words nudge shown under the line while the learner works it out (about eight words, no jargon). */
+  hint?: string;
 }
 
 export interface MathPracticeType {
@@ -25,6 +27,11 @@ export interface MathPracticeType {
   kinds(rules: Rules): string[];
   /** Every problem of this kind the rules allow (commutative twins included); a session samples from it without repeats. */
   pool(kind: string, rules: Rules): Problem[];
+  /**
+   * Optional. Names the half a kind belongs to (Facts: within 10 or across ten). When a session's size does not divide
+   * evenly over the kinds, the extra problems go to the halves in turn, so the halves stay as close as the size allows.
+   */
+  halfOf?(kind: string): string;
   /**
    * Optional. Names a group for each problem (true or false); the problems of a kind in a session are then drawn
    * alternately from each group, so the groups are balanced to within one.
@@ -40,10 +47,12 @@ export interface MathPracticeType {
   equation(problem: Problem): string;
   /**
    * A type whose answer is not at the end of the equation (a blank in the middle, or on the left of "=") gives the
-   * text on each side of the blank, and the glyph that marks it while it is empty. The screen puts the learner's
-   * digits in the blank. A type without `frame` ends its `equation` where the answer goes.
+   * text on each side of the blank. The screen draws the blank as a box and puts the learner's digits in it (plain
+   * text, as in the parent area, writes it as ☐). A type without `frame` ends its `equation` where the answer goes.
    */
-  frame?(problem: Problem): { before: string; after: string; blank: string };
+  frame?(problem: Problem): { before: string; after: string };
+  /** Optional: a short name for the problem's kind, shown with the problem ("Make a ten: 8 + 6"). */
+  title?(problem: Problem): string;
   /** The number that is the answer (for a true-false type, 1 or 0). */
   answer(problem: Problem): number;
   /**

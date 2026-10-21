@@ -4,6 +4,7 @@
 // looks like (from the school's examples), so a spec can check the generated problems against them.
 import type { Locator, Page } from '@playwright/test';
 import { expect, type AudioProbe } from './harness.ts';
+import { textsWithBlanks } from './math-driver.ts';
 import { tapNumber } from './parent-driver.ts';
 
 export const STRATEGY_KINDS = [
@@ -31,21 +32,36 @@ export const STEPS_OF: Record<StrategyKind, number[]> = {
 /** A problem as shown on the step where the last blank is current: the given line (if any) and every line so far. */
 export interface Shown {
   given: string | null;
-  /** Earlier steps with their answers filled in, then the current line with its "?" (or digits). */
+  /** Earlier steps with their answers filled in, then the current line with its "☐" (or digits). */
   lines: string[];
+  /** The title line as shown: the trick's name, then ": " and the given line when there is one. Null when none shows. */
+  title: string | null;
+  /** The hint under each shown line, in order. */
+  hints: string[];
 }
+
+/** The title each kind of trick shows with its problem. */
+export const STRATEGY_TITLES: Record<StrategyKind, string> = {
+  'swap-order': 'Swap the order',
+  'make-ten-three': 'Make ten with three numbers',
+  'count-on': 'Count on',
+  'make-ten': 'Make a ten',
+  'break-down-to-ten': 'Break down to ten',
+  'related-fact': 'Related fact',
+  'near-doubles': 'Near doubles',
+};
 
 const nums = (text: string): number[] => (text.match(/\d+/g) ?? []).map(Number);
 
 /** The number that fills the blank in the last line. Throws for a line this driver does not know. */
 export function blankOf(line: string): number {
   let m: RegExpExecArray | null;
-  if ((m = /^(?:So )?(\d+) ([+−]) (\d+) = \?$/.exec(line))) return m[2] === '+' ? Number(m[1]) + Number(m[3]) : Number(m[1]) - Number(m[3]);
-  if ((m = /^(\d+) \+ (\d+) \+ (\d+) = (\d+) \+ \?$/.exec(line))) return Number(m[2]) + Number(m[3]);
-  if ((m = /^(\d+) \+ \? = (\d+)$/.exec(line))) return Number(m[2]) - Number(m[1]);
-  if ((m = /^(\d+) − \? = (\d+)$/.exec(line))) return Number(m[1]) - Number(m[2]);
-  if ((m = /^(\d+) = (\d+) \+ \?$/.exec(line))) return Number(m[1]) - Number(m[2]);
-  if ((m = /^(\d+) → \?$/.exec(line))) return Number(m[1]) + 1;
+  if ((m = /^(?:So )?(\d+) ([+−]) (\d+) = ☐$/.exec(line))) return m[2] === '+' ? Number(m[1]) + Number(m[3]) : Number(m[1]) - Number(m[3]);
+  if ((m = /^(\d+) \+ (\d+) \+ (\d+) = (\d+) \+ ☐$/.exec(line))) return Number(m[2]) + Number(m[3]);
+  if ((m = /^(\d+) \+ ☐ = (\d+)$/.exec(line))) return Number(m[2]) - Number(m[1]);
+  if ((m = /^(\d+) − ☐ = (\d+)$/.exec(line))) return Number(m[1]) - Number(m[2]);
+  if ((m = /^(\d+) = (\d+) \+ ☐$/.exec(line))) return Number(m[1]) - Number(m[2]);
+  if ((m = /^(\d+) → ☐$/.exec(line))) return Number(m[1]) + 1;
   throw new Error(`not a blank this driver can solve: ${line}`);
 }
 
@@ -72,7 +88,7 @@ export function kindOfShown({ given, lines }: Shown): StrategyKind {
 export function checkShape(shown: Shown): number {
   const { given, lines } = shown;
   const kind = kindOfShown(shown);
-  const fill = lines.map((line, i) => (i === lines.length - 1 ? line.replace('?', String(blankOf(line))) : line));
+  const fill = lines.map((line, i) => (i === lines.length - 1 ? line.replace('☐', String(blankOf(line))) : line));
   const fail = (): never => {
     throw new Error(`${kind} is not well formed: ${JSON.stringify({ given, lines })}`);
   };
@@ -159,13 +175,17 @@ export function totalSteps({ given }: Shown): number {
 }
 
 /** What the problem is, for telling problems apart: the given line and the lines of the last step. */
-export const identityOfShown = ({ given, lines }: Shown): string => [given ?? '', ...lines].join(' | ').replace(/\?$/, '');
+export const identityOfShown = ({ given, lines }: Shown): string => [given ?? '', ...lines].join(' | ').replace(/☐$/, '');
 
 export type How = 'first' | 'second' | 'missed';
 
 export class StrategiesScreen {
   readonly problem: Locator;
   readonly given: Locator;
+  /** The trick's title with the given line ("Make a ten: 8 + 6"). */
+  readonly title: Locator;
+  /** The one-line hint under each shown step. */
+  readonly hints: Locator;
   readonly steps: Locator;
   readonly feedback: Locator;
   readonly strategy: Locator;
@@ -186,6 +206,8 @@ export class StrategiesScreen {
   ) {
     this.problem = page.getByTestId('problem');
     this.given = page.getByTestId('given');
+    this.title = page.getByTestId('title');
+    this.hints = page.getByTestId('hint');
     this.steps = page.getByTestId('step');
     this.feedback = page.getByTestId('feedback');
     this.strategy = page.getByTestId('strategy');
@@ -217,9 +239,11 @@ export class StrategiesScreen {
   /** The problem on screen, as far as it is shown. Waits for one to show. */
   async read(): Promise<Shown> {
     await expect(this.problem).toBeVisible();
-    const lines = (await this.steps.allTextContents()).map((line) => line.replace(/\s+/g, ' ').trim());
+    const lines = (await textsWithBlanks(this.steps)).map((line) => line.replace(/\s+/g, ' ').trim());
     const given = (await this.given.count()) === 0 ? null : ((await this.given.textContent()) ?? '').replace(/\s+/g, ' ').trim();
-    return { given, lines };
+    const title = (await this.title.count()) === 0 ? null : ((await this.title.textContent()) ?? '').replace(/\s+/g, ' ').trim();
+    const hints = (await this.hints.allTextContents()).map((hint) => hint.replace(/\s+/g, ' ').trim());
+    return { given, lines, title, hints };
   }
 
   /** The blank the child is on: the number the last line needs. */

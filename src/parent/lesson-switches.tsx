@@ -8,12 +8,15 @@ export function LessonSwitches({
   assigned,
   onToggle,
   busy,
+  problemCount,
 }: {
   lessons: PublishedLesson[];
   assigned: ReadonlySet<string>;
   onToggle: (lessonId: string, on: boolean) => void;
   /** Lesson ids whose change is being saved: their switch ignores taps. */
   busy?: ReadonlySet<string>;
+  /** The learner's "Problems per practice", shown as the size of a math practice type (the default when omitted, for a learner not yet made). */
+  problemCount?: number;
 }) {
   return (
     <ul class="switches">
@@ -24,7 +27,7 @@ export function LessonSwitches({
             key={lesson.id}
             on={on}
             title={lesson.title}
-            meta={listCountsLabel(lesson)}
+            meta={listCountsLabel(lesson, problemCount)}
             onToggle={() => !busy?.has(lesson.id) && onToggle(lesson.id, !on)}
           />
         );

@@ -30,7 +30,7 @@ export interface Round {
   startedAt: string;
   completedAt?: string;
   /**
-   * Math sessions only: the problem at each item id (a numbered spot, "1" to "20"). A retry round puts a new problem
+   * Math sessions only: the problem at each item id (a numbered spot, "1" to the session size). A retry round puts a new problem
    * of the same kind at the same spot. Without it the item id is the item (every other practice type).
    */
   problems?: Record<string, Problem>;

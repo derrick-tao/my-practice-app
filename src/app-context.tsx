@@ -2,7 +2,8 @@
 // and provides it; screens read it with `useAppRecord()` and change it with `update()`.
 import { createContext, type ComponentChildren } from 'preact';
 import { useCallback, useContext, useEffect, useState } from 'preact/hooks';
-import { loadAppRecord, updateApp } from './profiles.ts';
+import { DEFAULT_PROBLEM_COUNT, type ProblemCount } from './math/rules.ts';
+import { activeProfileOf, loadAppRecord, updateApp } from './profiles.ts';
 import { NewerSchemaError } from './storage/index.ts';
 import type { AppRecord } from './storage/types.ts';
 
@@ -51,6 +52,12 @@ export function useAppState(): { state: AppState; api: AppRecordApi | undefined 
 
 export function AppRecordProvider({ api, children }: { api: AppRecordApi; children: ComponentChildren }) {
   return <Context.Provider value={api}>{children}</Context.Provider>;
+}
+
+/** The active learner's "Problems per practice" (the default until a learner exists): how big their next math session is. */
+export function useProblemCount(): ProblemCount {
+  const profile = activeProfileOf(useAppRecord().app);
+  return profile?.settings.problemCount ?? DEFAULT_PROBLEM_COUNT;
 }
 
 export function useAppRecord(): AppRecordApi {

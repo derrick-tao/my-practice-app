@@ -1,9 +1,9 @@
 // Seam 1 helpers for the Missing number (math) practice screen. Like math-driver.ts, the driver reads the
-// problem on screen and works out the answer itself: an equation with one blank, written either "8 + ? = 11" or
-// backwards "11 = 8 + ?", the blank anywhere.
+// problem on screen and works out the answer itself: an equation with one blank, written either "8 + ☐ = 11" or
+// backwards "11 = 8 + ☐", the blank anywhere (read with textWithBlanks: on screen it is a drawn box).
 import type { Locator, Page } from '@playwright/test';
 import { expect, type AudioProbe } from './harness.ts';
-import { FactsScreen } from './math-driver.ts';
+import { FactsScreen, textWithBlanks } from './math-driver.ts';
 
 export type Blank = 'first' | 'middle' | 'answer';
 
@@ -15,8 +15,6 @@ export interface MissingProblem {
   c: number | null;
   /** Written backwards: `c = a op b`. */
   backwards: boolean;
-  /** Which glyph stands for the blank. */
-  glyph: '?' | '☐';
   /** The equation as the screen shows it, whitespace collapsed. */
   text: string;
 }
@@ -41,14 +39,14 @@ export function completed(p: MissingProblem): { a: number; b: number; c: number 
   return { a: p.a ?? answer, b: p.b ?? answer, c: p.c ?? answer };
 }
 
-/** What makes a problem the same problem: "3 + 4 = ?" and "4 + 3 = ?" are, and so is a problem written backwards. */
+/** What makes a problem the same problem: "3 + 4 = ☐" and "4 + 3 = ☐" are, and so is a problem written backwards. */
 export function identityOf(p: MissingProblem): string {
   const { a, b, c } = completed(p);
   const operands = p.op === '+' && blankOf(p) === 'answer' ? [a, b].sort((x, y) => x - y) : [a, b];
   return `${kindOf(p)}:${operands.join(',')},${c}`;
 }
 
-const TOKEN = '(\\d+|[?☐])';
+const TOKEN = '(\\d+|☐)';
 const FORWARD = new RegExp(`^${TOKEN} ([+−]) ${TOKEN} = ${TOKEN}$`);
 const BACKWARD = new RegExp(`^${TOKEN} = ${TOKEN} ([+−]) ${TOKEN}$`);
 const value = (token: string): number | null => (/^\d+$/.test(token) ? Number(token) : null);
@@ -66,7 +64,6 @@ export function parseProblem(raw: string): MissingProblem {
     b: value(b),
     c: value(c),
     backwards: backward !== null,
-    glyph: /☐/.test(text) ? '☐' : '?',
     text,
   };
 }
@@ -85,6 +82,10 @@ export class MissingNumberScreen {
 
   get problem(): Locator {
     return this.base.problem;
+  }
+  /** The empty box on screen, as the accessibility tree has it. */
+  get blank(): Locator {
+    return this.problem.getByRole('img', { name: 'blank' });
   }
   get feedback(): Locator {
     return this.base.feedback;
@@ -137,7 +138,7 @@ export class MissingNumberScreen {
   /** The problem on screen. Waits for one to show. */
   async read(): Promise<MissingProblem> {
     await expect(this.problem).toBeVisible();
-    return parseProblem((await this.problem.textContent()) ?? '');
+    return parseProblem(await textWithBlanks(this.problem));
   }
 
   async answerRight(): Promise<MissingProblem> {

@@ -11,6 +11,24 @@ export interface Equation {
   b: number;
 }
 
+/**
+ * The text of a part of the screen with each empty blank box (a drawn box, so it has no text of its own) written as
+ * the ☐ character, so a driver can read a problem the way a child sees it: "8 + ☐ = 11".
+ */
+export const textsWithBlanks = (locator: Locator): Promise<string[]> =>
+  locator.evaluateAll((roots) => {
+    const walk = (node: Node): string =>
+      node instanceof Element && node.getAttribute('aria-label') === 'blank'
+        ? '☐'
+        : node.nodeType === Node.TEXT_NODE
+          ? (node.textContent ?? '')
+          : Array.from(node.childNodes).map(walk).join('');
+    return roots.map(walk);
+  });
+
+/** The same for one element (call it once the element is known to show). */
+export const textWithBlanks = async (locator: Locator): Promise<string> => (await textsWithBlanks(locator))[0] ?? '';
+
 export const answerOf = ({ a, op, b }: Equation): number => (op === '+' ? a + b : a - b);
 
 /** The kinds of problem a Facts session spreads over, decided here from the numbers alone. */

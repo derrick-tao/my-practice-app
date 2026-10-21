@@ -25,13 +25,13 @@ interface Sample {
   answer: number;
 }
 
-/** The samples on screen, as the numbers they show. Their text is "8 + 6 = ?" with "Answer: 14" beside it. */
+/** The samples on screen, as the numbers they show. Their text is "8 + 6 = ☐" with "Answer: 14" beside it. */
 async function readSamples(section: Locator): Promise<Sample[]> {
   const rows = section.getByTestId('preview-sample');
   await expect(rows).toHaveCount(5);
   const texts = await rows.allTextContents();
   return texts.map((text) => {
-    const match = /(\d+) ([+−]) (\d+) = \?.*Answer: (\d+)/.exec(text);
+    const match = /(\d+) ([+−]) (\d+) = ☐.*Answer: (\d+)/.exec(text);
     if (!match) throw new Error(`not a sample problem: ${text}`);
     return { a: Number(match[1]), op: match[2] as Sample['op'], b: Number(match[3]), answer: Number(match[4]) };
   });

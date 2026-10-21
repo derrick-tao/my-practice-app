@@ -56,14 +56,14 @@ function steps(p: Problem): Step[] {
     case 'swap-order': {
       const sum = a + b;
       return [
-        { before: `${a} + ${b} = `, after: '', answer: sum, explanation: `Add them: ${a} + ${b} = ${sum}` },
-        { before: `So ${b} + ${a} = `, after: '', answer: sum, explanation: `Adding in any order gives the same answer: ${b} + ${a} = ${sum}` },
+        { before: `${a} + ${b} = `, after: '', answer: sum, explanation: `Add them: ${a} + ${b} = ${sum}`, hint: 'Add the two numbers' },
+        { before: `So ${b} + ${a} = `, after: '', answer: sum, explanation: `Adding in any order gives the same answer: ${b} + ${a} = ${sum}`, hint: 'Same numbers, other way round' },
       ];
     }
     case 'make-ten-three':
       return [
-        { before: `${a} + ${b} + ${c} = ${a} + `, after: '', answer: 10, explanation: `${b} + ${c} makes a ten` },
-        { before: `${a} + 10 = `, after: '', answer: a + 10, explanation: `Now add the ten: ${a} + 10 = ${a + 10}` },
+        { before: `${a} + ${b} + ${c} = ${a} + `, after: '', answer: 10, explanation: `${b} + ${c} makes a ten`, hint: 'Add the last two numbers' },
+        { before: `${a} + 10 = `, after: '', answer: a + 10, explanation: `Now add the ten: ${a} + 10 = ${a + 10}`, hint: `Now add: ${a} + 10` },
       ];
     case 'count-on':
       return range(0, b - 1).map((i) => ({
@@ -71,15 +71,16 @@ function steps(p: Problem): Step[] {
         after: '',
         answer: a + i + 1,
         explanation: `Count on 1 from ${a + i}: ${a + i + 1}`,
+        hint: `What comes after ${a + i}?`,
       }));
     case 'make-ten': {
       const toTen = 10 - (a % 10);
       const ten = a + toTen;
       const rest = b - toTen;
       return [
-        { before: `${a} + `, after: ` = ${ten}`, answer: toTen, explanation: `${a} + ${toTen} = ${ten}: add ${toTen} to make a ten` },
-        { before: `${b} = ${toTen} + `, after: '', answer: rest, explanation: `${b} = ${toTen} + ${rest}: split off ${toTen} and keep ${rest}` },
-        { before: `${ten} + ${rest} = `, after: '', answer: a + b, explanation: `Now add the rest: ${ten} + ${rest} = ${a + b}` },
+        { before: `${a} + `, after: ` = ${ten}`, answer: toTen, explanation: `${a} + ${toTen} = ${ten}: add ${toTen} to make a ten`, hint: `How many more makes ${a} into ${ten}?` },
+        { before: `${b} = ${toTen} + `, after: '', answer: rest, explanation: `${b} = ${toTen} + ${rest}: split off ${toTen} and keep ${rest}`, hint: `Split ${b} into ${toTen} and what is left` },
+        { before: `${ten} + ${rest} = `, after: '', answer: a + b, explanation: `Now add the rest: ${ten} + ${rest} = ${a + b}`, hint: `Now add: ${ten} + ${rest}` },
       ];
     }
     case 'break-down-to-ten': {
@@ -87,25 +88,25 @@ function steps(p: Problem): Step[] {
       const ten = a - units;
       const rest = b - units;
       return [
-        { before: `${a} ${MINUS} `, after: ` = ${ten}`, answer: units, explanation: `${a} ${MINUS} ${units} = ${ten}: take away ${units} to reach a ten` },
-        { before: `${b} = ${units} + `, after: '', answer: rest, explanation: `${b} = ${units} + ${rest}: ${units} is gone, ${rest} left to take away` },
-        { before: `${ten} ${MINUS} ${rest} = `, after: '', answer: a - b, explanation: `Now take away the rest: ${ten} ${MINUS} ${rest} = ${a - b}` },
+        { before: `${a} ${MINUS} `, after: ` = ${ten}`, answer: units, explanation: `${a} ${MINUS} ${units} = ${ten}: take away ${units} to reach a ten`, hint: `How many less makes ${a} into ${ten}?` },
+        { before: `${b} = ${units} + `, after: '', answer: rest, explanation: `${b} = ${units} + ${rest}: ${units} is gone, ${rest} left to take away`, hint: `Split ${b} into ${units} and what is left` },
+        { before: `${ten} ${MINUS} ${rest} = `, after: '', answer: a - b, explanation: `Now take away the rest: ${ten} ${MINUS} ${rest} = ${a - b}`, hint: `Now take away: ${ten} ${MINUS} ${rest}` },
       ];
     }
     case 'related-fact': {
       const sum = a + b;
       return [
-        { before: `${a} + ${b} = `, after: '', answer: sum, explanation: `Add them: ${a} + ${b} = ${sum}` },
-        { before: `So ${sum} ${MINUS} ${a} = `, after: '', answer: b, explanation: `${a} + ${b} = ${sum}, so ${sum} ${MINUS} ${a} = ${b}` },
+        { before: `${a} + ${b} = `, after: '', answer: sum, explanation: `Add them: ${a} + ${b} = ${sum}`, hint: 'Add the two numbers' },
+        { before: `So ${sum} ${MINUS} ${a} = `, after: '', answer: b, explanation: `${a} + ${b} = ${sum}, so ${sum} ${MINUS} ${a} = ${b}`, hint: `${sum} is the total. Take ${a} away` },
       ];
     }
     case 'near-doubles': {
       const small = Math.min(a, b);
       const big = Math.max(a, b);
       return [
-        { before: `${big} = ${small} + `, after: '', answer: 1, explanation: `${big} is ${small} and 1 more` },
-        { before: `${small} + ${small} = `, after: '', answer: small * 2, explanation: `${small} + ${small} is a double: ${small * 2}` },
-        { before: `${small * 2} + 1 = `, after: '', answer: a + b, explanation: `Add the 1 more: ${small * 2} + 1 = ${a + b}` },
+        { before: `${big} = ${small} + `, after: '', answer: 1, explanation: `${big} is ${small} and 1 more`, hint: `How much more than ${small} is ${big}?` },
+        { before: `${small} + ${small} = `, after: '', answer: small * 2, explanation: `${small} + ${small} is a double: ${small * 2}`, hint: 'A double adds a number to itself' },
+        { before: `${small * 2} + 1 = `, after: '', answer: a + b, explanation: `Add the 1 more: ${small * 2} + 1 = ${a + b}`, hint: 'Now add the extra one' },
       ];
     }
   }
@@ -128,6 +129,17 @@ function given(p: Problem): string {
   }
 }
 
+/** The name of each trick, shown with the problem: "Make a ten: 8 + 6". */
+const TITLES: Record<StrategyKind, string> = {
+  'swap-order': 'Swap the order',
+  'make-ten-three': 'Make ten with three numbers',
+  'count-on': 'Count on',
+  'make-ten': 'Make a ten',
+  'break-down-to-ten': 'Break down to ten',
+  'related-fact': 'Related fact',
+  'near-doubles': 'Near doubles',
+};
+
 export const strategies: MathPracticeType = {
   kinds(rules) {
     const adds = rules.operations.includes('add');
@@ -137,6 +149,7 @@ export const strategies: MathPracticeType = {
   pool,
   key: (p) => `${p.kind}:${p.numbers.join(',')}`,
   equation: given,
+  title: (p) => TITLES[p.kind as StrategyKind],
   steps,
   answer: (p) => steps(p).at(-1)!.answer,
   strategy: (p) => steps(p).map((step) => step.explanation).join(' · '),

@@ -33,6 +33,7 @@ import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
 import { TrueFalsePad } from '../true-false-pad.tsx';
+import { MathBlank } from './math-blank.tsx';
 import { StepsProblem } from './math-steps.tsx';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
@@ -138,18 +139,14 @@ export function MathRun({
   const problem = currentProblem(session);
   const place = currentStep(session);
   const outcome = outcomeOf(session);
-  const frame = problem ? blankFrame(type, problem) : { before: '', after: '', blank: '?' };
+  const frame = problem ? blankFrame(type, problem) : { before: '', after: '' };
   const settled = round.phase === 'revealed';
   const onBreakPrompt = breakDue(session, breakEvery);
   const spots = new Set(round.itemIds);
   /** A type with pictures tells stories: the text, the pictures, and then the answer box. */
   const story = type.pictures !== undefined;
   const pictures = problem ? (type.pictures?.(problem) ?? []) : [];
-  const answerBox = problem && (
-    <span class="math__answer" data-testid="answer">
-      {settled ? answerText(type, problem) : entry === '' ? frame.blank : entry}
-    </span>
-  );
+  const answerBox = problem && <MathBlank value={settled ? answerText(type, problem) : entry} testId="answer" done={settled && trueFalse} />;
 
   return (
     <main class="screen practice">
@@ -166,7 +163,7 @@ export function MathRun({
           <div class="practice__stage">
             <div class={`math${story ? ' math--story' : ''}${outcome === 'try-again' ? ' math--wobble' : ''}`}>
               {type.steps ? (
-                <StepsProblem given={type.equation(problem)} place={place} settled={settled} entry={entry} />
+                <StepsProblem title={type.title?.(problem)} given={type.equation(problem)} place={place} settled={settled} entry={entry} />
               ) : story ? (
                 <>
                   <p class="math__problem math__problem--story" data-testid="problem">
@@ -235,8 +232,8 @@ export function MathRun({
 }
 
 /** Where the learner's digits go: after the equation (Facts) or in the blank of a type that has a `frame`. */
-function blankFrame(type: MathPracticeType, problem: Problem): { before: string; after: string; blank: string } {
-  return type.frame?.(problem) ?? { before: `${type.equation(problem)} `, after: '', blank: '?' };
+function blankFrame(type: MathPracticeType, problem: Problem): { before: string; after: string } {
+  return type.frame?.(problem) ?? { before: `${type.equation(problem)} `, after: '' };
 }
 
 /** The submitted answer settled the problem as ✅ at the first try (the step from `before` to `after`). */

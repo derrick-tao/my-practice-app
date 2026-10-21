@@ -77,7 +77,7 @@ export function TrickiestKinds({ tally }: { tally: KindTally[] }) {
   );
 }
 
-/** A round's ❌ problems: the problem as the child saw it and what was entered ("13 − 4 = ?", answered 8). */
+/** A round's ❌ problems: the problem as the child saw it and what was entered ("13 − 4 = ☐", answered 8). */
 export function MissedProblems({ typeId, missed }: { typeId: RulesTypeId; missed: MissedProblem[] }) {
   const math = MATH_TYPES[typeId];
   return (

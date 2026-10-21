@@ -11,7 +11,7 @@ async function start({ page, audio }: { page: Page; audio: AudioProbe }, title =
   await setUpLearner(page);
   if (breakEvery !== undefined) {
     await openSettings(page);
-    const choice = page.getByRole('radio', { name: String(breakEvery), exact: true });
+    const choice = page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: String(breakEvery), exact: true });
     await choice.click();
     await expect(choice).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
@@ -77,9 +77,46 @@ test.describe('a Missing number session', () => {
     expect(shown.some((p) => !p.backwards)).toBe(true);
     expect(shown.some((p) => p.backwards)).toBe(true);
     // Backwards with the blank before the "=": ☐ = 6 + 6 (only the answer can be there).
-    expect(shown.some((p) => p.backwards && blankOf(p) === 'answer' && p.text.startsWith(p.glyph))).toBe(true);
+    expect(shown.some((p) => p.backwards && blankOf(p) === 'answer' && p.text.startsWith('☐'))).toBe(true);
     // Subtraction written backwards: 5 = ☐ − 3.
     expect(shown.some((p) => p.backwards && p.op === '−' && blankOf(p) !== 'answer')).toBe(true);
+  });
+
+  test('draws the same box for the blank forwards and backwards, and never a "?"', async ({ page, audio }) => {
+    const missing = await start({ page, audio });
+    const seen = { forwards: 0, backwards: 0 };
+
+    for (let i = 0; i < 20; i++) {
+      await expect(missing.problem.or(missing.breakPrompt)).toBeVisible();
+      if (await missing.breakPrompt.isVisible()) await missing.base.keepOn.click();
+      const problem = await missing.read();
+      seen[problem.backwards ? 'backwards' : 'forwards']++;
+      await expect(missing.blank).toHaveCount(1);
+      await expect(missing.problem).not.toContainText('?');
+      await expect(missing.problem).not.toContainText('☐'); // a drawn box, not a character
+      const box = await missing.blank.boundingBox();
+      expect(box!.width).toBeGreaterThan(20);
+      expect(box!.height).toBeGreaterThan(20);
+      await missing.solveFirstTry();
+    }
+
+    expect(seen.forwards).toBeGreaterThan(0);
+    expect(seen.backwards).toBeGreaterThan(0);
+  });
+
+  test('keeps the box the same size empty and filled', async ({ page, audio }) => {
+    const missing = await start({ page, audio });
+    const empty = await missing.blank.boundingBox();
+
+    await page.getByRole('button', { name: '7', exact: true }).click();
+    const oneDigit = await missing.problem.getByTestId('answer').boundingBox();
+    await page.getByRole('button', { name: '1', exact: true }).click();
+    const twoDigits = await missing.problem.getByTestId('answer').boundingBox();
+
+    for (const filled of [oneDigit!, twoDigits!]) {
+      expect(filled.width).toBeCloseTo(empty!.width, 0);
+      expect(filled.height).toBeCloseTo(empty!.height, 0);
+    }
   });
 
   test('follows the lesson rules: adding only', async ({ page, audio }) => {
@@ -124,9 +161,11 @@ test.describe('a Missing number session', () => {
     const digit = (answerOf(problem) + 3) % 10;
 
     await page.getByRole('button', { name: String(digit), exact: true }).click();
-    await expect(missing.problem).toContainText(problem.text.replace(problem.glyph, String(digit)));
+    await expect(missing.problem).toContainText(problem.text.replace('☐', String(digit)));
+    await expect(missing.blank).toHaveCount(0); // the digit fills the box
     await page.getByRole('button', { name: 'Delete' }).click();
-    await expect(missing.problem).toContainText(problem.text);
+    await expect(missing.blank).toHaveCount(1);
+    expect(await missing.read()).toEqual(problem);
     await missing.submit(answerOf(problem));
 
     await expect(missing.progress).toHaveText('1 / 20');
@@ -154,7 +193,7 @@ test.describe('tries and marks', () => {
 
     await missing.submit(answerOf(problem));
     await expect(missing.feedback).toContainText('got it!');
-    await expect(missing.problem).toContainText(problem.text.replace(problem.glyph, String(answerOf(problem))));
+    await expect(missing.problem).toContainText(problem.text.replace('☐', String(answerOf(problem))));
     expect(await audio.effects()).toEqual([]);
 
     await missing.next.click();
@@ -179,7 +218,7 @@ test.describe('tries and marks', () => {
     await expect(page.getByTestId('wrong-count')).toHaveText('1');
   });
 
-  test('the strategy suits the kind: counting up for a missing addend, 8 + ? = 11 -> count up from 8 to 11', async ({ page, audio }) => {
+  test('the strategy suits the kind: counting up for a missing addend, 8 + ☐ = 11 -> count up from 8 to 11', async ({ page, audio }) => {
     const missing = await start({ page, audio });
     const seen = new Set<string>();
     for (;;) {
@@ -197,7 +236,7 @@ test.describe('tries and marks', () => {
     }
   });
 
-  test('the strategy for subtraction as an unknown addend counts up too: 10 − 8 = ? -> count up from 8 to 10', async ({ page, audio }) => {
+  test('the strategy for subtraction as an unknown addend counts up too: 10 − 8 = ☐ -> count up from 8 to 10', async ({ page, audio }) => {
     const missing = await start({ page, audio });
     for (;;) {
       const problem = await missing.read();
@@ -275,7 +314,7 @@ test.describe('reloading resumes the exact state', () => {
 
     await expect(missing.feedback).toContainText(`The answer is ${answerOf(problem)}`);
     await expect(missing.strategy).toHaveText(strategy!);
-    await expect(missing.problem).toContainText(problem.text.replace(problem.glyph, String(answerOf(problem))));
+    await expect(missing.problem).toContainText(problem.text.replace('☐', String(answerOf(problem))));
     expect(await audio.effects()).toEqual([]);
     await missing.next.click();
     await expect(missing.progress).toHaveText('1 / 20');

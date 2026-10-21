@@ -4,7 +4,7 @@
 //   {
 //     "appId": "my-practice-app",       which app wrote it
 //     "kind": "backup",                 what sort of file it is (room for other kinds later)
-//     "schemaVersion": 5,             the schema of `data` (same number as data.app.schemaVersion)
+//     "schemaVersion": 6,             the schema of `data` (same number as data.app.schemaVersion)
 //     "exportedAt": "2026-10-18T12:00:00.000Z",
 //     "data": { "app": <AppRecord>, "sessions": [<Session>, ...] }
 //   }
@@ -17,7 +17,7 @@
 // (src/storage/migrations.ts) before checking it, so everything after that sees one shape.
 import { isPracticeTypeId, isRulesType, type PracticeTypeId } from '../content/types.ts';
 import { MAX_STEPS, MAX_TRIES } from '../math/problem.ts';
-import { isOperation, MAX_WITHIN, MIN_WITHIN } from '../math/rules.ts';
+import { isOperation, MAX_WITHIN, MIN_WITHIN, PROBLEM_COUNTS, type ProblemCount } from '../math/rules.ts';
 import { migrate } from '../storage/migrations.ts';
 import { SCHEMA_VERSION, type StoredData } from '../storage/types.ts';
 
@@ -83,6 +83,7 @@ function isProfile(value: unknown): boolean {
     ['slow', 'normal', 'fast'].includes(settings.strokeSpeed as string) &&
     [0.5, 1, 2, 3].includes(settings.strokePauseSeconds as number) &&
     typeof settings.learning === 'boolean' &&
+    PROBLEM_COUNTS.includes(settings.problemCount as ProblemCount) &&
     Array.isArray(assignedLessonIds) &&
     assignedLessonIds.every(isString)
   );
