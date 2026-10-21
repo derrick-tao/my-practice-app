@@ -13,3 +13,5 @@ facts:
   within: 20
 missing-number:
   within: 20
+true-or-false:
+  within: 20

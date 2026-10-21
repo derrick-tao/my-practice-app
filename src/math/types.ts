@@ -4,10 +4,20 @@ import type { Rules } from './rules.ts';
 import type { Problem } from './problem.ts';
 
 export interface MathPracticeType {
+  /**
+   * How the learner answers: absent means the number pad. 'true-false' means two big True and False buttons; the
+   * type's `answer` is then 1 for true and 0 for false (see answer.ts for how an entry is read).
+   */
+  input?: 'true-false';
   /** The kinds of problem these rules allow, in a stable order. A session spreads its problems evenly over them. */
   kinds(rules: Rules): string[];
   /** Every problem of this kind the rules allow (commutative twins included); a session samples from it without repeats. */
   pool(kind: string, rules: Rules): Problem[];
+  /**
+   * Optional. Names a group for each problem (true or false); the problems of a kind in a session are then drawn
+   * alternately from each group, so the groups are balanced to within one.
+   */
+  groupOf?(problem: Problem): string;
   /** What makes two problems the same problem ("3 + 4" and "4 + 3" are). */
   key(problem: Problem): string;
   /** The problem as the child reads it, up to the answer: "8 + 6 =". */
@@ -18,7 +28,7 @@ export interface MathPracticeType {
    * digits in the blank. A type without `frame` ends its `equation` where the answer goes.
    */
   frame?(problem: Problem): { before: string; after: string; blank: string };
-  /** The number that is the answer. */
+  /** The number that is the answer (for a true-false type, 1 or 0). */
   answer(problem: Problem): number;
   /** The worked strategy shown after two wrong tries: "8 + 6 = 8 + 2 + 4 = 14". */
   strategy(problem: Problem): string;

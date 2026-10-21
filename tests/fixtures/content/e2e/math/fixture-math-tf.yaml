@@ -1,0 +1,6 @@
+# Math fixture for the true-or-false Seam 1 specs: the default rules (within 20, add and subtract).
+id: fixture-math-tf
+title: Fixture True or False
+subject: math
+true-or-false:
+  within: 20

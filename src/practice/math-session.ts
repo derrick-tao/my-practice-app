@@ -8,6 +8,7 @@
 // moment it is decided, so a reload shows the same screen. A retry round puts a new problem of the same kind at each
 // ❌ spot. There is no undo and no timer.
 import type { RulesTypeId } from '../content/types.ts';
+import { isCorrectEntry, isValidEntry } from '../math/answer.ts';
 import { generateProblems, generateReplacement } from '../math/generate.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import { MAX_TRIES, type Problem, type Try } from '../math/problem.ts';
@@ -101,9 +102,9 @@ export function outcomeOf(session: Session): TryOutcome | undefined {
   return last.correct ? 'second-try-right' : 'missed';
 }
 
-/** Submit what was typed. Digits only; nothing happens for an empty entry, a finished problem or a finished round. */
+/** Submit what was typed (digits) or tapped ("true" / "false"); nothing happens for anything else, a finished problem or a finished round. */
 export function submitAnswer(session: Session, entry: string, env: PracticeEnv): Session {
-  if (session.status !== 'active' || !/^\d{1,4}$/.test(entry)) return session;
+  if (session.status !== 'active' || !isValidEntry(typeOf(session), entry)) return session;
   const before = currentRound(session);
   const id = currentItemId(before);
   const problem = id === undefined ? undefined : before.problems?.[id];
@@ -111,7 +112,7 @@ export function submitAnswer(session: Session, entry: string, env: PracticeEnv):
   const prior = before.tries?.[id] ?? [];
   if (prior.length >= MAX_TRIES) return session;
 
-  const correct = Number(entry) === typeOf(session).answer(problem);
+  const correct = isCorrectEntry(typeOf(session), problem, entry);
   const tries = [...prior, { answer: entry, correct }];
   const settledRight = correct && prior.length === 0;
   const settled = correct || tries.length >= MAX_TRIES;

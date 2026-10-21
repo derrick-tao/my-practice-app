@@ -1,10 +1,12 @@
-// The math practice screen, for every math practice type (today Facts). The learner reads a generated problem,
-// taps the answer on the number pad and OK. This is the file to copy for a new math practice type: the type
+// The math practice screen, for every math practice type. The learner reads a generated problem and taps the
+// answer on the number pad and OK (or on True or False, for a true-or-false type). This is the file to copy for a
+// new math practice type: the type
 // itself only supplies problems, answers and strategies (src/math/), and everything here reads them through the
 // MathPracticeType interface. What the screen shows follows the saved session alone (the problem, the tries, the
 // phase), so a reload anywhere shows the same thing; only the digits being typed live in the screen.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { LessonData, RulesTypeId } from '../content/types.ts';
+import { answerText } from '../math/answer.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import type { Problem } from '../math/problem.ts';
 import type { MathPracticeType } from '../math/types.ts';
@@ -29,6 +31,7 @@ import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
+import { TrueFalsePad } from '../true-false-pad.tsx';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 
@@ -58,6 +61,7 @@ export function MathRun({
   sounds: boolean;
 }) {
   const type = MATH_TYPES[practiceType];
+  const trueFalse = type.input === 'true-false';
   const effects = useMemo(() => createEffects(sounds), []);
 
   // What is shown is always what is saved: every change goes through `sync`, which saves it first.
@@ -78,16 +82,18 @@ export function MathRun({
     return after;
   };
 
-  const onSubmit = (): void => {
-    if (entry === '') return;
+  /** Submit an answer: what was typed, or the True or False that was tapped. */
+  const submit = (answer: string): void => {
+    if (answer === '') return;
     const before = sync.state().session;
-    const after = advance((s) => submitAnswer(s, entry, env));
+    const after = advance((s) => submitAnswer(s, answer, env));
     if (!after) return;
     setEntry('');
     if (after.status === 'completed') effects.play('fanfare');
     else if (outcomeOf(after) === 'missed') effects.play('gentle'); // only now: a second wrong answer
     else if (finishedFirstTry(before, after)) effects.play('chime');
   };
+  const onSubmit = (): void => submit(entry);
 
   const onNext = (): void => {
     const after = advance((s) => nextProblem(s, env));
@@ -150,16 +156,18 @@ export function MathRun({
         <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
           <div class="practice__stage">
             <div class="math">
-              <p class="math__problem" data-testid="problem">
+              <p class={trueFalse ? 'math__problem math__problem--equation' : 'math__problem'} data-testid="problem">
                 {frame.before}
-                <span class="math__answer" data-testid="answer">
-                  {settled ? type.answer(problem) : entry === '' ? frame.blank : entry}
-                </span>
+                {(!trueFalse || settled) && (
+                  <span class="math__answer" data-testid="answer">
+                    {settled ? answerText(type, problem) : entry === '' ? frame.blank : entry}
+                  </span>
+                )}
                 {frame.after}
               </p>
               {outcome && (
                 <p class="math__feedback" role="status" data-testid="feedback">
-                  {outcome === 'missed' ? `The answer is ${type.answer(problem)}` : FEEDBACK[outcome]}
+                  {outcome === 'missed' ? `The answer is ${answerText(type, problem)}` : FEEDBACK[outcome]}
                 </p>
               )}
               {outcome === 'missed' && (
@@ -176,6 +184,8 @@ export function MathRun({
                   <span aria-hidden="true">➡️ </span>Next
                 </button>
               </div>
+            ) : trueFalse ? (
+              <TrueFalsePad onAnswer={submit} />
             ) : (
               <NumberPad
                 onDigit={(digit) => setEntry((current) => (current.length < MAX_DIGITS ? current + digit : current))}

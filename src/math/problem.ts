@@ -15,7 +15,7 @@ export interface Problem {
 
 /** One answer the learner submitted for a problem. */
 export interface Try {
-  /** What was typed on the number pad (digits). */
+  /** What was typed on the number pad (digits), or "true" / "false" for a True or False tap. */
   answer: string;
   correct: boolean;
 }
