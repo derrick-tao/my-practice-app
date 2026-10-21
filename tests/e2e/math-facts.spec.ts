@@ -124,7 +124,7 @@ test.describe('tries and marks', () => {
     expect(await audio.effects()).toEqual(['chime']);
   });
 
-  test('wrong then right shows "got it!", counts as ❌, and makes no ❌ sound', async ({ page, audio }) => {
+  test('wrong then right shows "got it!", counts as ❌, plays the chime (not the ❌ sound) on the right answer', async ({ page, audio }) => {
     const facts = await start({ page, audio });
     const equation = await facts.answerWrong();
 
@@ -139,7 +139,7 @@ test.describe('tries and marks', () => {
     await expect(page.locator('.math')).not.toHaveClass(/math--wobble/);
     await expect(facts.problem).toContainText(`${textOf(equation)} = ${answerOf(equation)}`);
     await expect(facts.strategy).toHaveCount(0);
-    expect(await audio.effects()).toEqual([]);
+    await expect.poll(() => audio.effects()).toEqual(['chime']); // the miss was silent, the right second try chimes
 
     await facts.next.click();
     await expect(facts.progress).toHaveText('1 / 20');
@@ -184,6 +184,20 @@ test.describe('tries and marks', () => {
       }
       await facts.solveFirstTry();
     }
+  });
+
+  test('with Sounds off a right answer on the second try is silent', async ({ page, audio }) => {
+    await setUpLearner(page);
+    await setSoundEffects(page, false);
+    const facts = new FactsScreen(page, audio);
+    await facts.open(LESSON);
+
+    const equation = await facts.answerWrong();
+    await expect(facts.feedback).toContainText('Try again');
+    await facts.submit(answerOf(equation));
+    await expect(facts.feedback).toContainText('got it!');
+
+    expect(await audio.effects()).toEqual([]);
   });
 
   test('with Sounds off a missed problem makes no sound', async ({ page, audio }) => {

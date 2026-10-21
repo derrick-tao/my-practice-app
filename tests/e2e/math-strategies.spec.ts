@@ -208,7 +208,7 @@ test.describe('marks: ✅ only if every step is right on its first try', () => {
 
     await expect(tricks.feedback).toContainText('got it!');
     await expect(tricks.strategy).toHaveCount(0);
-    expect(await audio.effects()).toEqual([]);
+    await expect.poll(() => audio.effects()).toEqual(['chime']); // a right second try chimes
     await expect(tricks.progress).toHaveText('0 / 20'); // the problem is not over: later steps remain
     await tricks.next.click();
     await expect(tricks.steps).toHaveCount(2);
