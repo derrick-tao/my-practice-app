@@ -3,7 +3,7 @@
 // type declares its flags and supplies its own stage (what the learner looks at) and controls (what they tap)
 // here, so adding a type means adding an entry to FLOWS, not another branch through the screen.
 import type { ComponentChildren, ComponentType } from 'preact';
-import type { ItemData, PracticeTypeId, Rendition } from '../content/types.ts';
+import { isListType, type ItemData, type ListTypeId, type Rendition } from '../content/types.ts';
 import { DrawingScope, useDrawing } from '../practice/drawing.tsx';
 import type { Mark, Round, Session, SessionResult } from '../practice/session.ts';
 import type { ProfileSettings } from '../storage/types.ts';
@@ -114,7 +114,7 @@ function Reveal({
 }
 
 /** The completion of a graded type: the first-try score and the number of rounds. */
-const firstTryAndRounds = ({ firstTryCorrect, total, rounds }: SessionResult): string[] => [
+export const firstTryAndRounds = ({ firstTryCorrect, total, rounds }: SessionResult): string[] => [
   `${firstTryCorrect} of ${total} on the first try!`,
   `Rounds: ${rounds}`,
 ];
@@ -234,12 +234,14 @@ const learning: PracticeFlow = {
   ),
 };
 
-const FLOWS: Record<PracticeTypeId, PracticeFlow> = {
+const FLOWS: Record<ListTypeId, PracticeFlow> = {
   dictation,
   'stroke-order': strokeOrder,
   'phrase-recognition': phraseRecognition,
 };
 
 /** How a session is practiced: by its practice type, or as a learning session. */
-export const flowOf = (session: Pick<Session, 'practiceType' | 'learning'>): PracticeFlow =>
-  session.learning ? learning : FLOWS[session.practiceType];
+export function flowOf(session: Pick<Session, 'practiceType' | 'learning'>): PracticeFlow {
+  if (!isListType(session.practiceType)) throw new Error(`${session.practiceType} is practiced on its own screen`);
+  return session.learning ? learning : FLOWS[session.practiceType];
+}

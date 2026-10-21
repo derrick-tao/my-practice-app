@@ -5,7 +5,7 @@
 // edited copy. Everything goes through the public surface the app itself uses: HTTP. The next load of
 // the app (a reload, or leaving and reopening) sees the edit; loads before the call are unaffected.
 import type { Page } from '@playwright/test';
-import type { ItemData, LessonData, Manifest } from '../../src/content/types.ts';
+import { isListType, type ItemData, type LessonData, type Manifest } from '../../src/content/types.ts';
 
 /** The lesson with a different dictation list. */
 export const withDictation = (lesson: LessonData, items: ItemData[]): LessonData => ({
@@ -28,8 +28,8 @@ export async function publishLessonEdit(page: Page, lessonId: string, edit: (les
         const edited = edit(original);
         // A list the edit removed is no longer offered; the others carry their edited size.
         lesson.practiceTypes = lesson.practiceTypes
-          .filter((type) => edited.lists[type.id] !== undefined)
-          .map((type) => ({ ...type, itemCount: edited.lists[type.id]!.length }));
+          .filter((type) => !isListType(type.id) || edited.lists[type.id] !== undefined)
+          .map((type) => (isListType(type.id) ? { ...type, itemCount: edited.lists[type.id]!.length } : type));
       }
     }
     await route.fulfill({ json: manifest });

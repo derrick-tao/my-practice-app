@@ -5,6 +5,7 @@
 // itself (parent/area.tsx), first-run setup moves to the next step, and ticket 09 uses it as a one-off
 // confirmation before stopping a practice.
 import { useState } from 'preact/hooks';
+import { NumberPad } from '../number-pad.tsx';
 
 export interface GateQuestion {
   a: number;
@@ -23,7 +24,6 @@ export function newGateQuestion(previous?: GateQuestion, random: () => number = 
 }
 
 const MAX_DIGITS = 3;
-const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
 export function ParentGate({ onPassed }: { onPassed: () => void }) {
   const [question, setQuestion] = useState(() => newGateQuestion());
@@ -59,23 +59,7 @@ export function ParentGate({ onPassed }: { onPassed: () => void }) {
           Not quite. Here is a new one!
         </p>
       )}
-      <div class="numpad">
-        {DIGITS.map((digit) => (
-          <button type="button" class="numpad__key" key={digit} onClick={() => press(digit)}>
-            {digit}
-          </button>
-        ))}
-        <button type="button" class="numpad__key numpad__key--minor" onClick={() => setEntry((e) => e.slice(0, -1))}>
-          <span aria-hidden="true">⌫</span>
-          <span class="sr-only">Delete</span>
-        </button>
-        <button type="button" class="numpad__key" onClick={() => press('0')}>
-          0
-        </button>
-        <button type="button" class="numpad__key numpad__key--ok" onClick={submit}>
-          OK
-        </button>
-      </div>
+      <NumberPad onDigit={press} onDelete={() => setEntry((e) => e.slice(0, -1))} onSubmit={submit} />
     </section>
   );
 }

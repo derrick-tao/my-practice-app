@@ -111,7 +111,7 @@ function withLearner(backup: BackupJson, change: Record<string, unknown>): strin
 /** Two learners, three attempts; the latest practice was on 2026-10-10. */
 const TWO_LEARNERS: SavedData = {
   app: {
-    schemaVersion: 4,
+    schemaVersion: 5,
     profiles: [
       profile('p-leo', 'Leo', '🦊'),
       withStrokeTiming(profile('p-zoe', 'Zoe', '🦁'), { strokeSpeed: 'slow', strokePauseSeconds: 0.5, learning: false }),
@@ -149,7 +149,7 @@ test.describe('export', () => {
       expect.objectContaining({
         appId: 'my-practice-app',
         kind: 'backup',
-        schemaVersion: 4,
+        schemaVersion: 5,
         exportedAt: expect.stringMatching(/^2026-10-18T12:00:/),
       }),
     );
@@ -371,8 +371,8 @@ test.describe('import', () => {
     const before = await savedNow(page);
     const newer = {
       ...backupFile(TWO_LEARNERS, '2026-10-12T08:00:00.000Z'),
-      schemaVersion: 5,
-      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 5, somethingNew: true } },
+      schemaVersion: 6,
+      data: { ...TWO_LEARNERS, app: { ...TWO_LEARNERS.app, schemaVersion: 6, somethingNew: true } },
     };
 
     await chooseBackupFile(page, JSON.stringify(newer));

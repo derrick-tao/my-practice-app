@@ -3,8 +3,9 @@
 // #/parent/lesson-preview/<lessonId> is one lesson's preview.
 import { useMemo } from 'preact/hooks';
 import { fetchLesson } from '../../content/client.ts';
-import { listEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
+import { listEntries, rulesEntries, type ItemData, type LessonData, type Rendition } from '../../content/types.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
+import { rulesSummary, SESSION_SIZE, type Rules } from '../../math/rules.ts';
 import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
 import { countLabel, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import { parentHref } from '../../router.ts';
@@ -64,15 +65,29 @@ function PreviewSection({ player, type, items }: { player: AudioPlayer; type: Pr
   );
 }
 
+/** A math practice type has rules, not items: the preview says what its problems are like. */
+function RulesPreviewSection({ type, rules }: { type: PracticeType; rules: Rules }) {
+  return (
+    <section class="preview-section" data-testid="preview-section">
+      <h3 class="preview-section__title">
+        <span aria-hidden="true">{type.icon} </span>
+        {type.label}
+      </h3>
+      <p>New problems every time: {rulesSummary(rules)}</p>
+    </section>
+  );
+}
+
 function Preview({ lesson }: { lesson: LessonData }) {
   const player = useAudioPlayer();
   const lists = listEntries(lesson.lists);
+  const rules = rulesEntries(lesson.rules);
   return (
     <>
       <div class="preview-header" data-testid="preview-header">
         <h2 class="preview-header__title">{lesson.title}</h2>
         <div class="preview-header__facts">
-          <span>{SCRIPT_LABEL[lesson.script]}</span>
+          {lesson.script && <span>{SCRIPT_LABEL[lesson.script]}</span>}
           {lesson.testDates && (
             <span>
               <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
@@ -81,10 +96,16 @@ function Preview({ lesson }: { lesson: LessonData }) {
           {lists.map(([id, items]) => (
             <span key={id}>{countLabel(PRACTICE_TYPES[id], items.length)}</span>
           ))}
+          {rules.map(([id]) => (
+            <span key={id}>{countLabel(PRACTICE_TYPES[id], SESSION_SIZE)}</span>
+          ))}
         </div>
       </div>
       {lists.map(([id, items]) => (
         <PreviewSection key={id} player={player} type={PRACTICE_TYPES[id]} items={items} />
+      ))}
+      {rules.map(([id, rule]) => (
+        <RulesPreviewSection key={id} type={PRACTICE_TYPES[id]} rules={rule} />
       ))}
     </>
   );

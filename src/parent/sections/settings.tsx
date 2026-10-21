@@ -53,7 +53,7 @@ function Settings() {
         <SwitchRow
           on={shuffle}
           title="Shuffle the first round"
-          meta="Off: the first round follows the list's order"
+          meta="Off: the first round follows the list's order. Not applicable to math: its problems are always in random order"
           onToggle={() => void save({ shuffle: !shuffle })}
         />
         <SwitchRow

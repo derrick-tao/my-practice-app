@@ -1,0 +1,203 @@
+// The math practice screen, for every math practice type (today Facts). The learner reads a generated problem,
+// taps the answer on the number pad and OK. This is the file to copy for a new math practice type: the type
+// itself only supplies problems, answers and strategies (src/math/), and everything here reads them through the
+// MathPracticeType interface. What the screen shows follows the saved session alone (the problem, the tries, the
+// phase), so a reload anywhere shows the same thing; only the digits being typed live in the screen.
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import type { LessonData, RulesTypeId } from '../content/types.ts';
+import { MATH_TYPES } from '../math/index.ts';
+import { NumberPad } from '../number-pad.tsx';
+import { createEffects } from '../practice/effects.ts';
+import { currentProblem, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
+import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
+import {
+  breakDue,
+  canRetry,
+  currentItemId,
+  currentRound,
+  isRoundOver,
+  markCounts,
+  resetBreakCount,
+  sessionResult,
+  wrongItemIds,
+  type PracticeEnv,
+  type Session,
+} from '../practice/session.ts';
+import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { HOME_HREF } from '../router.ts';
+import { SaveFailed } from '../save-failed.tsx';
+import { getStorage } from '../storage/index.ts';
+import { firstTryAndRounds } from './practice-flows.tsx';
+import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
+
+/** The answer is at most 100: three digits are enough. */
+const MAX_DIGITS = 3;
+
+const FEEDBACK = {
+  'try-again': 'Not quite. Try again!',
+  'second-try-right': 'You got it!',
+} as const;
+
+export function MathRun({
+  lesson,
+  practiceType,
+  env,
+  initial,
+  breakEvery,
+  sounds,
+}: {
+  lesson: Pick<LessonData, 'title'>;
+  practiceType: RulesTypeId;
+  env: PracticeEnv;
+  initial: Session;
+  /** Offer a break every this many finished problems; 0 is off (the profile's setting). */
+  breakEvery: number;
+  /** Play sound effects on ✅, ❌ and finishing (the profile's setting). */
+  sounds: boolean;
+}) {
+  const type = MATH_TYPES[practiceType];
+  const effects = useMemo(() => createEffects(sounds), []);
+
+  // What is shown is always what is saved: every change goes through `sync`, which saves it first.
+  const [view, setView] = useState<SyncState>({ session: initial, saveFailed: false });
+  const sync = useMemo(() => createSessionSync(getStorage(), initial, setView), []);
+  useEffect(() => () => sync.detach(), []);
+  const { session, saveFailed } = view;
+  /** The digits typed for the current try. They are not saved: after a reload the try starts with an empty entry. */
+  const [entry, setEntry] = useState('');
+
+  /** Run a step that moves the learner on. Ignored while a save is running or has failed. Returns the session it will show. */
+  const advance = (step: (from: Session) => Session): Session | undefined => {
+    if (sync.busy()) return undefined;
+    const before = sync.state().session;
+    const after = step(before);
+    if (after === before) return undefined;
+    sync.dispatch((s) => (s === before ? after : s));
+    return after;
+  };
+
+  const onSubmit = (): void => {
+    if (entry === '') return;
+    const before = sync.state().session;
+    const after = advance((s) => submitAnswer(s, entry, env));
+    if (!after) return;
+    setEntry('');
+    if (after.status === 'completed') effects.play('fanfare');
+    else if (outcomeOf(after) === 'missed') effects.play('gentle'); // only now: a second wrong answer
+    else if (finishedFirstTry(before, after)) effects.play('chime');
+  };
+
+  const onNext = (): void => {
+    const after = advance((s) => nextProblem(s, env));
+    if (after?.status === 'completed') effects.play('fanfare');
+  };
+
+  const onRetry = (): void => void advance((s) => startMathRetryRound(s, env));
+  const onKeepGoing = (): void => void advance(resetBreakCount);
+
+  /** Break: the prompt is answered and saved, and only then does the child go home. */
+  const [leaving, setLeaving] = useState(false);
+  const onBreak = (): void => {
+    if (advance(resetBreakCount)) setLeaving(true);
+  };
+  useEffect(() => {
+    if (leaving && !saveFailed && session.marksSinceBreak === 0) location.hash = HOME_HREF;
+  }, [leaving, saveFailed, session.marksSinceBreak]);
+
+  if (session.status === 'stopped') {
+    // The lesson no longer offers this practice type: the session is saved as stopped.
+    return (
+      <main class="screen practice">
+        <HomeButton />
+        <h1 class="sr-only">{lesson.title}</h1>
+        <p class="notice" data-testid="lesson-changed">
+          <span aria-hidden="true">🌟 </span>This lesson changed — pick a lesson
+        </p>
+      </main>
+    );
+  }
+
+  if (session.status === 'completed') {
+    return (
+      <main class="screen practice">
+        <h1 class="sr-only">{lesson.title}</h1>
+        <Completion lines={firstTryAndRounds(sessionResult(session))} />
+      </main>
+    );
+  }
+
+  const round = currentRound(session);
+  const problem = currentProblem(session);
+  const outcome = outcomeOf(session);
+  const settled = round.phase === 'revealed';
+  const onBreakPrompt = breakDue(session, breakEvery);
+  const spots = new Set(round.itemIds);
+
+  return (
+    <main class="screen practice">
+      <header class="practice__top">
+        <HomeButton />
+        <RoundBadge index={round.index} />
+        <StarBar done={round.position} total={round.itemIds.length} />
+      </header>
+      {saveFailed && <SaveFailed onRetry={sync.retry} />}
+      <h1 class="sr-only">{lesson.title}</h1>
+      {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
+      {!onBreakPrompt && problem && !isRoundOver(round) && (
+        <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
+          <div class="practice__stage">
+            <div class="math">
+              <p class="math__problem" data-testid="problem">
+                {type.equation(problem)}{' '}
+                <span class="math__answer" data-testid="answer">
+                  {settled ? type.answer(problem) : entry === '' ? '?' : entry}
+                </span>
+              </p>
+              {outcome && (
+                <p class="math__feedback" role="status" data-testid="feedback">
+                  {outcome === 'missed' ? `The answer is ${type.answer(problem)}` : FEEDBACK[outcome]}
+                </p>
+              )}
+              {outcome === 'missed' && (
+                <p class="math__strategy" data-testid="strategy">
+                  {type.strategy(problem)}
+                </p>
+              )}
+            </div>
+          </div>
+          <div class="practice__controls">
+            {settled ? (
+              <div class="row row--primary">
+                <button type="button" class="btn btn--primary btn--good" onClick={onNext}>
+                  <span aria-hidden="true">➡️ </span>Next
+                </button>
+              </div>
+            ) : (
+              <NumberPad
+                onDigit={(digit) => setEntry((current) => (current.length < MAX_DIGITS ? current + digit : current))}
+                onDelete={() => setEntry((current) => current.slice(0, -1))}
+                onSubmit={onSubmit}
+              />
+            )}
+          </div>
+        </section>
+      )}
+      {isRoundOver(round) && (
+        <RoundSummary
+          {...markCounts(round)}
+          retryCount={canRetry(session, spots) ? wrongItemIds(round, spots).length : 0}
+          noun="problems"
+          onRetry={onRetry}
+        />
+      )}
+    </main>
+  );
+}
+
+/** The submitted answer settled the problem as ✅ at the first try (the step from `before` to `after`). */
+function finishedFirstTry(before: Session, after: Session): boolean {
+  const was = currentRound(before);
+  const id = currentItemId(was);
+  const now = after.rounds.find((round) => round.index === was.index);
+  return id !== undefined && now?.marks[id] === 'correct' && was.marks[id] === undefined;
+}

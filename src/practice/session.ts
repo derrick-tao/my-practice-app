@@ -5,7 +5,9 @@
 // The shape is the spec's data model and is persisted as is through the StorageAdapter (see
 // session-sync.ts), so retry rounds, undo and breaks extend it instead of rewriting it. Changing
 // the persisted shape needs a schema migration (src/storage/migrations.ts).
-import type { LessonData, PracticeTypeId } from '../content/types.ts';
+import { isListType, type LessonData, type PracticeTypeId } from '../content/types.ts';
+import type { Problem, Try } from '../math/problem.ts';
+import type { Rules } from '../math/rules.ts';
 import { shuffled, type RandomSource } from './random.ts';
 
 export type Mark = 'correct' | 'wrong';
@@ -27,6 +29,13 @@ export interface Round {
   marks: Record<string, Mark>;
   startedAt: string;
   completedAt?: string;
+  /**
+   * Math sessions only: the problem at each item id (a numbered spot, "1" to "20"). A retry round puts a new problem
+   * of the same kind at the same spot. Without it the item id is the item (every other practice type).
+   */
+  problems?: Record<string, Problem>;
+  /** Math sessions only: the tries made so far at each item id in this round (at most two). */
+  tries?: Record<string, Try[]>;
 }
 
 /** The last mark, kept so one tap can take it back (one level only). */
@@ -63,6 +72,11 @@ export interface Session {
    * progress as it was. Absent means graded.
    */
   learning?: true;
+  /**
+   * Math sessions only: the lesson's rules as they were when the session started, so its retry rounds keep generating
+   * problems the same way even if the lesson is edited.
+   */
+  mathRules?: Rules;
 }
 
 /** Whether the session's items are marked ✅/❌. Stroke order and learning sessions are not: they have no scores, undo or retry rounds. */
@@ -91,7 +105,8 @@ export function createSession(
   },
   env: PracticeEnv,
 ): Session {
-  const itemIds = (lesson.lists[options.practiceType] ?? []).map((item) => item.target);
+  const items = isListType(options.practiceType) ? lesson.lists[options.practiceType] : undefined;
+  const itemIds = (items ?? []).map((item) => item.target);
   const now = env.now();
   return {
     id: env.newId(),
@@ -149,7 +164,7 @@ export function markCounts(round: Round): { correct: number; wrong: number } {
   };
 }
 
-function withCurrentRound(session: Session, update: (round: Round) => Round): Session {
+export function withCurrentRound(session: Session, update: (round: Round) => Round): Session {
   const round = currentRound(session);
   const next = update(round);
   if (next === round) return session;
@@ -290,7 +305,7 @@ export function resetBreakCount(session: Session): Session {
 }
 
 /** A round that ends with no misses to practice completes the session (no summary / retry step). */
-function finishIfClean(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
+export function finishIfClean(session: Session, env: PracticeEnv, listed: ReadonlySet<string>): Session {
   const round = currentRound(session);
   if (session.status !== 'active' || !isRoundOver(round) || wrongItemIds(round, listed).length > 0) return session;
   return { ...session, status: 'completed', completedAt: round.completedAt ?? env.now(), undo: null };

@@ -74,6 +74,16 @@ body {
   font-size: 1.1rem;
 }
 
+/* The lesson's subject, small, under its title. */
+.lesson-card__subject {
+  align-self: flex-start;
+  padding: 2px 12px;
+  border-radius: 12px;
+  background: #e6e0f7;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .home-button {
   display: inline-flex;
   align-items: center;

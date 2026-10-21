@@ -14,7 +14,8 @@ import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { useAppRecord } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
-import { PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
+import { isListType, isRulesType, PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
+import { SESSION_SIZE } from '../../math/rules.ts';
 import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
@@ -74,8 +75,9 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
       const [lesson, sessions] = await Promise.all([fetchLesson(lessonId), getStorage().listSessions(profileId, { lessonId })]);
       const parts = PRACTICE_TYPE_IDS.flatMap((id): Part[] => {
         const own = sessions.filter((session) => session.practiceType === id);
-        const items = lesson.lists[id] ?? [];
-        if (items.length === 0 && own.length === 0) return [];
+        const items = (isListType(id) ? lesson.lists[id] : undefined) ?? [];
+        const offered = isListType(id) ? items.length > 0 : lesson.rules?.[id] !== undefined;
+        if (!offered && own.length === 0) return [];
         return [{ type: PRACTICE_TYPES[id], items, sessions: own, progress: listProgress(own, items.map((item) => item.target)) }];
       });
       return { lesson, parts };
@@ -183,7 +185,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         {type.label}
       </h3>
       <div class="progress-header__facts" data-testid="progress-facts">
-        <span>{countLabel(type, listed.length)}</span>
+        <span>{countLabel(type, isRulesType(type.id) ? SESSION_SIZE : listed.length)}</span>
         <span>Attempts: {progress.attemptCount}</span>
         {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>
@@ -221,7 +223,7 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         </>
       )}
 
-      {type.hasMarks && progress.trickiest.length > 0 && (
+      {type.hasMarks && !isRulesType(type.id) && progress.trickiest.length > 0 && (
         <>
           <h4 class="progress-heading">Trickiest {type.itemNoun.plural}</h4>
           <ol class="progress-list progress-tricky">
@@ -319,9 +321,15 @@ function RoundBlock({
       </div>
       {round.missed.length > 0 && (
         <div class="progress-round__missed">
-          {round.missed.map((target) => (
-            <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
-          ))}
+          {round.missed.map((target) =>
+            isRulesType(type.id) ? (
+              <span key={target} class="progress-char">
+                Problem {target}
+              </span>
+            ) : (
+              <PlayableItem key={target} player={player} target={target} item={items.get(target)} />
+            ),
+          )}
         </div>
       )}
     </li>

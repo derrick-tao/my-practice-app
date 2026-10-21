@@ -4,7 +4,7 @@
 //   {
 //     "appId": "my-practice-app",       which app wrote it
 //     "kind": "backup",                 what sort of file it is (room for other kinds later)
-//     "schemaVersion": 4,             the schema of `data` (same number as data.app.schemaVersion)
+//     "schemaVersion": 5,             the schema of `data` (same number as data.app.schemaVersion)
 //     "exportedAt": "2026-10-18T12:00:00.000Z",
 //     "data": { "app": <AppRecord>, "sessions": [<Session>, ...] }
 //   }
@@ -15,7 +15,9 @@
 //
 // A file written by an older schema is accepted: checkBackup migrates its data to the current schema
 // (src/storage/migrations.ts) before checking it, so everything after that sees one shape.
-import { isPracticeTypeId } from '../content/types.ts';
+import { isPracticeTypeId, isRulesType, type PracticeTypeId } from '../content/types.ts';
+import { MAX_TRIES } from '../math/problem.ts';
+import { isOperation, MAX_WITHIN, MIN_WITHIN } from '../math/rules.ts';
 import { migrate } from '../storage/migrations.ts';
 import { SCHEMA_VERSION, type StoredData } from '../storage/types.ts';
 
@@ -86,6 +88,30 @@ function isProfile(value: unknown): boolean {
   );
 }
 
+const isProblem = (value: unknown): boolean =>
+  isObject(value) && isString(value.kind) && Array.isArray(value.numbers) && value.numbers.every(isNonNegativeInteger);
+
+const isTry = (value: unknown): boolean => isObject(value) && isString(value.answer) && typeof value.correct === 'boolean';
+
+/** A math round's problems (one per spot) and tries (at most two per spot), when it has them. */
+function hasValidMathFields(round: Record<string, unknown>): boolean {
+  const { problems, tries } = round;
+  return (
+    (problems === undefined || (isObject(problems) && Object.values(problems).every(isProblem))) &&
+    (tries === undefined ||
+      (isObject(tries) && Object.values(tries).every((spot) => Array.isArray(spot) && spot.length <= MAX_TRIES && spot.every(isTry))))
+  );
+}
+
+const isRules = (value: unknown): boolean =>
+  isObject(value) &&
+  isNonNegativeInteger(value.within) &&
+  value.within >= MIN_WITHIN &&
+  value.within <= MAX_WITHIN &&
+  Array.isArray(value.operations) &&
+  value.operations.length > 0 &&
+  value.operations.every(isOperation);
+
 function isRound(value: unknown): boolean {
   if (!isObject(value)) return false;
   const { itemIds, marks } = value;
@@ -100,7 +126,8 @@ function isRound(value: unknown): boolean {
     isObject(marks) &&
     Object.values(marks).every(isMark) &&
     isDate(value.startedAt) &&
-    isOptionalDate(value.completedAt)
+    isOptionalDate(value.completedAt) &&
+    hasValidMathFields(value)
   );
 }
 
@@ -112,6 +139,17 @@ function isUndoEntry(value: unknown): boolean {
       isString(value.itemId) &&
       isNonNegativeInteger(value.position) &&
       (value.previousMark === undefined || isMark(value.previousMark)))
+  );
+}
+
+/** A math session names its rules, and every spot of every round has the problem to show there. */
+function isMathSession(value: Record<string, unknown>): boolean {
+  return (
+    isRules(value.mathRules) &&
+    (value.rounds as Array<Record<string, unknown>>).every((round) => {
+      const problems = round.problems;
+      return isObject(problems) && (round.itemIds as string[]).every((id) => id in problems);
+    })
   );
 }
 
@@ -134,7 +172,9 @@ function isSession(value: unknown): boolean {
     value.rounds.every(isRound) &&
     isUndoEntry(value.undo) &&
     isNonNegativeInteger(value.marksSinceBreak) &&
-    (value.learning === undefined || value.learning === true)
+    (value.learning === undefined || value.learning === true) &&
+    (value.mathRules === undefined || isRules(value.mathRules)) &&
+    (!isRulesType(value.practiceType as PracticeTypeId) || isMathSession(value))
   );
 }
 

@@ -434,3 +434,42 @@
   /* Room for the pinyin and the clue, so the drawing stays put when they appear. */
   min-height: 4.2rem;
 }
+
+/* Math practice: the problem, how the try went, and the worked strategy after two misses. */
+.math {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.math__problem {
+  margin: 0;
+  font-size: 3.4rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.math__answer {
+  display: inline-block;
+  min-width: 2.4ch;
+  border-bottom: 4px solid var(--accent);
+}
+
+.math__feedback {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.math__strategy {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.practice__controls .numpad {
+  align-self: center;
+}

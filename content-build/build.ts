@@ -3,11 +3,13 @@ import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promi
 import path from 'node:path';
 import {
   listEntries,
+  rulesEntries,
   type ItemData,
   type LessonData,
   type LessonSummary,
   type Manifest,
 } from '../src/content/types.ts';
+import { SESSION_SIZE } from '../src/math/rules.ts';
 import { formatIssue, validateAcrossFiles, validateLessonFile, type Issue, type SourceLesson } from './validate.ts';
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
@@ -63,9 +65,10 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
       id: raw.id,
       title: raw.title,
       subject: raw.subject,
-      script: raw.script,
+      ...(raw.script !== undefined && { script: raw.script }),
       ...(raw.testDates !== undefined && { testDates: raw.testDates }),
       lists,
+      ...(Object.keys(raw.rules).length > 0 && { rules: raw.rules }),
     });
   }
   lessons.sort((a, b) => a.id.localeCompare(b.id));
@@ -93,15 +96,20 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
   }
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
+  // The Kai font is for Chinese items only: a build with none (math lessons alone) has no font to cut.
   const items = sources.flatMap((s) => listEntries(s.lists).flatMap(([, list]) => list));
-  const font = await buildFontSubset(
-    items.map((i) => i.target),
-    items.flatMap((i) => (i.clue === undefined ? [] : [i.clue])),
-  );
-  await mkdir(path.join(options.outDir, path.dirname(FONT_REF)), { recursive: true });
-  await writeFile(path.join(options.outDir, FONT_REF), font.woff2);
+  const fontWarnings: string[] = [];
+  if (items.length > 0) {
+    const font = await buildFontSubset(
+      items.map((i) => i.target),
+      items.flatMap((i) => (i.clue === undefined ? [] : [i.clue])),
+    );
+    await mkdir(path.join(options.outDir, path.dirname(FONT_REF)), { recursive: true });
+    await writeFile(path.join(options.outDir, FONT_REF), font.woff2);
+    fontWarnings.push(...font.warnings);
+  }
 
-  return { contentVersion, warnings: [...warnings, ...font.warnings], audio: resolved.stats };
+  return { contentVersion, warnings: [...warnings, ...fontWarnings], audio: resolved.stats };
 }
 
 function buildManifest(lessons: LessonData[], contentVersion: string, fileOf: (lessonId: string) => string): Manifest {
@@ -113,9 +121,13 @@ function buildManifest(lessons: LessonData[], contentVersion: string, fileOf: (l
       id: lesson.id,
       file: fileOf(lesson.id),
       title: lesson.title,
-      script: lesson.script,
+      ...(lesson.script !== undefined && { script: lesson.script }),
       ...(lesson.testDates !== undefined && { testDates: lesson.testDates }),
-      practiceTypes: listEntries(lesson.lists).map(([id, items]) => ({ id, itemCount: items.length })),
+      practiceTypes: [
+        ...listEntries(lesson.lists).map(([id, items]) => ({ id, itemCount: items.length })),
+        // Generated problems: a session is always the same size.
+        ...rulesEntries(lesson.rules).map(([id]) => ({ id, itemCount: SESSION_SIZE })),
+      ],
     });
   }
   return {

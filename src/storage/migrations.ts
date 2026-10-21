@@ -9,6 +9,9 @@
 //           (the defaults, which are what stroke order practice always did).
 //   3 -> 4  the learning setting: every profile gets `learning` off, which is how phrase recognition always worked.
 //           (A session's `learning` flag is optional, absent meaning graded, so sessions need no step.)
+//   4 -> 5  the math subject: a session may hold generated `problems` and `tries` in its rounds and the lesson's
+//           `mathRules`. All of it is optional and absent for every Chinese session, so the data is unchanged; the
+//           step exists so that an app from before math (schema 4) refuses a backup that has math sessions.
 import { DEFAULT_SETTINGS, NewerSchemaError, SCHEMA_VERSION, type StoredData } from './types.ts';
 
 export interface Migration {
@@ -87,10 +90,16 @@ function learningBecameSetting(data: StoredData): StoredData {
   };
 }
 
+/** Nothing to convert: math fields only appear on math sessions. Only the version moves on. */
+function mathSubjectAdded(data: StoredData): StoredData {
+  return { app: { ...data.app, schemaVersion: 5 }, sessions: data.sessions };
+}
+
 export const MIGRATIONS: readonly Migration[] = [
   { from: 1, up: listsBecameLessons },
   { from: 2, up: strokeTimingBecameSettings },
   { from: 3, up: learningBecameSetting },
+  { from: 4, up: mathSubjectAdded },
 ];
 
 /**

@@ -4,7 +4,7 @@
 import type { Session } from '../practice/session.ts';
 
 /** Bump when the stored shape changes, and add the step to migrations.ts. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export interface ProfileSettings {
   shuffle: boolean;
