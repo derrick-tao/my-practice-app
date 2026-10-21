@@ -23,13 +23,13 @@ export interface Precache {
   urls: string[];
 }
 
-/** Everything the app needs offline, found in a finished build output folder. */
 const exists = (file: string): Promise<boolean> =>
   access(file).then(
     () => true,
     () => false,
   );
 
+/** Everything the app needs offline, found in a finished build output folder. */
 export async function collectPrecache(outDir: string): Promise<Precache> {
   const urls = new Set<string>();
   for (const entry of await readdir(outDir, { recursive: true, withFileTypes: true })) {

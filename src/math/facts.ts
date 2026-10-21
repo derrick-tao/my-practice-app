@@ -3,8 +3,7 @@
 import type { Problem } from './problem.ts';
 import type { Rules } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
-
-const MINUS = '−';
+import { MINUS, range } from './util.ts';
 
 type FactsKind = 'add-within-10' | 'add-across-ten' | 'subtract-within-10' | 'subtract-across-ten';
 const KINDS_BY_OPERATION: Record<'add' | 'subtract', [FactsKind, FactsKind]> = {
@@ -13,7 +12,6 @@ const KINDS_BY_OPERATION: Record<'add' | 'subtract', [FactsKind, FactsKind]> = {
 };
 
 const isSubtract = (kind: string): boolean => kind.startsWith('subtract');
-const range = (from: number, to: number): number[] => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 const problem = (kind: string, a: number, b: number): Problem => ({ kind, numbers: [a, b] });
 
 function pool(kind: string, rules: Rules): Problem[] {

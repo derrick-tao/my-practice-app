@@ -3,14 +3,12 @@
 // forwards (`8 + ? = 11`) or backwards (`11 = 8 + ?`, `5 = ☐ − 3`) at random. The kinds with a missing addend
 // (`8 + ? = 10`, `10 − 8 = ?`) are subtraction as an unknown-addend problem (1.OA.4), solved by counting up.
 import type { Problem } from './problem.ts';
-import type { Rules } from './rules.ts';
+import type { Operation, Rules } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
-
-const MINUS = '−';
+import { MINUS, range } from './util.ts';
 
 type Blank = 'first' | 'middle' | 'answer';
 const BLANKS: Blank[] = ['first', 'middle', 'answer'];
-type Operation = 'add' | 'subtract';
 
 /** The kind "add-blank-middle" says what is added and where the blank is. */
 const kindOf = (operation: Operation, blank: Blank): string => `${operation}-blank-${blank}`;
@@ -18,8 +16,6 @@ const parts = (kind: string): { operation: Operation; blank: Blank } => {
   const [operation, , blank] = kind.split('-') as [Operation, string, Blank];
   return { operation, blank };
 };
-
-const range = (from: number, to: number): number[] => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 
 /** Every (a, b, c) with a + b = c, or a − b = c, inside the rules: all numbers from 1 up to `within`. */
 function equations(operation: Operation, within: number): Array<[number, number, number]> {

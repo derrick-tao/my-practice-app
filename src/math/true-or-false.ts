@@ -11,8 +11,7 @@
 import type { Problem } from './problem.ts';
 import type { Rules } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
-
-const MINUS = '−';
+import { MINUS, range } from './util.ts';
 
 type TrueOrFalseKind = 'same-number' | 'answer-left' | 'swapped' | 'two-sums';
 
@@ -33,7 +32,6 @@ function sides(p: Problem): [number, number] {
 
 const isTrue = (p: Problem): boolean => sides(p)[0] === sides(p)[1];
 
-const range = (from: number, to: number): number[] => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 /** A false equation is off by 1 or 2, either way. */
 const OFF_BY = [-2, -1, 1, 2];
 const SHIFTS = [-3, -2, -1, 1, 2, 3];

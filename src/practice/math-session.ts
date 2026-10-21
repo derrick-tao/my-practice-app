@@ -58,7 +58,7 @@ export function createMathSession(
     rounds: [spotsRound(1, generated, now)],
     undo: null,
     marksSinceBreak: 0,
-    mathRules: rules,
+    mathRules: { ...rules, operations: [...rules.operations] }, // a copy: never the shared defaults or the lesson's own object
   };
 }
 
@@ -93,10 +93,10 @@ function stepsOf(session: Session, problem: Problem): Step[] {
   return type.steps?.(problem) ?? [{ before: `${type.equation(problem)} `, after: '', answer: type.answer(problem), explanation: type.strategy(problem) }];
 }
 
-const stepOfTry = (attempt: Try): number => attempt.step ?? 0;
-const triesAt = (tries: Try[], step: number): Try[] => tries.filter((attempt) => stepOfTry(attempt) === step);
+const stepOfTry = (thisTry: Try): number => thisTry.step ?? 0;
+const triesAt = (tries: Try[], step: number): Try[] => tries.filter((thisTry) => stepOfTry(thisTry) === step);
 /** A step is over once it is answered right or both tries are used. */
-const isStepSettled = (tries: Try[]): boolean => tries.some((attempt) => attempt.correct) || tries.length >= MAX_TRIES;
+const isStepSettled = (tries: Try[]): boolean => tries.some((thisTry) => thisTry.correct) || tries.length >= MAX_TRIES;
 
 /** Where the learner is within the current problem: the step shown, how many there are, and the tries at that step. */
 export interface StepPlace {
@@ -149,8 +149,8 @@ export function submitAnswer(session: Session, entry: string, env: PracticeEnv):
 
   const correct = isCorrectEntry(typeOf(session), problem, entry, place.step.answer);
   // Facts has one step and saves no step number, so what it saved before multi-step problems is unchanged.
-  const attempt: Try = { answer: entry, correct, ...(place.steps.length > 1 && { step: place.index }) };
-  const all = [...(before.tries?.[id] ?? []), attempt];
+  const thisTry: Try = { answer: entry, correct, ...(place.steps.length > 1 && { step: place.index }) };
+  const all = [...(before.tries?.[id] ?? []), thisTry];
   const tries = triesAt(all, place.index);
   const firstTryRight = correct && tries.length === 1;
   if (!isStepSettled(tries)) return withCurrentRound(session, (round) => ({ ...round, tries: { ...round.tries, [id]: all } })); // wrong the first time: the same step again

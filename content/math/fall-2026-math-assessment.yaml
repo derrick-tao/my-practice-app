@@ -1,9 +1,9 @@
 # Fall 2026 Math Assessment (1.OA addition and subtraction).
 # A math lesson holds no items: each practice type has small rules, and the app makes 20 new problems per
 # session and per retry round. The file name must equal the id.
-# `within` (5 to 100) and `operations` ([add, subtract]) are optional; they default to 20 and both operations.
-# The other math practice types (missing-number, true-or-false, strategies) are added here as
-# they ship.
+# `within` (20 to 100) and `operations` ([add, subtract]) are optional; they default to 20 and both operations.
+# Each of the five math practice types (facts, missing-number, true-or-false, word-problems, strategies) is
+# offered by listing it here.
 id: fall-2026-math-assessment
 title: Fall 2026 Math Assessment
 subject: math

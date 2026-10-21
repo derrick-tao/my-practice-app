@@ -1,5 +1,5 @@
 // What a math practice type supplies. The generation module (generate.ts) and the practice flow only ever talk to
-// this interface, so a new type is one object like `facts` in facts.ts plus an entry in math-types.ts.
+// this interface, so a new type is one object like `facts` in facts.ts plus an entry in MATH_TYPES (index.ts).
 import type { Rules } from './rules.ts';
 import type { RandomSource } from '../practice/random.ts';
 import type { Problem } from './problem.ts';

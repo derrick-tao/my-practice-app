@@ -35,7 +35,7 @@ The practice type where the learner hears a character, watches it drawn one stro
 _Avoid_: Tracing (kept for drawing over a character on screen), copying, draw-along, 笔顺 (in code and docs)
 
 **Facts**, **Missing number**, **True or false**, **Word problems**, **Strategies**:
-The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ?`); an equation with the blank anywhere (`8 + ? = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). Only Facts exists so far.
+The math practice types, each answered by the learner and checked by the app: plain sums and differences (`8 + 6 = ?`); an equation with the blank anywhere (`8 + ? = 11`); deciding whether an equation holds (`4 + 1 = 5 + 2`); short story problems; and guided steps through a strategy such as making ten (`8 + 6 = 10 + ☐`). The child's buttons call them ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.
 
 **Rules**:
 A math lesson's settings for one practice type: the numbers its problems stay within and the operations they use.
