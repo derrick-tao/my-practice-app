@@ -88,11 +88,14 @@ function isProfile(value: unknown): boolean {
   );
 }
 
+/** A problem's numbers are whole numbers, and not always positive: true or false saves `7 = 8 - 1` as [7, 8, -1]. */
+const isWholeNumber = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value);
+
 const isProblem = (value: unknown): boolean =>
   isObject(value) &&
   isString(value.kind) &&
   Array.isArray(value.numbers) &&
-  value.numbers.every(isNonNegativeInteger) &&
+  value.numbers.every(isWholeNumber) &&
   [value.name, value.friend, value.object].every((text) => text === undefined || isString(text));
 
 const isTry = (value: unknown): boolean =>
