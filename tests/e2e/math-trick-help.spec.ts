@@ -33,7 +33,7 @@ async function start({ page, audio }: Fixtures, breakEvery?: 5 | 10 | 15): Promi
 }
 
 /** The help button on the trick badge, and the sheet it opens. */
-const helpButton = (page: Page): Locator => page.getByRole('button', { name: 'Help', exact: true });
+const helpButton = (page: Page): Locator => page.getByRole('button', { name: /^Help: / });
 const sheetOf = (page: Page): Locator => page.getByRole('dialog');
 const gotIt = (sheet: Locator): Locator => sheet.getByRole('button', { name: 'Got it', exact: true });
 

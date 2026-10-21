@@ -140,14 +140,16 @@ const TITLES: Record<StrategyKind, string> = {
   'near-doubles': 'Near doubles',
 };
 
-/** What a trick is, in a child's words, and a worked example to go with it. */
+/** What a trick is, in a child's words, and worked examples to go with it. */
 interface TrickHelpText {
   whatItIs: string;
   whyItHelps: string;
-  /** The numbers of the worked example, in the order of the trick's own problems (`Problem.numbers`). */
-  example: number[];
-  /** Used instead when `example` is the problem the child is on, so the help never gives the answer away. */
-  otherExample: number[];
+  /**
+   * The numbers of the worked examples, in the order of the trick's own problems (`Problem.numbers`). The first is
+   * shown unless it would give away the problem the child is on, then the next one that does not, so there are enough
+   * of them that one always fits (a content test checks every problem of every trick).
+   */
+  examples: number[][];
 }
 
 /** Help for each trick, keyed by kind so a new trick cannot be added without it. Plain Grade-1 words, text only. */
@@ -155,63 +157,65 @@ const HELP: Record<StrategyKind, TrickHelpText> = {
   'swap-order': {
     whatItIs: 'You can add two numbers in any order.',
     whyItHelps: 'The answer stays the same, so you can start with the bigger number.',
-    example: [8, 3],
-    otherExample: [9, 4],
+    examples: [[8, 3], [9, 4], [7, 2], [6, 5]],
   },
   'make-ten-three': {
     whatItIs: 'Find two numbers that make 10 and add them first.',
     whyItHelps: 'Adding to 10 is easy, then you only add the first number.',
-    example: [2, 6, 4],
-    otherExample: [3, 7, 3],
+    examples: [[2, 6, 4], [3, 7, 3], [5, 8, 2], [4, 9, 1]],
   },
   'count-on': {
     whatItIs: 'Start at the big number and count up the small number.',
     whyItHelps: 'You do not need to count from 1 again.',
-    example: [7, 2],
-    otherExample: [5, 3],
+    // Spread out, so a problem (up to 3 lines) can only touch one of them.
+    examples: [[7, 2], [3, 2], [12, 2], [16, 2]],
   },
   'make-ten': {
     whatItIs: 'Take some from the second number to make the first number a 10.',
     whyItHelps: 'A 10 is easy to add to, so the rest is easy too.',
-    example: [8, 6],
-    otherExample: [9, 5],
+    examples: [[8, 6], [9, 5], [7, 8], [6, 7], [19, 4]],
   },
   'break-down-to-ten': {
     whatItIs: 'Take away just enough to get down to a 10, then take away the rest.',
     whyItHelps: 'Taking away from a 10 is easy.',
-    example: [13, 4],
-    otherExample: [15, 7],
+    examples: [[13, 4], [15, 7], [12, 5], [14, 6], [17, 9]],
   },
   'related-fact': {
     whatItIs: 'An adding fact and a taking away fact use the same three numbers.',
     whyItHelps: 'If you know the adding fact, you know the taking away fact.',
-    example: [8, 4],
-    otherExample: [7, 5],
+    examples: [[8, 4], [7, 5], [9, 6], [6, 3]],
   },
   'near-doubles': {
     whatItIs: 'A near double is a double with 1 more.',
     whyItHelps: 'Doubles are easy to remember, so add the 1 more last.',
-    example: [6, 7],
-    otherExample: [4, 5],
+    examples: [[6, 7], [4, 5], [8, 9], [3, 4]],
   },
 };
 
 const sameNumbers = (x: number[], y: number[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
 
+/** What a step shows with its blank answered: "8 + 2 = 10". */
+const workedLine = (step: Step): string => `${step.before}${step.answer}${step.after}`;
+
 /**
  * The help sheet for a trick: what it is, why it helps, and a worked example made of the lines the child sees on the
- * practice screen with every blank answered. The example avoids the current problem's numbers (in either order).
+ * practice screen with every blank answered. The example never has the current problem's numbers (in either order) and
+ * never shows a line that is a step of the current problem, answer filled in, so the help cannot give an answer away.
  */
 export function trickHelp(current: Problem): TrickHelp {
   const kind = current.kind as StrategyKind;
   const help = HELP[kind];
-  const numbers = sameNumbers(help.example, current.numbers) ? help.otherExample : help.example;
-  const example = { kind, numbers };
-  const line = given(example);
+  const currentLines = new Set(steps(current).map(workedLine));
+  const linesOf = (numbers: number[]) => steps({ kind, numbers }).map(workedLine);
+  const numbers =
+    help.examples.find((e) => !sameNumbers(e, current.numbers) && !linesOf(e).some((l) => currentLines.has(l))) ??
+    help.examples.find((e) => !sameNumbers(e, current.numbers)) ??
+    help.examples[0]!;
+  const line = given({ kind, numbers });
   return {
     whatItIs: help.whatItIs,
     whyItHelps: help.whyItHelps,
-    example: [...(line ? [line] : []), ...steps(example).map((step) => `${step.before}${step.answer}${step.after}`)],
+    example: [...(line ? [line] : []), ...linesOf(numbers)],
   };
 }
 
@@ -225,7 +229,8 @@ export const strategies: MathPracticeType = {
   key: (p) => `${p.kind}:${p.numbers.join(',')}`,
   equation: given,
   title: (p) => TITLES[p.kind as StrategyKind],
-  help: trickHelp,
+  // A kind without help (an old saved problem) gets no "?" button rather than a crash.
+  help: (p) => (p.kind in HELP ? trickHelp(p) : undefined),
   steps,
   answer: (p) => steps(p).at(-1)!.answer,
   strategy: (p) => steps(p).map((step) => step.explanation).join(' · '),

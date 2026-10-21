@@ -94,8 +94,10 @@ export function MathRun({
     if (!after) return;
     setEntry('');
     if (after.status === 'completed') effects.play('fanfare');
-    else if (outcomeOf(after) === 'missed') effects.play('gentle'); // only now: a second wrong answer
-    else if (finishedFirstTry(before, after) || outcomeOf(after) === 'second-try-right') effects.play('chime'); // ✅ or a right second try
+    // The ❌ sound: a wrong True or false answer, or a second wrong try on the number pad.
+    else if (outcomeOf(after) === 'missed') effects.play('gentle');
+    // The chime: a right first try (✅), or a right second try (still marked ❌).
+    else if (finishedFirstTry(before, after) || outcomeOf(after) === 'second-try-right') effects.play('chime');
   };
   const onSubmit = (): void => submit(entry);
 

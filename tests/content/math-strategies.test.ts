@@ -111,11 +111,28 @@ describe('trick help', () => {
     expect(trickHelp({ kind: 'swap-order', numbers: [2, 3] }).example).toEqual(['8 + 3 = 11', 'So 3 + 8 = 11']);
   });
 
-  it('switches to the second example when the first has the current numbers, in either order', () => {
+  it('switches to the next example that shares nothing when the first has the current numbers, in either order', () => {
     expect(trickHelp({ kind: 'make-ten', numbers: [7, 5] }).example[0]).toBe('8 + 6');
-    expect(trickHelp({ kind: 'make-ten', numbers: [8, 6] }).example[0]).toBe('9 + 5');
-    expect(trickHelp({ kind: 'make-ten', numbers: [6, 8] }).example[0]).toBe('9 + 5');
+    expect(trickHelp({ kind: 'make-ten', numbers: [8, 6] }).example[0]).toBe('7 + 8');
+    expect(trickHelp({ kind: 'make-ten', numbers: [6, 8] }).example[0]).toBe('7 + 8');
     expect(trickHelp({ kind: 'swap-order', numbers: [3, 8] }).example[0]).toBe('9 + 4 = 13');
+  });
+
+  it('never shows a line that is a step of the current problem, answer filled in, for any problem of any trick', () => {
+    const wide: Rules = { within: 20, operations: ['add', 'subtract'] };
+    for (const kind of kinds) {
+      for (const problem of strategies.pool(kind, wide)) {
+        const own = new Set(strategies.steps!(problem).map((s) => `${s.before}${s.answer}${s.after}`));
+        const shared = trickHelp(problem).example.filter((line) => own.has(line));
+        expect(shared, `${kind} ${problem.numbers}`).toEqual([]);
+      }
+    }
+  });
+
+  it('does not reveal the first blank of a make-ten, count-on or break-down-to-ten problem', () => {
+    expect(trickHelp({ kind: 'make-ten', numbers: [8, 5] }).example).not.toContain('8 + 2 = 10');
+    expect(trickHelp({ kind: 'count-on', numbers: [7, 3] }).example).not.toContain('7 → 8');
+    expect(trickHelp({ kind: 'break-down-to-ten', numbers: [13, 5] }).example).not.toContain('13 − 3 = 10');
   });
 
   it('builds the example from the trick steps and ends with every blank answered correctly', () => {

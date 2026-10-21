@@ -68,7 +68,7 @@ export interface MathPracticeType {
    */
   steps?(problem: Problem): Step[];
   /** Optional: help for the problem's trick, opened from a "?" on its badge. Only Strategies has tricks. The example avoids the problem's own numbers. */
-  help?(problem: Problem): TrickHelp;
+  help?(problem: Problem): TrickHelp | undefined;
   /** The worked strategy shown after two wrong tries: "8 + 6 = 8 + 2 + 4 = 14". */
   strategy(problem: Problem): string;
 }

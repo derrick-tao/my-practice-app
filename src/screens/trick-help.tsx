@@ -13,16 +13,20 @@ export function TrickBadge({ title, help }: { title: string; help?: TrickHelp })
       </p>
       {help && (
         <>
-          <button type="button" class="math__help" aria-label="Help" onClick={() => sheet.current?.showModal()}>
+          <button type="button" class="math__help" aria-label={`Help: ${title}`} onClick={() => sheet.current?.showModal()}>
             <span aria-hidden="true">?</span>
           </button>
           <dialog
             ref={sheet}
             class="help-sheet"
             aria-labelledby="help-sheet-title"
-            // A tap on the dimmed area outside the sheet lands on the dialog itself; taps inside land on its content.
+            // A tap on the dimmed area outside the sheet lands on the dialog itself, as do taps on its own scrollbar and
+            // padding, so tell them apart by where the tap is: outside the sheet's box means close.
             onClick={(event) => {
-              if (event.target === event.currentTarget) sheet.current?.close();
+              if (event.target !== event.currentTarget) return;
+              const box = event.currentTarget.getBoundingClientRect();
+              const inside = event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
+              if (!inside) sheet.current?.close();
             }}
           >
             <div class="help-sheet__content">

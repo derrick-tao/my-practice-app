@@ -75,7 +75,7 @@ An ordered pass over a set of items; round 1 covers them all, and each later rou
 An item's grade in a round: ✅ correct or ❌ wrong. In Chinese the learner self-grades; in math the app checks the answer, and only a right first try is ✅ (so a True or false problem that is wrong is ❌ at once).
 
 **Try**:
-One answer the learner checks for a math problem. A number-pad problem allows two: a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the only time the ❌ sound plays). Right on the second try is still ❌, with a cheerful "got it!". True or false allows one, since with two choices a second try is only a guess: a wrong answer shows the answer and how to get it straight away, with the ❌ sound. A session saved with one wrong True or false try on record loads as missed.
+One answer the learner checks for a math problem. A number-pad problem allows two: a wrong first try gets "try again", and after a second wrong try the app shows the answer and how to get it (the ❌ sound plays then). Right on the second try is still ❌, with a cheerful "got it!" and the chime. True or false allows one, since with two choices a second try is only a guess: a wrong answer shows the answer and how to get it straight away, with the ❌ sound. A session saved with one wrong True or false try on record loads as missed.
 _Avoid_: Attempt (the parent area's word for a session)
 
 **Step**:
@@ -99,7 +99,7 @@ The grown-up part of the app behind the parent gate: profiles, lesson assignment
 _Avoid_: Admin, settings screen
 
 **Sounds setting**:
-A per-profile choice to play sound effects on ✅, ❌ and finishing. It never silences the item audio.
+A per-profile choice to play sound effects on ✅, ❌ and finishing. The chime plays for a right answer, even a right second try that is still marked ❌. It never silences the item audio.
 _Avoid_: Mute, volume
 
 **Learning setting**:
