@@ -121,7 +121,7 @@ const PATTERNS: Pattern[] = [
   },
   {
     kind: 'compare-smaller',
-    regex: new RegExp(`^${NAME} has ${NUM('z')} O\\. (?:She|He) has ${NUM('y')} more O than (?<friend>[A-Z][a-z]+)\\. How many O does \\k<friend> have\\?$`),
+    regex: new RegExp(`^${NAME} has ${NUM('z')} O\\. That is ${NUM('y')} more than (?<friend>[A-Z][a-z]+) has\\. How many O does \\k<friend> have\\?$`),
     work: (g) => ({ shown: [num(g, 'z'), num(g, 'y')], answer: num(g, 'z') - num(g, 'y') }),
   },
 ];
@@ -241,7 +241,7 @@ export class StoriesScreen {
 
   async submit(value: number): Promise<void> {
     await tapNumber(this.page, value);
-    await this.page.getByRole('button', { name: 'OK', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Check', exact: true }).click();
   }
 
   async progressNumber(): Promise<number> {

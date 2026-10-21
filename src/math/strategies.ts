@@ -5,16 +5,17 @@
 import type { Problem } from './problem.ts';
 import type { Rules } from './rules.ts';
 import type { MathPracticeType, Step } from './types.ts';
+import { MINUS, range } from './util.ts';
 
-const MINUS = '−';
 const ARROW = '→';
 
 type StrategyKind = 'swap-order' | 'make-ten-three' | 'count-on' | 'make-ten' | 'break-down-to-ten' | 'related-fact' | 'near-doubles';
 
 const ADD_KINDS: StrategyKind[] = ['swap-order', 'make-ten-three', 'count-on', 'make-ten', 'near-doubles'];
-const SUBTRACT_KINDS: StrategyKind[] = ['break-down-to-ten', 'related-fact'];
+const SUBTRACT_KINDS: StrategyKind[] = ['break-down-to-ten'];
+/** A related fact adds (8 + 4 = 12) and then subtracts (12 − 8), so a lesson needs both operations to ask it. */
+const BOTH_KINDS: StrategyKind[] = ['related-fact'];
 
-const range = (from: number, to: number): number[] => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 const problem = (kind: string, ...numbers: number[]): Problem => ({ kind, numbers });
 
 function pool(kind: string, rules: Rules): Problem[] {
@@ -128,7 +129,11 @@ function given(p: Problem): string {
 }
 
 export const strategies: MathPracticeType = {
-  kinds: (rules) => [...(rules.operations.includes('add') ? ADD_KINDS : []), ...(rules.operations.includes('subtract') ? SUBTRACT_KINDS : [])],
+  kinds(rules) {
+    const adds = rules.operations.includes('add');
+    const subtracts = rules.operations.includes('subtract');
+    return [...(adds ? ADD_KINDS : []), ...(subtracts ? SUBTRACT_KINDS : []), ...(adds && subtracts ? BOTH_KINDS : [])];
+  },
   pool,
   key: (p) => `${p.kind}:${p.numbers.join(',')}`,
   equation: given,

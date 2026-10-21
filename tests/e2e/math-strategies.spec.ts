@@ -108,12 +108,12 @@ test.describe('a Tricks session', () => {
     await expect(tricks.progress).toHaveText('0 / 20'); // not counted until the whole problem is done
   });
 
-  test('uses the digits tapped: Delete takes one back, and OK with nothing entered does nothing', async ({ page, audio }) => {
+  test('uses the digits tapped: Delete takes one back, and Check with nothing entered does nothing', async ({ page, audio }) => {
     const tricks = await start({ page, audio });
     const before = await tricks.read();
     const answer = await tricks.currentAnswer();
 
-    await page.getByRole('button', { name: 'OK', exact: true }).click();
+    await page.getByRole('button', { name: 'Check', exact: true }).click();
     expect(await tricks.read()).toEqual(before);
     await expect(tricks.feedback).toHaveCount(0);
 
@@ -456,7 +456,7 @@ test.describe('breaks', () => {
     await tricks.solveProblem();
 
     await expect(tricks.breakPrompt).toBeVisible();
-    await expect(page.getByRole('button', { name: 'OK', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Check', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Break' }).click();
     await expect(page).toHaveURL(/#\/$/);
 

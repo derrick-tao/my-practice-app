@@ -1,5 +1,5 @@
 // Seam 1 helpers for the Facts (math) practice screen, driven the way a child does it: read the problem on
-// screen, tap the answer on the number pad, tap OK. Math problems are random, so a spec cannot know the
+// screen, tap the answer on the number pad, tap Check. Math problems are random, so a spec cannot know the
 // answer ahead of time: the driver reads the problem from the screen and works out the answer itself.
 import type { Locator, Page } from '@playwright/test';
 import { expect, type AudioProbe } from './harness.ts';
@@ -81,10 +81,10 @@ export class FactsScreen {
     return { a: Number(match[1]), op: match[2] as Equation['op'], b: Number(match[3]) };
   }
 
-  /** Tap a number and OK. */
+  /** Tap a number and Check. */
   async submit(value: number): Promise<void> {
     await tapNumber(this.page, value);
-    await this.page.getByRole('button', { name: 'OK', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Check', exact: true }).click();
   }
 
   /** Read the problem and answer it right. Returns the problem. */

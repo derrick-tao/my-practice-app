@@ -228,10 +228,10 @@ export class StrategiesScreen {
     return blankOf(lines.at(-1)!);
   }
 
-  /** Tap a number and OK. */
+  /** Tap a number and Check. */
   async submit(value: number): Promise<void> {
     await tapNumber(this.page, value);
-    await this.page.getByRole('button', { name: 'OK', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Check', exact: true }).click();
   }
 
   /** Answer the current blank right. */

@@ -444,6 +444,36 @@
   text-align: center;
 }
 
+/* A wrong first try: the problem wobbles softly, once (the words "Try again!" say the rest). No sound, no red. */
+.math--wobble {
+  animation: math-wobble 0.5s ease-in-out;
+}
+
+@keyframes math-wobble {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  20% {
+    transform: translateX(-6px) rotate(-1.5deg);
+  }
+  40% {
+    transform: translateX(5px) rotate(1.2deg);
+  }
+  60% {
+    transform: translateX(-3px) rotate(-0.8deg);
+  }
+  80% {
+    transform: translateX(2px) rotate(0.4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .math--wobble {
+    animation: none;
+  }
+}
+
 .math__problem {
   margin: 0;
   font-size: 3.4rem;

@@ -1,5 +1,6 @@
 // How a learner's entry is read for a math practice type. An entry is the string saved as a Try's `answer`:
 // digits typed on the number pad, or "true" / "false" for a type answered with the two True and False buttons.
+import { MAX_DIGITS } from '../number-entry.ts';
 import type { Problem } from './problem.ts';
 import type { MathPracticeType } from './types.ts';
 
@@ -7,7 +8,7 @@ export const TRUE_FALSE_ENTRIES = ['true', 'false'] as const;
 
 /** Whether the entry is something this type can be answered with (anything else is ignored). */
 export function isValidEntry(type: MathPracticeType, entry: string): boolean {
-  return type.input === 'true-false' ? (TRUE_FALSE_ENTRIES as readonly string[]).includes(entry) : /^\d{1,4}$/.test(entry);
+  return type.input === 'true-false' ? (TRUE_FALSE_ENTRIES as readonly string[]).includes(entry) : new RegExp(`^\\d{1,${MAX_DIGITS}}$`).test(entry);
 }
 
 /** `answer` is the number the entry is checked against: the problem's, or the current step's in a multi-step problem. */

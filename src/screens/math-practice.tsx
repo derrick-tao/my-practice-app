@@ -1,15 +1,16 @@
 // The math practice screen, for every math practice type. The learner reads a generated problem and taps the
-// answer on the number pad and OK (or on True or False, for a true-or-false type). This is the file to copy for a
-// new math practice type: the type
-// itself only supplies problems, answers and strategies (src/math/), and everything here reads them through the
-// MathPracticeType interface. What the screen shows follows the saved session alone (the problem, the tries, the
-// phase), so a reload anywhere shows the same thing; only the digits being typed live in the screen.
+// answer on the number pad and Check (or on True or False, for a true-or-false type). This is the file to copy
+// for a new math practice type: the type itself only supplies problems, answers and strategies (src/math/), and
+// everything here reads them through the MathPracticeType interface. What the screen shows follows the saved
+// session alone (the problem, the tries, the phase), so a reload anywhere shows the same thing; only the digits
+// being typed live in the screen.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { LessonData, RulesTypeId } from '../content/types.ts';
 import { answerText } from '../math/answer.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import type { Problem } from '../math/problem.ts';
 import type { MathPracticeType } from '../math/types.ts';
+import { addDigit } from '../number-entry.ts';
 import { NumberPad } from '../number-pad.tsx';
 import { createEffects } from '../practice/effects.ts';
 import { currentProblem, currentStep, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
@@ -36,9 +37,6 @@ import { StepsProblem } from './math-steps.tsx';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 import './math-stories.css';
-
-/** The answer is at most 100: three digits are enough. */
-const MAX_DIGITS = 3;
 
 const FEEDBACK = {
   'try-again': 'Not quite. Try again!',
@@ -166,7 +164,7 @@ export function MathRun({
       {!onBreakPrompt && problem && place && !isRoundOver(round) && (
         <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
           <div class="practice__stage">
-            <div class={story ? 'math math--story' : 'math'}>
+            <div class={`math${story ? ' math--story' : ''}${outcome === 'try-again' ? ' math--wobble' : ''}`}>
               {type.steps ? (
                 <StepsProblem given={type.equation(problem)} place={place} settled={settled} entry={entry} />
               ) : story ? (
@@ -215,9 +213,10 @@ export function MathRun({
               <TrueFalsePad onAnswer={submit} />
             ) : (
               <NumberPad
-                onDigit={(digit) => setEntry((current) => (current.length < MAX_DIGITS ? current + digit : current))}
+                onDigit={(digit) => setEntry((current) => addDigit(current, digit))}
                 onDelete={() => setEntry((current) => current.slice(0, -1))}
                 onSubmit={onSubmit}
+                submitLabel="Check"
               />
             )}
           </div>

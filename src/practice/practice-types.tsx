@@ -56,7 +56,7 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
   facts: {
     id: 'facts',
     label: 'Facts',
-    icon: '🔢',
+    icon: '⚡',
     itemNoun: { singular: 'problem', plural: 'problems' },
     hasMarks: true,
     screen: FactsScreen,

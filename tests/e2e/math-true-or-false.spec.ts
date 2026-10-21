@@ -123,7 +123,7 @@ test.describe('a True or false session', () => {
       expect(box!.height).toBeGreaterThanOrEqual(96);
       expect(box!.width).toBeGreaterThanOrEqual(120);
     }
-    await expect(page.getByRole('button', { name: 'OK', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Check', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: '5', exact: true })).toHaveCount(0);
     await expect(screen.undo).toHaveCount(0);
     await expect(page.getByTestId('timer')).toHaveCount(0);

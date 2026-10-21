@@ -94,7 +94,7 @@ function Preview({ lesson }: { lesson: LessonData }) {
         <PreviewSection key={id} player={player} type={PRACTICE_TYPES[id]} items={items} />
       ))}
       {rules.map(([id, rule]) => (
-        <MathPreviewSection key={`:`} typeId={id} rules={rule} />
+        <MathPreviewSection key={id} typeId={id} rules={rule} />
       ))}
     </>
   );

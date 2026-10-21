@@ -5,6 +5,7 @@
 // itself (parent/area.tsx), first-run setup moves to the next step, and ticket 09 uses it as a one-off
 // confirmation before stopping a practice.
 import { useState } from 'preact/hooks';
+import { addDigit } from '../number-entry.ts';
 import { NumberPad } from '../number-pad.tsx';
 
 export interface GateQuestion {
@@ -23,14 +24,12 @@ export function newGateQuestion(previous?: GateQuestion, random: () => number = 
   }
 }
 
-const MAX_DIGITS = 3;
-
 export function ParentGate({ onPassed }: { onPassed: () => void }) {
   const [question, setQuestion] = useState(() => newGateQuestion());
   const [entry, setEntry] = useState('');
   const [missed, setMissed] = useState(false);
 
-  const press = (digit: string): void => setEntry((current) => (current.length < MAX_DIGITS ? current + digit : current));
+  const press = (digit: string): void => setEntry((current) => addDigit(current, digit));
 
   const submit = (): void => {
     if (entry === '') return;

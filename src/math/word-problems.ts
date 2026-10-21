@@ -9,8 +9,7 @@ import type { RandomSource } from '../practice/random.ts';
 import type { Problem } from './problem.ts';
 import type { Operation, Rules } from './rules.ts';
 import type { MathPracticeType } from './types.ts';
-
-const MINUS = '−';
+import { MINUS } from './util.ts';
 
 type StoryKind =
   | 'add-result'
@@ -129,7 +128,7 @@ function story(problem: Problem): string {
     case 'compare-bigger':
       return `${F} has ${x} ${O}. ${N} has ${y} more ${O} than ${F}. How many ${O} does ${N} have?`;
     case 'compare-smaller':
-      return `${N} has ${z} ${O}. ${She} has ${y} more ${O} than ${F}. How many ${O} does ${F} have?`;
+      return `${N} has ${z} ${O}. That is ${y} more than ${F} has. How many ${O} does ${F} have?`;
   }
   return '';
 }

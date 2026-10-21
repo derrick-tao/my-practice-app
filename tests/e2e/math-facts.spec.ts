@@ -80,7 +80,7 @@ test.describe('a Facts session', () => {
 
     await facts.read();
     for (const digit of '0123456789') await expect(page.getByRole('button', { name: digit, exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'OK', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Check', exact: true })).toBeVisible();
     await expect(facts.undo).toHaveCount(0);
     await facts.solveFirstTry();
     await expect(facts.undo).toHaveCount(0);
@@ -101,11 +101,11 @@ test.describe('a Facts session', () => {
     await expect(facts.progress).toHaveText('1 / 20');
   });
 
-  test('OK with nothing entered does nothing', async ({ page, audio }) => {
+  test('Check with nothing entered does nothing', async ({ page, audio }) => {
     const facts = await start({ page, audio });
     const equation = await facts.read();
 
-    await page.getByRole('button', { name: 'OK', exact: true }).click();
+    await page.getByRole('button', { name: 'Check', exact: true }).click();
 
     await expect(facts.progress).toHaveText('0 / 20');
     expect(await facts.read()).toEqual(equation);
@@ -128,12 +128,14 @@ test.describe('tries and marks', () => {
     const equation = await facts.answerWrong();
 
     await expect(facts.feedback).toContainText('Try again');
+    await expect(page.locator('.math')).toHaveClass(/math--wobble/); // the soft wobble: the problem is marked, whatever the timing
     await expect(facts.progress).toHaveText('0 / 20');
     expect(await facts.read()).toEqual(equation); // the same problem, a second try
     expect(await audio.effects()).toEqual([]);
 
     await facts.submit(answerOf(equation));
     await expect(facts.feedback).toContainText('got it!');
+    await expect(page.locator('.math')).not.toHaveClass(/math--wobble/);
     await expect(facts.problem).toContainText(`${textOf(equation)} = ${answerOf(equation)}`);
     await expect(facts.strategy).toHaveCount(0);
     expect(await audio.effects()).toEqual([]);
@@ -155,6 +157,7 @@ test.describe('tries and marks', () => {
     await facts.submit(answerOf(equation) + 1);
 
     await expect(facts.feedback).toContainText(`The answer is ${answerOf(equation)}`);
+    await expect(page.locator('.math')).not.toHaveClass(/math--wobble/);
     const strategy = (await facts.strategy.textContent())!;
     expect(strategy.startsWith(`${textOf(equation)} = `)).toBe(true);
     expect(strategy).toContain(String(answerOf(equation)));
@@ -359,7 +362,7 @@ test.describe('breaks', () => {
     await facts.solveFirstTry();
 
     await expect(facts.breakPrompt).toBeVisible();
-    await expect(page.getByRole('button', { name: 'OK', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Check', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Break' }).click();
     await expect(page).toHaveURL(/#\/$/);
 
