@@ -1,5 +1,6 @@
 // Seam 2: a math lesson holds rules, not items. It builds without any audio, pinyin or font work, shows up in
 // the manifest with its practice types, and a practice type belongs to exactly one subject.
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { buildError, createWorkspace, lessonYaml } from './harness.ts';
 
@@ -126,6 +127,66 @@ describe('math lessons are validated', () => {
     const message = await buildError(await createWorkspace({ 'math/x.yaml': mathLesson('x', 'facts:\n  - 1 + 2\n') }));
     expect(message).toContain('math/x.yaml');
     expect(message).toContain('facts');
+    expect(message).toContain('[invalid-value]');
+  });
+});
+
+describe('strategies rules', () => {
+  const strategiesLesson = (id: string, rules: string): string => mathLesson(id, `strategies:${rules}`);
+
+  it('builds a lesson with strategies rules: offered as a 20-problem practice type, with the default operations', async () => {
+    const ws = await createWorkspace({ 'math/s.yaml': strategiesLesson('s', '\n  within: 20\n') });
+    await ws.build();
+
+    expect((await ws.manifest()).subjects[0]!.lessons[0]!.practiceTypes).toEqual([{ id: 'strategies', itemCount: 20 }]);
+    expect((await ws.lesson('s')).rules).toEqual({ strategies: { within: 20, operations: ['add', 'subtract'] } });
+  });
+
+  it('keeps facts and strategies side by side in the registry order, each with its own rules', async () => {
+    const ws = await createWorkspace({
+      'math/both.yaml': mathLesson('both', 'strategies:\n  operations: [add]\nfacts:\n  within: 100\n'),
+    });
+    await ws.build();
+
+    expect((await ws.manifest()).subjects[0]!.lessons[0]!.practiceTypes.map((t) => t.id)).toEqual(['facts', 'strategies']);
+    expect((await ws.lesson('both')).rules).toEqual({
+      facts: { within: 100, operations: ['add', 'subtract'] },
+      strategies: { within: 20, operations: ['add'] },
+    });
+  });
+
+  it('ships in the real Fall 2026 Math Assessment', async () => {
+    const real = await readFile('content/math/fall-2026-math-assessment.yaml', 'utf8');
+    const ws = await createWorkspace({ 'math/fall-2026-math-assessment.yaml': real });
+    await ws.build();
+
+    const lesson = await ws.lesson('fall-2026-math-assessment');
+    expect(lesson.rules!.strategies).toEqual({ within: 20, operations: ['add', 'subtract'] });
+  });
+
+  it('rejects strategies in a Chinese lesson', async () => {
+    const yaml = lessonYaml('x', CHINESE_ITEM) + 'strategies:\n  within: 20\n';
+    const message = await buildError(await createWorkspace({ 'chinese/x.yaml': yaml }));
+    expect(message).toContain('[wrong-subject]');
+    expect(message).toContain('"strategies"');
+  });
+
+  it.each([
+    ['within: 5', '"within"'],
+    ['within: 150', '"within"'],
+    ['operations: [multiply]', '"multiply"'],
+    ['operations: []', '"operations"'],
+    ['colour: red', '"colour"'],
+  ])('rejects the rules "%s"', async (rule, mentioned) => {
+    const message = await buildError(await createWorkspace({ 'math/x.yaml': strategiesLesson('x', `\n  ${rule}\n`) }));
+    expect(message).toContain('math/x.yaml');
+    expect(message).toContain('strategies');
+    expect(message).toContain(mentioned);
+  });
+
+  it('rejects rules that are not a mapping', async () => {
+    const message = await buildError(await createWorkspace({ 'math/x.yaml': strategiesLesson('x', '\n  - 1 + 2\n') }));
+    expect(message).toContain('strategies');
     expect(message).toContain('[invalid-value]');
   });
 });

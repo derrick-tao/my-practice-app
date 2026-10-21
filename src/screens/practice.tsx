@@ -52,6 +52,7 @@ export interface PracticeRouteProps {
 export const DictationScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="dictation" />;
 export const StrokeOrderScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="stroke-order" />;
 export const FactsScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="facts" />;
+export const StrategiesScreen = (props: PracticeRouteProps) => <PracticeScreen {...props} practiceType="strategies" />;
 export const PhraseRecognitionScreen = (props: PracticeRouteProps) => (
   <PracticeScreen {...props} practiceType="phrase-recognition" />
 );

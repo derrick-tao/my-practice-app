@@ -1,0 +1,6 @@
+# Math fixture: Strategies with adding only, to check a lesson's rules reach the problems.
+id: fixture-strategies-add
+title: Fixture Adding Tricks
+subject: math
+strategies:
+  operations: [add]

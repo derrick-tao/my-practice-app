@@ -1,4 +1,4 @@
-// The math practice screen, for every math practice type (today Facts). The learner reads a generated problem,
+// The math practice screen, for every math practice type (Facts, Strategies). The learner reads a generated problem,
 // taps the answer on the number pad and OK. This is the file to copy for a new math practice type: the type
 // itself only supplies problems, answers and strategies (src/math/), and everything here reads them through the
 // MathPracticeType interface. What the screen shows follows the saved session alone (the problem, the tries, the
@@ -8,7 +8,7 @@ import type { LessonData, RulesTypeId } from '../content/types.ts';
 import { MATH_TYPES } from '../math/index.ts';
 import { NumberPad } from '../number-pad.tsx';
 import { createEffects } from '../practice/effects.ts';
-import { currentProblem, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
+import { currentProblem, currentStep, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
 import { createSessionSync, type SyncState } from '../practice/session-sync.ts';
 import {
   breakDue,
@@ -27,6 +27,7 @@ import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
+import { StepsProblem } from './math-steps.tsx';
 import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 
@@ -128,6 +129,7 @@ export function MathRun({
 
   const round = currentRound(session);
   const problem = currentProblem(session);
+  const place = currentStep(session);
   const outcome = outcomeOf(session);
   const settled = round.phase === 'revealed';
   const onBreakPrompt = breakDue(session, breakEvery);
@@ -143,24 +145,28 @@ export function MathRun({
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{lesson.title}</h1>
       {onBreakPrompt && <BreakPrompt onKeepGoing={onKeepGoing} onBreak={onBreak} />}
-      {!onBreakPrompt && problem && !isRoundOver(round) && (
+      {!onBreakPrompt && problem && place && !isRoundOver(round) && (
         <section class="practice__body" key={`${round.index}:${currentItemId(round)}`}>
           <div class="practice__stage">
             <div class="math">
-              <p class="math__problem" data-testid="problem">
-                {type.equation(problem)}{' '}
-                <span class="math__answer" data-testid="answer">
-                  {settled ? type.answer(problem) : entry === '' ? '?' : entry}
-                </span>
-              </p>
+              {type.steps ? (
+                <StepsProblem given={type.equation(problem)} place={place} settled={settled} entry={entry} />
+              ) : (
+                <p class="math__problem" data-testid="problem">
+                  {type.equation(problem)}{' '}
+                  <span class="math__answer" data-testid="answer">
+                    {settled ? type.answer(problem) : entry === '' ? '?' : entry}
+                  </span>
+                </p>
+              )}
               {outcome && (
                 <p class="math__feedback" role="status" data-testid="feedback">
-                  {outcome === 'missed' ? `The answer is ${type.answer(problem)}` : FEEDBACK[outcome]}
+                  {outcome === 'missed' ? `The answer is ${place.step.answer}` : FEEDBACK[outcome]}
                 </p>
               )}
               {outcome === 'missed' && (
                 <p class="math__strategy" data-testid="strategy">
-                  {type.strategy(problem)}
+                  {place.step.explanation}
                 </p>
               )}
             </div>

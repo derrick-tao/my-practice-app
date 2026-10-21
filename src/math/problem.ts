@@ -16,7 +16,12 @@ export interface Try {
   /** What was typed on the number pad (digits). */
   answer: string;
   correct: boolean;
+  /** Multi-step problems only: which blank this try was for, counting from 0. Absent means the first (the only one for Facts). */
+  step?: number;
 }
 
 /** A problem has two tries: the second comes after a wrong first. */
 export const MAX_TRIES = 2;
+
+/** No problem has more blanks than this (the most is three today); saved data with more is not ours. */
+export const MAX_STEPS = 5;
