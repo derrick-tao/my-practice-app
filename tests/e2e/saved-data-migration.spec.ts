@@ -6,6 +6,8 @@
 // learning setting: a learner saved before them (schema v2) gets the defaults and keeps their other settings.
 // Schema 5 added the Math subject (sessions with generated problems and their tries): everything saved before
 // it (a schema v4 device or backup) loads unchanged, and a math session saved at v5 comes back to its exact place.
+// Schema 6 added the problems-per-practice setting: a learner saved before it (schema v5) gets 20, which is how big a
+// math session always was, and the session in progress keeps its 20 spots.
 import type { Page } from '@playwright/test';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from './backup-driver.ts';
@@ -55,6 +57,24 @@ async function expectLearnerIntact({ page, audio, loadLesson }: Fixtures): Promi
   await expect(page.getByText('Rounds: 2')).toBeVisible();
 }
 
+/** The math session in the v5 fixtures: 4 problems done, the fifth (2 + 5) answered wrong once and waiting for the second try. */
+async function expectMathResumes({ page, audio }: Fixtures): Promise<void> {
+  await page.goto('./');
+  await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+  const facts = new FactsScreen(page, audio);
+  const card = facts.keepGoing.filter({ hasText: 'Fixture Math' });
+  await expect(card.getByTestId('progress-text')).toHaveText('4 / 20');
+  await card.click();
+
+  await expect(facts.progress).toHaveText('4 / 20');
+  await expect(facts.problem).toContainText('2 + 5 =');
+  await expect(facts.feedback).toContainText('Try again');
+  await facts.submit(7);
+  await expect(facts.feedback).toContainText('got it!');
+  await facts.next.click();
+  await expect(facts.progress).toHaveText('5 / 20');
+}
+
 test.describe('saved data from the previous schema', () => {
   test('a v1 device keeps its assignments and its practice in progress, and Keep going resumes at the exact place', async ({
     page,
@@ -91,8 +111,8 @@ test.describe('saved data from the previous schema', () => {
     // On load the old sessions were stamped with the latest time they are known to have been worked on.
     await openBackupSection(page);
     const before = (await exportBackup(page)).backup;
-    expect(before.schemaVersion).toBe(5);
-    expect(before.data.app.schemaVersion).toBe(5);
+    expect(before.schemaVersion).toBe(6);
+    expect(before.data.app.schemaVersion).toBe(6);
     const stamped = (id: string) => before.data.sessions.find((s) => s.id === id)!.updatedAt;
     const learner = savedDataFixture('schema-v1-learner') as { sessions: Array<{ id: string; status: string }> };
     const active = learner.sessions.find((s) => s.status === 'active')!.id;
@@ -127,7 +147,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
     await openSettings(page);
     await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).not.toBeChecked();
     await expect(page.getByRole('switch', { name: 'Sound effects' })).not.toBeChecked();
-    await expect(page.getByRole('radio', { name: '15', exact: true })).toBeChecked();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '15', exact: true })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Normal' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '0.5 s' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).not.toBeChecked();
@@ -160,6 +180,7 @@ test.describe('saved data from before the stroke order timing settings', () => {
       strokeSpeed: 'normal',
       strokePauseSeconds: 0.5,
       learning: false,
+      problemCount: 20,
     });
   });
 });
@@ -173,7 +194,7 @@ test.describe('saved data around the Math subject (schema 5)', () => {
     await expect(page.getByRole('switch', { name: 'Say: learning, no grading' })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Fast' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '1 s', exact: true })).toBeChecked();
-    await expect(page.getByRole('radio', { name: '10', exact: true })).toBeChecked();
+    await expect(page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: '10', exact: true })).toBeChecked();
 
     await page.goto('./');
     const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
@@ -193,7 +214,7 @@ test.describe('saved data around the Math subject (schema 5)', () => {
     await expectV4Intact({ page, audio, loadLesson });
   });
 
-  test('a v4 backup file imports unchanged and re-exports at schema 5', async ({ page, audio, loadLesson }) => {
+  test('a v4 backup file imports unchanged and re-exports at the current schema', async ({ page, audio, loadLesson }) => {
     await setUpLearner(page, { name: 'Zoe', avatar: '🦁', lessons: ['fixture-five'] });
     await openBackupSection(page);
     await chooseBackupFile(page, JSON.stringify(savedDataFixture('schema-v4-export')));
@@ -203,30 +224,12 @@ test.describe('saved data around the Math subject (schema 5)', () => {
     await page.goto('./');
     await openBackupSection(page);
     const { backup } = await exportBackup(page);
-    expect(backup.schemaVersion).toBe(5);
-    expect(backup.data.app.schemaVersion).toBe(5);
+    expect(backup.schemaVersion).toBe(6);
+    expect(backup.data.app.schemaVersion).toBe(6);
     expect(backup.data.sessions.map((s) => s.id).sort()).toEqual(
       (savedDataFixture('schema-v4-export') as { data: { sessions: Array<{ id: string }> } }).data.sessions.map((s) => s.id).sort(),
     );
   });
-
-  /** The math session in the v5 fixtures: 4 problems done, the fifth (2 + 5) answered wrong once and waiting for the second try. */
-  async function expectMathResumes({ page, audio }: Fixtures): Promise<void> {
-    await page.goto('./');
-    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-    const facts = new FactsScreen(page, audio);
-    const card = facts.keepGoing.filter({ hasText: 'Fixture Math' });
-    await expect(card.getByTestId('progress-text')).toHaveText('4 / 20');
-    await card.click();
-
-    await expect(facts.progress).toHaveText('4 / 20');
-    await expect(facts.problem).toContainText('2 + 5 =');
-    await expect(facts.feedback).toContainText('Try again');
-    await facts.submit(7);
-    await expect(facts.feedback).toContainText('got it!');
-    await facts.next.click();
-    await expect(facts.progress).toHaveText('5 / 20');
-  }
 
   test('a v5 device with a math session in progress resumes at the exact problem and try', async ({ page, audio, loadLesson }) => {
     await page.goto('./');
@@ -243,5 +246,65 @@ test.describe('saved data around the Math subject (schema 5)', () => {
     await confirmImport(page);
 
     await expectMathResumes({ page, audio, loadLesson });
+  });
+});
+
+test.describe('saved data from before the problems-per-practice setting (schema 5)', () => {
+  /** The schema-v5 fixtures: Mia's settings (no problem count) and her Chinese and math practice in progress. */
+  async function expectV5Intact({ page, audio, loadLesson }: Fixtures): Promise<void> {
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+
+    // The setting shows its default, and her other settings are kept.
+    await openSettings(page);
+    await expect(page.getByRole('radiogroup', { name: 'Problems per practice' }).getByRole('radio', { name: '20', exact: true })).toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Shuffle the first round' })).not.toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Fast' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: '1 s', exact: true })).toBeChecked();
+
+    // Home says 20 problems for math; the Chinese lesson is as it was, with its practice in progress.
+    await page.goto('./');
+    await expect(page.getByRole('group', { name: 'Fixture Math', exact: true }).getByRole('link', { name: /Facts · 20 problems/ })).toBeVisible();
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
+    await expect(practice.lessonCard()).toContainText('3 characters');
+    await expect(practice.keepGoing.filter({ hasText: 'Fixture Three' }).getByTestId('progress-text')).toHaveText('1 / 2');
+    await expectMathResumes({ page, audio, loadLesson });
+  }
+
+  test('a v5 device gets 20 problems per practice, keeps its other settings, and its practice resumes as it was', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await page.goto('./');
+    await expect(page.getByRole('button', { name: /grown-up/i })).toBeVisible(); // the empty device is prepared
+    await seedSavedData(page, savedDataFixture('schema-v5-math-learner') as Seed);
+
+    await expectV5Intact({ page, audio, loadLesson });
+  });
+
+  test('a v5 backup file imports unchanged, and exports at schema 6 with 20 problems per practice', async ({ page, audio, loadLesson }) => {
+    await setUpLearner(page, { name: 'Zoe', avatar: '🦁', lessons: ['fixture-five'] });
+    await openBackupSection(page);
+    await chooseBackupFile(page, JSON.stringify(savedDataFixture('schema-v5-math-export')));
+    await confirmImport(page);
+
+    await expectV5Intact({ page, audio, loadLesson });
+    await page.goto('./');
+    await openBackupSection(page);
+    const { backup } = await exportBackup(page);
+    expect(backup.schemaVersion).toBe(6);
+    expect(backup.data.app.schemaVersion).toBe(6);
+    expect(backup.data.app.profiles[0]!.settings).toEqual({
+      shuffle: false,
+      breakEvery: 10,
+      sounds: true,
+      strokeSpeed: 'fast',
+      strokePauseSeconds: 1,
+      learning: false,
+      problemCount: 20,
+    });
+    const exported = backup.data.sessions.find((x) => x.lessonId === 'fixture-math')!;
+    expect((exported.rounds as Array<{ itemIds: string[] }>)[0]!.itemIds).toHaveLength(20);
   });
 });

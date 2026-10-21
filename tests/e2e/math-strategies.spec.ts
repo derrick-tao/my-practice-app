@@ -27,7 +27,7 @@ async function start({ page, audio }: Fixtures, title = LESSON, breakEvery?: 5 |
   await setUpLearner(page);
   if (breakEvery !== undefined) {
     await openSettings(page);
-    const choice = page.getByRole('radio', { name: String(breakEvery), exact: true });
+    const choice = page.getByRole('radiogroup', { name: 'Break every' }).getByRole('radio', { name: String(breakEvery), exact: true });
     await choice.click();
     await expect(choice).toBeChecked();
     await page.getByRole('link', { name: 'Home' }).click();
