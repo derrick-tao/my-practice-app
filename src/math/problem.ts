@@ -11,6 +11,10 @@ export interface Problem {
   numbers: number[];
   /** Missing number only: the equation is written backwards, `c = a + b`, not `a + b = c`. */
   backwards?: boolean;
+  /** Word problems: who the story is about, the second person if it has one, and the object (one emoji). */
+  name?: string;
+  friend?: string;
+  object?: string;
 }
 
 /** One answer the learner submitted for a problem. */

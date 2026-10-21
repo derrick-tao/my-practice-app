@@ -11,6 +11,7 @@ import {
   StrategiesScreen,
   StrokeOrderScreen,
   TrueOrFalseScreen,
+  WordProblemsScreen,
   type PracticeRouteProps,
 } from '../screens/practice.tsx';
 
@@ -75,6 +76,14 @@ export const PRACTICE_TYPES: Record<PracticeTypeId, PracticeType> = {
     itemNoun: { singular: 'problem', plural: 'problems' },
     hasMarks: true,
     screen: TrueOrFalseScreen,
+  },
+  'word-problems': {
+    id: 'word-problems',
+    label: 'Stories',
+    icon: '📖',
+    itemNoun: { singular: 'problem', plural: 'problems' },
+    hasMarks: true,
+    screen: WordProblemsScreen,
   },
   strategies: {
     id: 'strategies',

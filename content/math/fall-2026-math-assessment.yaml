@@ -2,7 +2,7 @@
 # A math lesson holds no items: each practice type has small rules, and the app makes 20 new problems per
 # session and per retry round. The file name must equal the id.
 # `within` (5 to 100) and `operations` ([add, subtract]) are optional; they default to 20 and both operations.
-# The other math practice types (missing-number, true-or-false, word-problems, strategies) are added here as
+# The other math practice types (missing-number, true-or-false, strategies) are added here as
 # they ship.
 id: fall-2026-math-assessment
 title: Fall 2026 Math Assessment
@@ -14,6 +14,8 @@ facts:
 missing-number:
   within: 20
 true-or-false:
+  within: 20
+word-problems:
   within: 20
 strategies:
   within: 20

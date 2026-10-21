@@ -45,6 +45,7 @@ const BUTTON_LABEL: Record<PracticeTypeId, string> = {
   facts: 'Facts',
   'missing-number': 'Missing',
   'true-or-false': 'True?',
+  'word-problems': 'Stories',
   strategies: 'Tricks',
 };
 

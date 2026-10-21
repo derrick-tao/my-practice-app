@@ -89,7 +89,11 @@ function isProfile(value: unknown): boolean {
 }
 
 const isProblem = (value: unknown): boolean =>
-  isObject(value) && isString(value.kind) && Array.isArray(value.numbers) && value.numbers.every(isNonNegativeInteger);
+  isObject(value) &&
+  isString(value.kind) &&
+  Array.isArray(value.numbers) &&
+  value.numbers.every(isNonNegativeInteger) &&
+  [value.name, value.friend, value.object].every((text) => text === undefined || isString(text));
 
 const isTry = (value: unknown): boolean =>
   isObject(value) &&
