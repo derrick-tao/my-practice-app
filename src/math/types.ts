@@ -12,6 +12,12 @@ export interface MathPracticeType {
   key(problem: Problem): string;
   /** The problem as the child reads it, up to the answer: "8 + 6 =". */
   equation(problem: Problem): string;
+  /**
+   * A type whose answer is not at the end of the equation (a blank in the middle, or on the left of "=") gives the
+   * text on each side of the blank, and the glyph that marks it while it is empty. The screen puts the learner's
+   * digits in the blank. A type without `frame` ends its `equation` where the answer goes.
+   */
+  frame?(problem: Problem): { before: string; after: string; blank: string };
   /** The number that is the answer. */
   answer(problem: Problem): number;
   /** The worked strategy shown after two wrong tries: "8 + 6 = 8 + 2 + 4 = 14". */

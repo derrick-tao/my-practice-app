@@ -1,0 +1,7 @@
+# Math fixture: Missing number with adding only, to check a lesson's rules reach the problems.
+id: fixture-math-missing-add
+title: Fixture Missing Adding Only
+subject: math
+missing-number:
+  within: 20
+  operations: [add]

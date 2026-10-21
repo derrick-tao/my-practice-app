@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { LessonData, RulesTypeId } from '../content/types.ts';
 import { MATH_TYPES } from '../math/index.ts';
+import type { Problem } from '../math/problem.ts';
+import type { MathPracticeType } from '../math/types.ts';
 import { NumberPad } from '../number-pad.tsx';
 import { createEffects } from '../practice/effects.ts';
 import { currentProblem, nextProblem, outcomeOf, startMathRetryRound, submitAnswer } from '../practice/math-session.ts';
@@ -129,6 +131,7 @@ export function MathRun({
   const round = currentRound(session);
   const problem = currentProblem(session);
   const outcome = outcomeOf(session);
+  const frame = problem ? blankFrame(type, problem) : { before: '', after: '', blank: '?' };
   const settled = round.phase === 'revealed';
   const onBreakPrompt = breakDue(session, breakEvery);
   const spots = new Set(round.itemIds);
@@ -148,10 +151,11 @@ export function MathRun({
           <div class="practice__stage">
             <div class="math">
               <p class="math__problem" data-testid="problem">
-                {type.equation(problem)}{' '}
+                {frame.before}
                 <span class="math__answer" data-testid="answer">
-                  {settled ? type.answer(problem) : entry === '' ? '?' : entry}
+                  {settled ? type.answer(problem) : entry === '' ? frame.blank : entry}
                 </span>
+                {frame.after}
               </p>
               {outcome && (
                 <p class="math__feedback" role="status" data-testid="feedback">
@@ -192,6 +196,11 @@ export function MathRun({
       )}
     </main>
   );
+}
+
+/** Where the learner's digits go: after the equation (Facts) or in the blank of a type that has a `frame`. */
+function blankFrame(type: MathPracticeType, problem: Problem): { before: string; after: string; blank: string } {
+  return type.frame?.(problem) ?? { before: `${type.equation(problem)} `, after: '', blank: '?' };
 }
 
 /** The submitted answer settled the problem as ✅ at the first try (the step from `before` to `after`). */

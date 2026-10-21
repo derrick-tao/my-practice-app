@@ -9,6 +9,8 @@
 export interface Problem {
   kind: string;
   numbers: number[];
+  /** Missing number only: the equation is written backwards, `c = a + b`, not `a + b = c`. */
+  backwards?: boolean;
 }
 
 /** One answer the learner submitted for a problem. */
