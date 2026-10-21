@@ -92,7 +92,7 @@ export function MathRun({
     setEntry('');
     if (after.status === 'completed') effects.play('fanfare');
     else if (outcomeOf(after) === 'missed') effects.play('gentle'); // only now: a second wrong answer
-    else if (finishedFirstTry(before, after)) effects.play('chime');
+    else if (finishedFirstTry(before, after) || outcomeOf(after) === 'second-try-right') effects.play('chime'); // ✅ or a right second try
   };
   const onSubmit = (): void => submit(entry);
 

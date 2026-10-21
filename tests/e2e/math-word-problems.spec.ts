@@ -164,6 +164,7 @@ test.describe('tries and the worked equation', () => {
     await expect(stories.feedback).toContainText('got it!');
     await expect(stories.answerBox).toHaveText(String(story.answer));
     await expect(stories.strategy).toHaveCount(0);
+    await expect.poll(() => audio.effects()).toEqual(['chime']);
     await stories.next.click();
     await expect(stories.progress).toHaveText('1 / 20');
   });
