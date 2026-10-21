@@ -163,7 +163,7 @@ export function MathRun({
           <div class="practice__stage">
             <div class={`math${story ? ' math--story' : ''}${outcome === 'try-again' ? ' math--wobble' : ''}`}>
               {type.steps ? (
-                <StepsProblem given={type.equation(problem)} place={place} settled={settled} entry={entry} />
+                <StepsProblem title={type.title?.(problem)} given={type.equation(problem)} place={place} settled={settled} entry={entry} />
               ) : story ? (
                 <>
                   <p class="math__problem math__problem--story" data-testid="problem">

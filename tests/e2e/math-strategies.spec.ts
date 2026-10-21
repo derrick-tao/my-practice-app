@@ -12,6 +12,7 @@ import {
   kindOfShown,
   STEPS_OF,
   STRATEGY_KINDS,
+  STRATEGY_TITLES,
   StrategiesScreen,
   type How,
 } from './strategies-driver.ts';
@@ -69,6 +70,14 @@ test.describe('a Tricks session', () => {
       const kind = kindOfShown(problem);
       expect(STEPS_OF[kind]).toContain(problem.lines.length);
       checkShape(problem); // the school's worked form of that kind, with its arithmetic right
+      // Its title (with the given line, when it has one) and a short plain hint under every line.
+      expect(problem.title).toBe(problem.given === null ? STRATEGY_TITLES[kind] : `${STRATEGY_TITLES[kind]}: ${problem.given}`);
+      expect(problem.hints).toHaveLength(problem.lines.length);
+      for (const hint of problem.hints) {
+        expect(hint.length, hint).toBeGreaterThan(0);
+        expect(hint.split(' ').length, hint).toBeLessThanOrEqual(8);
+        expect(hint, hint).not.toMatch(/commutative|addend|(^|\s)\?|☐/);
+      }
       for (const earlier of problem.lines.slice(0, -1)) expect(earlier).not.toContain('☐');
       for (const number of (problem.lines.join(' ') + (problem.given ?? '')).match(/\d+/g)!) expect(Number(number)).toBeLessThanOrEqual(20);
     }
@@ -93,6 +102,8 @@ test.describe('a Tricks session', () => {
     const first = await tricks.read();
     expect(first.lines).toHaveLength(1);
     expect(first.lines[0]).toContain('☐');
+    expect(first.hints).toHaveLength(1); // a hint for each line shown so far
+    await expect(tricks.title).toBeVisible();
     await expect(page.getByTestId('answer')).toHaveCount(1);
     for (const digit of '0123456789') await expect(page.getByRole('button', { name: digit, exact: true })).toBeVisible();
     await expect(tricks.undo).toHaveCount(0);
@@ -104,6 +115,7 @@ test.describe('a Tricks session', () => {
     expect(second.lines).toHaveLength(2);
     expect(second.lines[0]).not.toContain('☐'); // the first step stays, with its answer
     expect(second.lines[1]).toContain('☐');
+    expect(second.hints).toHaveLength(2);
     await expect(page.getByTestId('answer')).toHaveCount(1);
     await expect(tricks.progress).toHaveText('0 / 20'); // not counted until the whole problem is done
   });

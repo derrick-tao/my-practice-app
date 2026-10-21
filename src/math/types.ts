@@ -13,6 +13,8 @@ export interface Step {
   after: string;
   answer: number;
   explanation: string;
+  /** Optional: a short plain-words nudge shown under the line while the learner works it out (about eight words, no jargon). */
+  hint?: string;
 }
 
 export interface MathPracticeType {
@@ -44,6 +46,8 @@ export interface MathPracticeType {
    * text, as in the parent area, writes it as ☐). A type without `frame` ends its `equation` where the answer goes.
    */
   frame?(problem: Problem): { before: string; after: string };
+  /** Optional: a short name for the problem's kind, shown with the problem ("Make a ten: 8 + 6"). */
+  title?(problem: Problem): string;
   /** The number that is the answer (for a true-false type, 1 or 0). */
   answer(problem: Problem): number;
   /**

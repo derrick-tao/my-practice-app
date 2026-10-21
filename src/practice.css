@@ -491,9 +491,9 @@
   padding: 0 0.15em;
   border: 4px solid var(--accent);
   border-radius: 0.2em;
-  line-height: 1.1;
+  line-height: calc(1.25em - 8px);
   text-align: center;
-  vertical-align: -0.2em;
+  vertical-align: middle;
 }
 
 .math__answer--done {
@@ -535,8 +535,26 @@
 .math__given {
   font-size: clamp(1.5rem, 6vw, 2rem);
   color: var(--accent);
+  /* A long trick title ("Make ten with three numbers: ...") may wrap on a narrow screen. */
+  white-space: normal;
+  text-align: center;
 }
 
 .math__step {
   font-size: clamp(1.8rem, 7.5vw, 2.6rem);
+}
+
+/* One line of a trick: the step and its hint under it. */
+.math__line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.math__hint {
+  margin: 0;
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
 }
