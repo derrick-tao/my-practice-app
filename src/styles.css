@@ -420,6 +420,13 @@ body {
   background: var(--accent);
 }
 
+/* The Check key's glyph: heavy, and sized to sit comfortably inside a digit-sized key. */
+.numpad__glyph {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 /* Parent area */
 .parent__nav {
   display: flex;
