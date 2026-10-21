@@ -39,6 +39,9 @@ import { firstTryAndRounds } from './practice-flows.tsx';
 import { BreakPrompt, Completion, HomeButton, RoundSummary } from './practice-parts.tsx';
 import './math-stories.css';
 
+/** The Check key's face: a heavy check mark in text presentation (U+FE0E), never the self-grading ✅ emoji. */
+const CHECK_GLYPH = '✔︎';
+
 const FEEDBACK = {
   'try-again': 'Not quite. Try again!',
   'second-try-right': 'You got it!',
@@ -213,7 +216,8 @@ export function MathRun({
                 onDigit={(digit) => setEntry((current) => addDigit(current, digit))}
                 onDelete={() => setEntry((current) => current.slice(0, -1))}
                 onSubmit={onSubmit}
-                submitLabel="Check"
+                submitLabel={CHECK_GLYPH}
+                submitName="Check"
               />
             )}
           </div>
