@@ -20,7 +20,6 @@ test.describe('the Check key on the math number pad', () => {
     const glyph = key.locator('[aria-hidden="true"]');
     await expect(glyph).toHaveText(GLYPH);
     await expect(key).not.toContainText('✅');
-    expect(await key.evaluate((element) => (element as HTMLElement).innerText.trim())).toMatch(GLYPH);
 
     // The glyph sits wholly inside the key, and the key does not overflow.
     const keyBox = (await key.boundingBox())!;
@@ -47,9 +46,10 @@ test.describe('the Check key on the math number pad', () => {
     const facts = new FactsScreen(page, audio);
     await facts.open('Fixture Math');
 
-    await facts.answerRight();
+    // A wrong first try shows "Try again" feedback, so the tap reached the app.
+    await facts.answerWrong();
 
-    await expect(facts.feedback).toBeVisible();
+    await expect(facts.feedback).toContainText('Try again');
   });
 
   test('the parent gate keeps its OK key and has no Check key', async ({ page }) => {

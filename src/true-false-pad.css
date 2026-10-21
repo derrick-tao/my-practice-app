@@ -5,7 +5,7 @@
 
 /* Blue and orange: a colour-blind-safe pair, white text at 4.5:1 or better on each. Neither is the purple accent,
    the good green or the bad red, which already mean other things. */
-.true-false-pad__button {
+.true-false-pad .true-false-pad__button {
   --true-false-blue: #1f6fd1; /* 4.9:1 with white */
   --true-false-orange: #b85700; /* 4.8:1 with white */
   min-height: 132px;
@@ -16,12 +16,12 @@
   color: #fff;
 }
 
-.true-false-pad__button--true {
+.true-false-pad .true-false-pad__button--true {
   border-color: var(--true-false-blue);
   background: var(--true-false-blue);
 }
 
-.true-false-pad__button--false {
+.true-false-pad .true-false-pad__button--false {
   border-color: var(--true-false-orange);
   background: var(--true-false-orange);
 }
