@@ -33,7 +33,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      # A stalled registry request otherwise hangs for npm's 5-minute default.
+      - run: npm ci --fetch-timeout=30000 --fetch-retries=5
 
       - name: Validate lessons
         run: npm run validate
@@ -82,7 +83,7 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -97,10 +98,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      # A stalled registry request otherwise hangs for npm's 5-minute default.
+      - run: npm ci --fetch-timeout=30000 --fetch-retries=5
 
       - name: Install WebKit for Playwright (Seam 1)
-        run: npx playwright install --with-deps webkit
+        # The download or apt step has stalled for ~5 minutes at random; a fresh attempt is quick.
+        run: |
+          for attempt in 1 2 3; do
+            timeout 180 npx playwright install --with-deps webkit && exit 0
+            echo "Playwright install attempt $attempt failed or timed out"
+          done
+          exit 1
+        timeout-minutes: 10
 
       - name: App tests in WebKit (Seam 1, shard ${{ matrix.shard }}/3)
         run: npx playwright test --shard=${{ matrix.shard }}/3
