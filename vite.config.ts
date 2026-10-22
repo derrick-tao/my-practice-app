@@ -12,10 +12,14 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 
 const contentOut = process.env.CONTENT_OUT ?? '.generated/content';
 
-export default defineConfig({
+export default defineConfig(({ isPreview }) => ({
   base: BASE_PATH,
-  // The newest release in the freshly built log is the release this build is.
-  define: { __APP_VERSION__: JSON.stringify(version), __RELEASE__: JSON.stringify(newestRelease(contentOut) ?? null) },
+  // The newest release in the built log is the release this build is. (Preview only serves an existing build,
+  // so it needs no content folder; every other command throws if `content:build` has not run.)
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __RELEASE__: JSON.stringify((isPreview ? undefined : newestRelease(contentOut)) ?? null),
+  },
   plugins: [preact(), generatedContent(contentOut), serviceWorker()],
   build: { outDir: 'dist', emptyOutDir: true },
-});
+}));

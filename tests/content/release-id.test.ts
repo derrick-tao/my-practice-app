@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { build } from 'vite';
@@ -45,6 +45,18 @@ describe('the built app knows which release it is', () => {
     const script = await appScript(ws.outDir);
     expect(script.includes('Title of newest-xyzzy'), 'newest title is in the app').toBe(true);
     expect(script.includes('Title of older-plugh'), 'an older title is not').toBe(false);
+  });
+
+  it('refuses to build when the content has not been built yet, rather than embedding no release', async () => {
+    const empty = await mkdtemp(path.join(tmpdir(), 'release-id-unbuilt-'));
+    await expect(appScript(empty)).rejects.toThrow(/releases\.json.*content:build/s);
+  });
+
+  it('refuses to build when the built release log is unreadable', async () => {
+    const ws = await createWorkspace({ 'chinese/x.yaml': lessonYaml('x', '\n  - target: 大\n') });
+    await ws.build();
+    await writeFile(path.join(ws.outDir, 'releases.json'), '{ not json');
+    await expect(appScript(ws.outDir)).rejects.toThrow(/releases\.json/);
   });
 
   it('still builds when there is no release log', async () => {

@@ -106,16 +106,22 @@ export function validateReleases(source: string): ReleasesResult {
 
 /**
  * The newest release in a built content folder's `releases.json` (the build embeds it in the app so the running
- * build knows which release it is, and can show it even when the log can't be loaded), or undefined when there
- * is no log or it is empty.
+ * build knows which release it is, and can show it even when the log can't be loaded), or undefined when the
+ * log is empty. Throws when the folder has no readable log: `content:build` always writes one, so a missing or
+ * broken file means the app would silently be built as no release at all.
  */
 export function newestRelease(contentOutDir: string): Release | undefined {
+  const file = path.join(contentOutDir, RELEASES_FILE);
+  let log: unknown;
   try {
-    const log = JSON.parse(readFileSync(path.join(contentOutDir, RELEASES_FILE), 'utf8')) as Release[];
-    return typeof log[0]?.id === 'string' ? log[0] : undefined;
-  } catch {
-    return undefined;
+    log = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Cannot read ${file} (${reason}). Run \`npm run content:build\` before building the app.`, { cause: error });
   }
+  if (!Array.isArray(log)) throw new Error(`${file} is not a list of releases. Run \`npm run content:build\` again.`);
+  const newest = log[0] as Release | undefined;
+  return typeof newest?.id === 'string' ? newest : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
