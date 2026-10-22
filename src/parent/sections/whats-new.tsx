@@ -110,5 +110,6 @@ export const section: ParentSection = {
   title: "What's new",
   icon: '✨',
   order: 65,
+  useAttention: useUpdateReady,
   Component: WhatsNew,
 };

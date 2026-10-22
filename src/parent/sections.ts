@@ -8,6 +8,7 @@
 //     title: 'Settings',       // the entry's label in the parent area (and the section's heading)
 //     icon: '⚙️',
 //     order: 30,               // position among the entries (see below)
+//     useAttention,            // optional hook: true puts the update dot on the entry (What's new only so far)
 //     Component: SettingsSection,
 //   };
 //
@@ -25,6 +26,8 @@ export interface ParentSection {
   title: string;
   icon: string;
   order: number;
+  /** Optional hook, called once per render of the menu entry: true puts the update dot on it. */
+  useAttention?: () => boolean;
   Component: ComponentType<{ path: string[] }>;
 }
 

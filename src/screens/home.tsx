@@ -8,6 +8,8 @@ import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
+import { useUpdateReady } from '../pwa/service-worker.ts';
+import { UpdateDot } from '../pwa/update-dot.tsx';
 import { lessonHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
@@ -132,6 +134,8 @@ export function HomeScreen() {
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
   const sessions = resume.status === 'ready' ? resume.value : [];
+  // Per device, not per learner: a waiting update is told to the grown-up by a dot on the gear, never to the child.
+  const updateWaiting = useUpdateReady();
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedLessonIds);
   const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
@@ -146,8 +150,9 @@ export function HomeScreen() {
         <h1 class="screen__title">
           Hi {profile.avatar} {profile.name}!
         </h1>
-        <a class="gear" href={parentHref()} aria-label="Parent area">
+        <a class="gear" href={parentHref()} aria-label={updateWaiting ? 'Parent area, update waiting' : 'Parent area'}>
           <span aria-hidden="true">⚙️</span>
+          {updateWaiting && <UpdateDot />}
         </a>
       </header>
       <ProfileSwitcher />
