@@ -95,6 +95,38 @@ test.describe("What's new: the list", () => {
   });
 });
 
+const updateCard = (page: Page): Locator => page.getByTestId('update-card');
+
+test.describe("What's new: the top card", () => {
+  test("nothing waiting and the app is the newest release: \"You're up to date\" with its date, no Update now", async ({ page }) => {
+    await setUpLearner(page);
+    await openWhatsNew(page);
+
+    await expect(updateCard(page)).toContainText("You're up to date");
+    await expect(updateCard(page)).toContainText(SECOND.date);
+    await expect(page.getByRole('button', { name: 'Update now' })).toHaveCount(0);
+  });
+
+  test('nothing waiting but the log already lists a newer release (deploy in flight): nothing to install yet, no Update now', async ({ page }) => {
+    await page.route('**/content/releases.json', (route) =>
+      route.fulfill({
+        json: [
+          { id: 'fixture-newer', date: '2026-03-03', title: NEWER.title, bullets: [NEWER.bullet] },
+          { id: 'fixture-second', date: '2026-02-02', title: SECOND.title, bullets: [SECOND.bullet] },
+        ],
+      }),
+    );
+    await setUpLearner(page);
+    await openWhatsNew(page);
+
+    await expect(updateCard(page)).toContainText('Nothing to install yet');
+    await expect(updateCard(page)).not.toContainText("You're up to date");
+    await expect(page.getByRole('button', { name: 'Update now' })).toHaveCount(0);
+    // The list still previews it, flagged as not installed.
+    await expect(release(page, NEWER.title)).toContainText('Update available');
+  });
+});
+
 async function startOnline(page: Page): Promise<void> {
   await setUpLearner(page);
   await pwaExpect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
@@ -150,5 +182,20 @@ pwaTest.describe("What's new: offline", () => {
     await expectTitles(page, [SECOND.title]);
     await pwaExpect(release(page, SECOND.title)).toContainText('Installed');
     await pwaExpect(page.getByText(SECOND.bullet)).toBeVisible();
+  });
+});
+
+pwaTest.describe("What's new: an update waiting", () => {
+  pwaTest('the top card offers Update now and previews the newer release', async ({ page, site }) => {
+    await startOnline(page);
+    await site.deployNewVersion();
+    await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
+    await pwaExpect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting)).toBe(true);
+    await openWhatsNew(page);
+
+    await pwaExpect(page.getByRole('button', { name: 'Update now' })).toBeVisible();
+    await pwaExpect(updateCard(page)).toContainText(NEWER.title);
+    await pwaExpect(updateCard(page)).not.toContainText(SECOND.title);
+    await pwaExpect(updateCard(page)).not.toContainText("You're up to date");
   });
 });

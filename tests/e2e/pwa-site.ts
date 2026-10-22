@@ -26,8 +26,11 @@ export const NEWER_RELEASE_ID = 'fixture-deployed-later';
 
 export interface PwaSite {
   baseURL: string;
-  /** Publish a new version of the content (retitles Fixture Three) and of the service worker. */
-  deployNewVersion(): Promise<void>;
+  /**
+   * Publish a new version of the content (retitles Fixture Three) and of the service worker. Its release log gains
+   * a newer release, unless `{ release: false }`: a deploy with no release of its own (a chore) leaves the log as it was.
+   */
+  deployNewVersion(options?: { release?: boolean }): Promise<void>;
 }
 
 async function startSite(): Promise<{ site: PwaSite; server: Server }> {
@@ -53,7 +56,7 @@ async function startSite(): Promise<{ site: PwaSite; server: Server }> {
 
   const site: PwaSite = {
     baseURL,
-    async deployNewVersion() {
+    async deployNewVersion({ release = true } = {}) {
       const read = async (rel: string) => readFile(path.join(DIST, rel), 'utf8');
       const manifest = JSON.parse(await read('content/manifest.json')) as {
         contentVersion: string;
@@ -76,9 +79,11 @@ async function startSite(): Promise<{ site: PwaSite; server: Server }> {
       overlay.set('content/manifest.json', JSON.stringify(manifest));
 
       // The release log is published beside the manifest, so the new deploy's notes are readable by the old build.
-      const releases = JSON.parse(await read('content/releases.json')) as Array<{ id: string }>;
-      const newer = { id: NEWER_RELEASE_ID, date: '2026-03-03', title: 'Fixture newer release', bullets: ['Something newer got better.'] };
-      overlay.set('content/releases.json', JSON.stringify([newer, ...releases]));
+      if (release) {
+        const releases = JSON.parse(await read('content/releases.json')) as Array<{ id: string }>;
+        const newer = { id: NEWER_RELEASE_ID, date: '2026-03-03', title: 'Fixture newer release', bullets: ['Something newer got better.'] };
+        overlay.set('content/releases.json', JSON.stringify([newer, ...releases]));
+      }
 
       // A deploy with changed content produces a service worker with a different build id and precache lesson.
       const worker = await read('sw.js');

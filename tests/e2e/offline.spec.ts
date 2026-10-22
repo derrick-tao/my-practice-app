@@ -1,12 +1,13 @@
-// Seam 1 scenario 15 (offline) and the "New words are ready" update flow (ticket 14).
+// Seam 1 scenario 15 (offline) and the update flow (ticket 14): a new version waits, and a grown-up applies it with
+// "Update now" in the parent area's What's new section.
 // These specs opt in to the service worker (the rest of Seam 1 runs with it blocked, see playwright.config.ts)
 // and run against pwa-site.ts, a server that can publish a new version while the app is open.
 import type { Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
-import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
+import { openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
 import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import { lessonPath } from './harness.ts';
-import { expect, NEW_TITLE, NEWER_RELEASE_ID, test } from './pwa-site.ts';
+import { expect, NEW_TITLE, NEWER_RELEASE_ID, test, type PwaSite } from './pwa-site.ts';
 
 /** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
 async function startAtHome(page: Page): Promise<void> {
@@ -196,8 +197,37 @@ test.describe('release log', () => {
   });
 });
 
+/** Publish a new version while the app is open, and wait until the browser has it installed and waiting. */
+async function publishAndWaitForUpdate(page: Page, site: PwaSite, options?: { release?: boolean }): Promise<void> {
+  await site.deployNewVersion(options);
+  await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
+  await expect.poll(() => swState(page)).toMatchObject({ waiting: true });
+}
+
+/** Home -> the parent gate -> What's new. */
+async function openWhatsNew(page: Page): Promise<void> {
+  await openParentArea(page);
+  await openParentSection(page, "What's new");
+  await expect(page.getByRole('heading', { name: "What's new", exact: true })).toBeVisible();
+}
+
+const updateNow = (page: Page) => page.getByRole('button', { name: 'Update now' });
+const updateCard = (page: Page) => page.getByTestId('update-card');
+const stillHere = (page: Page) => page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere);
+
+/** The title the served manifest gives Fixture Three, read the way a page offline would. */
+function servedTitle(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const manifest = (await (await fetch('content/manifest.json')).json()) as {
+      subjects: Array<{ lessons: Array<{ id: string; file: string }> }>;
+    };
+    const entry = manifest.subjects.flatMap((s) => s.lessons).find((l) => l.id === 'fixture-three')!;
+    return ((await (await fetch(`content/${entry.file}`)).json()) as { title: string }).title;
+  });
+}
+
 test.describe('updates', () => {
-  test('a new version waits quietly, shows New words are ready on home only, and tapping it loads the new content', async ({
+  test('a new version waits quietly; Home never prompts, even mid-practice; Update now in What\'s new loads the new content and keeps practice in progress', async ({
     page,
     site,
     audio,
@@ -205,44 +235,80 @@ test.describe('updates', () => {
   }) => {
     await startAtHome(page);
     const lesson = (await (await request.get(await lessonPath(request, 'fixture-three'))).json()) as LessonData;
-    const banner = page.getByRole('button', { name: /New words are ready/ });
-    await expect(banner).toHaveCount(0);
+    const prompt = page.getByRole('button', { name: /Update now|New words are ready/ });
+    await expect(prompt).toHaveCount(0);
 
     // Mid-practice, a new version is published and the browser picks it up.
     const practice = new PracticeScreen(page, audio, lesson);
     await practice.open();
     await expect(practice.listen).toBeVisible();
     await page.evaluate(() => void ((window as unknown as { __stillHere: boolean }).__stillHere = true));
-    await site.deployNewVersion();
-    await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
-    await expect.poll(() => swState(page)).toMatchObject({ waiting: true });
+    await publishAndWaitForUpdate(page, site);
 
-    // The practice screen is untouched: no banner, no reload, same lesson.
-    await expect(banner).toHaveCount(0);
+    // The practice screen is untouched: no prompt, no reload, same lesson.
+    await expect(prompt).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Fixture Three', exact: true })).toBeVisible();
-    expect(await page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere)).toBe(true);
+    expect(await stillHere(page)).toBe(true);
     await practice.reveal();
     await practice.gotIt.click();
 
-    // Back on home the banner appears; nothing has reloaded yet.
+    // Back on home there is still no prompt, and nothing has reloaded.
     await practice.home.click();
-    await expect(banner).toBeVisible();
-    expect(await page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere)).toBe(true);
+    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(prompt).toHaveCount(0);
+    expect(await stillHere(page)).toBe(true);
 
-    await banner.click();
+    // Behind the gate, What's new offers the update and says what it brings; still nothing has reloaded.
+    await openWhatsNew(page);
+    await expect(updateNow(page)).toBeVisible();
+    await expect(updateCard(page)).toContainText('Fixture newer release');
+    expect(await stillHere(page)).toBe(true);
+
+    await updateNow(page).click();
+    // The app reloads onto the new build: the gate is shut again and the new content is on home.
+    await expect.poll(() => stillHere(page)).toBeUndefined();
+    await page.getByRole('link', { name: 'Home' }).click();
     await expect(page.getByRole('link', { name: new RegExp(NEW_TITLE) }).filter({ hasNotText: 'Keep going' })).toBeVisible();
-    await expect(banner).toHaveCount(0);
-    expect(await page.evaluate(() => (window as unknown as { __stillHere?: boolean }).__stillHere)).toBeUndefined();
+    // The practice that was in progress is still there to keep going.
+    await expect(page.getByRole('group', { name: new RegExp(`Keep going: ${NEW_TITLE}`) })).toBeVisible();
+    await expect(prompt).toHaveCount(0);
 
     // The new content now comes from the new cache, so it also works offline.
-    const served = await page.evaluate(async () => {
-      const manifest = (await (await fetch('content/manifest.json')).json()) as {
-        subjects: Array<{ lessons: Array<{ id: string; file: string }> }>;
-      };
-      const entry = manifest.subjects.flatMap((s) => s.lessons).find((l) => l.id === 'fixture-three')!;
-      return ((await (await fetch(`content/${entry.file}`)).json()) as { title: string }).title;
+    expect(await servedTitle(page)).toBe(NEW_TITLE);
+
+    // Now installed and up to date: nothing left to update.
+    await openWhatsNew(page);
+    await expect(updateNow(page)).toHaveCount(0);
+    await expect(updateCard(page)).toContainText("You're up to date");
+  });
+
+  test('a deploy with no release of its own still offers Update now, with a generic line', async ({ page, site }) => {
+    await startAtHome(page);
+    await publishAndWaitForUpdate(page, site, { release: false });
+    await openWhatsNew(page);
+
+    await expect(updateNow(page)).toBeVisible();
+    await expect(updateCard(page)).toContainText('An update is ready');
+    await expect(updateCard(page)).not.toContainText('Fixture newer release');
+  });
+
+  test('Update now works even when the notes could not load', async ({ page, context, site }) => {
+    await startAtHome(page);
+    await publishAndWaitForUpdate(page, site);
+    // Offline, with no copy of the log: the update is still installed and waiting, only the notes are gone.
+    await page.evaluate(async () => {
+      for (const name of await caches.keys()) await (await caches.open(name)).delete('content/releases.json');
     });
-    expect(served).toBe(NEW_TITLE);
+    await context.setOffline(true);
+    await page.reload();
+    await openWhatsNew(page);
+
+    await expect(page.getByText("Couldn't load the latest notes")).toBeVisible();
+    await expect(updateNow(page)).toBeVisible();
+    await updateNow(page).click();
+
+    await page.getByRole('link', { name: 'Home' }).click();
+    await expect(page.getByRole('link', { name: new RegExp(NEW_TITLE) })).toBeVisible();
   });
 
   test('after a deploy but before the update is applied, a lesson opens with the data its manifest names', async ({
@@ -294,15 +360,19 @@ test.describe('updates', () => {
       await navigator.serviceWorker.ready;
     });
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /New words are ready/ })).toHaveCount(0);
+    await openWhatsNew(page);
+    await expect(updateCard(page)).toContainText("You're up to date");
+    await expect(updateNow(page)).toHaveCount(0);
   });
 
-  test('the banner is not shown when nothing new was published', async ({ page }) => {
+  test('Update now is not offered when nothing new was published', async ({ page }) => {
     await startAtHome(page);
     await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
     await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
     expect(await swState(page)).toEqual({ waiting: false, installing: false });
-    await expect(page.getByRole('button', { name: /New words are ready/ })).toHaveCount(0);
+    await openWhatsNew(page);
+    await expect(updateCard(page)).toContainText("You're up to date");
+    await expect(updateNow(page)).toHaveCount(0);
   });
 });
 
