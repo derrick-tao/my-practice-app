@@ -102,14 +102,19 @@ jobs:
       - run: npm ci --fetch-timeout=30000 --fetch-retries=5
 
       - name: Install WebKit for Playwright (Seam 1)
-        # The download or apt step has stalled for ~5 minutes at random; a fresh attempt is quick.
+        # The Ubuntu mirror sometimes crawls (apt downloads for ~5 minutes instead of ~10 seconds).
+        # Killing a slow attempt orphans its apt-get, which keeps the dpkg lock, so stop it before
+        # retrying; downloaded packages stay cached, so the next attempt resumes.
         run: |
-          for attempt in 1 2 3; do
-            timeout 180 npx playwright install --with-deps webkit && exit 0
+          for attempt in 1 2 3 4; do
+            timeout -k 5 150 npx playwright install --with-deps webkit && exit 0
             echo "Playwright install attempt $attempt failed or timed out"
+            sudo pkill -x apt-get || true
+            sleep 3
+            sudo dpkg --configure -a || true
           done
           exit 1
-        timeout-minutes: 10
+        timeout-minutes: 12
 
       - name: App tests in WebKit (Seam 1, shard ${{ matrix.shard }}/3)
         run: npx playwright test --shard=${{ matrix.shard }}/3
