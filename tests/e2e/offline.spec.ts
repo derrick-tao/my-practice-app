@@ -158,12 +158,16 @@ function readLog(page: Page): Promise<string[] | null> {
   });
 }
 
-const installedRelease = (page: Page): Promise<string | undefined> => page.evaluate(() => document.documentElement.dataset.release);
+/** Which release the running page is, as What's new shows it: the title of the release marked Installed. */
+async function installedRelease(page: Page): Promise<string | null> {
+  await openWhatsNew(page);
+  return page.getByRole('listitem').filter({ hasText: 'Installed' }).getByTestId('release-title').textContent();
+}
 
 test.describe('release log', () => {
   test('the app knows which release it is: the newest one in the log it was built with', async ({ page }) => {
     await startAtHome(page);
-    expect(await installedRelease(page)).toBe('fixture-second');
+    expect(await installedRelease(page)).toBe('Fixture second release');
   });
 
   test('online, a running old build reads the newer log that a deploy published', async ({ page, site }) => {
@@ -174,7 +178,7 @@ test.describe('release log', () => {
 
     expect(await readLog(page)).toEqual([NEWER_RELEASE_ID, 'fixture-second', 'fixture-first']);
     // The page itself is still the old build.
-    expect(await installedRelease(page)).toBe('fixture-second');
+    expect(await installedRelease(page)).toBe('Fixture second release');
   });
 
   test('offline, it reads the copy cached with the installed build, even after a deploy it never saw', async ({ page, context, site }) => {
