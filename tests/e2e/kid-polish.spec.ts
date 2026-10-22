@@ -43,10 +43,9 @@ test.describe('Kai font', () => {
     // It falls back to a system font when the file cannot be used.
     expect(family.split(',').length).toBeGreaterThan(1);
 
-    // Served by the app itself, from its own origin and base path.
-    expect(fontResponses).toEqual([
-      { url: new URL('content/fonts/practice-kai.woff2', page.url()).href, status: 200 },
-    ]);
+    // Every font, the Kai subset and the interface font alike, is served by the app itself, from its own origin and base path.
+    expect(fontResponses.every(({ url }) => new URL(url).origin === new URL(page.url()).origin)).toBe(true);
+    expect(fontResponses).toContainEqual({ url: new URL('content/fonts/practice-kai.woff2', page.url()).href, status: 200 });
   });
 });
 

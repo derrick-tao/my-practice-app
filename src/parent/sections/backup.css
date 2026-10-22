@@ -2,9 +2,9 @@
 .backup__card {
   margin: 0 0 16px;
   padding: 16px 20px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--card);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--rule);
   font-size: 1.2rem;
 }
 
@@ -21,7 +21,7 @@
   display: inline-block;
   margin-left: 12px;
   padding: 2px 12px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--bad);
   color: #fff;
   font-weight: 800;

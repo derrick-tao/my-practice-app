@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
-const COLORS = ['#ff6b6b', '#ffc21a', '#4ecdc4', '#6c4ff5', '#ff9ff3'];
+const COLORS = ['#c42b22', '#f2b705', '#167a42', '#1d44c4', '#5e9871'];
 const PIECES = 40;
 
 /** Follows the device's reduced-motion setting, including a change while the screen is open. */

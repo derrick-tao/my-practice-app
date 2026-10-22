@@ -82,6 +82,9 @@ export function Completion({ lines }: { lines: string[] }) {
   return (
     <section class="summary completion" data-testid="completion">
       <Celebration />
+      <span class="seal" lang="zh-CN" aria-hidden="true">
+        优
+      </span>
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>

@@ -1,5 +1,16 @@
 [
   {
+    "id": "exercise-book-look",
+    "date": "2026-10-21",
+    "title": "A new look: the exercise book",
+    "bullets": [
+      "The whole app now looks like a school exercise book: green cover, ruled paper and blue ink for things you can press.",
+      "✍️ Write and 🖌️ Draw show each character on a 田字格 practice square.",
+      "Progress is a ruler that fills as you go, and a finished practice gets a red 优 seal.",
+      "The grown-ups area has the same look, with ruled menu rows."
+    ]
+  },
+  {
     "id": "whats-new-in-parent-area",
     "date": "2026-10-21",
     "title": "Updates moved to What's new",

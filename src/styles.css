@@ -1,11 +1,25 @@
+/* The workbook: pale green ruled paper, blue-black ink, ballpoint blue for what can be pressed, red ink only for marking. */
 :root {
-  --ink: #2b2250;
-  --paper: #fff7e0;
-  --card: #ffffff;
-  --accent: #6c4ff5;
-  font-family: system-ui, -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  --paper: #f2f7ef;
+  --card: #fcfef9;
+  --ink: #16213d;
+  --ink-soft: #49566f;
+  --rule: #c5dccb;
+  --rule-strong: #5e9871;
+  --cover: #1e5a3c;
+  --accent: #1d44c4;
+  --accent-soft: #e3eafb;
+  --good: #167a42;
+  --bad: #c42b22;
+  --radius: 14px;
+  /* One 田字格 cell: a square with a dashed cross. Sized by the element it sits behind (see .reveal__target, .drawing__canvas). */
+  --tian: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='.4' y='.4' width='99.2' height='99.2' fill='none' stroke='%235e9871' stroke-width='.8'/%3E%3Cpath d='M50 0V100M0 50H100' stroke='%237fae8c' stroke-width='.5' stroke-dasharray='3 2.4' fill='none'/%3E%3C/svg%3E");
+  font-family: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif;
   color: var(--ink);
   background: var(--paper);
+  accent-color: var(--accent);
+  caret-color: var(--accent);
+  scrollbar-color: var(--rule-strong) var(--paper);
 }
 
 * {
@@ -15,6 +29,16 @@
 body {
   margin: 0;
   min-height: 100dvh;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* No zoom: children zoom by accident on a tablet. "manipulation" stops double-tap zoom (pinch is cancelled in main.tsx). */
@@ -32,26 +56,29 @@ body {
 
 .screen__title {
   font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
   margin: 8px 0 16px;
+  text-wrap: balance;
 }
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 16px;
 }
 
+/* A worksheet: its title on the first ruled line, the subject beside it, then a blue button per practice type. */
 .lesson-card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   padding: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius);
   background: var(--card);
-  border: 4px solid var(--accent);
+  border: 2px solid var(--rule-strong);
   color: inherit;
-  box-shadow: 0 4px 0 var(--accent);
 }
 
 /* One big button per practice type: icon, label and how many items. */
@@ -62,7 +89,7 @@ body {
   gap: 8px;
   min-height: 96px;
   padding: 0 16px;
-  border-radius: 48px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
   font-size: 1.3rem;
@@ -72,20 +99,25 @@ body {
 }
 
 .lesson-card__title {
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--rule);
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .lesson-card__meta {
   font-size: 1.1rem;
+  color: var(--ink-soft);
 }
 
 /* The lesson's subject, small, under its title. */
 .lesson-card__subject {
   align-self: flex-start;
   padding: 2px 12px;
-  border-radius: 12px;
-  background: #e6e0f7;
+  border-radius: 8px;
+  background: #dcebdf;
+  color: #1c4a31;
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -95,7 +127,7 @@ body {
   align-items: center;
   min-height: 64px;
   padding: 0 24px;
-  border-radius: 32px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
   font-size: 1.3rem;
@@ -107,12 +139,22 @@ body {
   font-size: 1.2rem;
 }
 
-/* Home header: greeting and the gear that opens the parent gate. */
+/* Home header: the workbook's cover band, with the learner's name label and the gear that opens the parent gate. */
 .home__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 12px 12px 20px;
+  border-radius: var(--radius);
+  background: var(--cover);
+  color: #fff;
+}
+
+.home__top .screen__title {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .gear {
@@ -122,29 +164,33 @@ body {
   flex: none;
   width: 64px;
   height: 64px;
-  border-radius: 32px;
+  border-radius: var(--radius);
   font-size: 1.8rem;
   text-decoration: none;
-  background: #ece7fb;
-  opacity: 0.8;
+  background: rgb(255 255 255 / 14%);
+  border: 2px solid rgb(255 255 255 / 55%);
   position: relative;
 }
 
-/* The "an update is waiting" dot (src/pwa/update-dot.tsx): small, red against the lavender gear and the white
-   entry, with a white ring so it holds up on both. On the gear it sits on the top right corner. */
+.gear:focus-visible {
+  outline-color: #fff;
+}
+
+/* The "an update is waiting" dot (src/pwa/update-dot.tsx): red ink, with a ring in the paper's colour so it holds
+   up on the green cover and on the white menu entry. On the gear it sits on the top right corner. */
 .update-dot {
   flex: none;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #c62828;
+  background: var(--bad);
   box-shadow: 0 0 0 2px #fff;
 }
 
 .gear .update-dot {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
 }
 
 .parent__entry .update-dot {
@@ -152,8 +198,14 @@ body {
 }
 
 .home-button--quiet {
-  background: #ece7fb;
-  color: var(--ink);
+  background: transparent;
+  border: 2px solid currentColor;
+  color: var(--accent);
+}
+
+/* On the green bar the quiet button is white-on-translucent, like its neighbours. */
+.parent__nav .home-button--quiet {
+  color: #fff;
 }
 
 /* First run */
@@ -165,6 +217,7 @@ body {
 
 .first-run__hello {
   font-size: 2.2rem;
+  font-weight: 800;
   margin: 32px 0 8px;
 }
 
@@ -179,9 +232,15 @@ body {
   font-weight: 700;
 }
 
+.switches + .field,
+.field + .field {
+  margin-top: 12px;
+}
+
 .field__note {
   font-size: 1rem;
   margin: 0;
+  color: var(--ink-soft);
 }
 
 .field__input {
@@ -189,8 +248,15 @@ body {
   padding: 0 16px;
   font: inherit;
   font-size: 1.4rem;
-  border: 3px solid var(--accent);
-  border-radius: 16px;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid var(--rule-strong);
+  border-radius: 10px;
+}
+
+.field__input:focus-visible {
+  border-color: var(--accent);
+  outline-offset: 0;
 }
 
 .avatars {
@@ -202,15 +268,16 @@ body {
 .avatar {
   min-height: 72px;
   font-size: 2.2rem;
-  border: 4px solid transparent;
-  border-radius: 20px;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--card);
   cursor: pointer;
 }
 
 .avatar--chosen {
   border-color: var(--accent);
-  box-shadow: 0 3px 0 var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* On/off switch per lesson */
@@ -220,7 +287,7 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .switch {
@@ -235,8 +302,8 @@ body {
   text-align: left;
   color: inherit;
   background: var(--card);
-  border: 4px solid #cfc7ee;
-  border-radius: 20px;
+  border: 2px solid var(--rule);
+  border-radius: 10px;
   cursor: pointer;
 }
 
@@ -257,6 +324,7 @@ body {
 
 .switch__meta {
   font-size: 1rem;
+  color: var(--ink-soft);
 }
 
 .switch__track {
@@ -265,7 +333,7 @@ body {
   height: 36px;
   padding: 4px;
   border-radius: 18px;
-  background: #cfc7ee;
+  background: #8c97ab;
 }
 
 .switch--on .switch__track {
@@ -289,7 +357,7 @@ body {
 .choices {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .choice {
@@ -299,14 +367,16 @@ body {
   font-weight: 700;
   color: inherit;
   background: var(--card);
-  border: 4px solid #cfc7ee;
-  border-radius: 20px;
+  border: 2px solid var(--rule);
+  border-radius: 10px;
   cursor: pointer;
 }
 
 .choice--chosen {
   border-color: var(--accent);
-  box-shadow: 0 3px 0 var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* Profiles section (parent area) */
@@ -325,8 +395,8 @@ body {
   gap: 12px;
   padding: 16px 20px;
   background: var(--card);
-  border: 4px solid #cfc7ee;
-  border-radius: 20px;
+  border: 2px solid var(--rule);
+  border-radius: 10px;
 }
 
 .profiles__who {
@@ -337,6 +407,7 @@ body {
 .profiles__tag {
   font-size: 1rem;
   font-weight: 400;
+  color: var(--ink-soft);
 }
 
 .profiles__actions {
@@ -354,11 +425,12 @@ body {
 .btn--small {
   font-size: 1.1rem;
   padding: 0 16px;
-  border-radius: 24px;
+  border-radius: 10px;
 }
 
 .btn--danger {
   border-color: var(--bad);
+  color: var(--bad);
 }
 
 /* Home: who is practicing (only when several learners share the device) */
@@ -366,6 +438,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .profile-switcher__button {
@@ -374,14 +447,15 @@ body {
   font-size: 2rem;
   line-height: 1;
   background: var(--card);
-  border: 4px solid transparent;
-  border-radius: 32px;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
 .profile-switcher__button[aria-pressed='true'] {
   border-color: var(--accent);
-  box-shadow: 0 3px 0 var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* Parent gate and its number pad */
@@ -401,6 +475,7 @@ body {
 .gate__question {
   font-size: 3rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   margin: 0;
 }
 
@@ -413,18 +488,20 @@ body {
   justify-content: center;
   font-size: 2.4rem;
   font-weight: 700;
-  border-bottom: 4px solid var(--accent);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 3px solid var(--accent);
 }
 
 .gate__missed {
   margin: 0;
   font-size: 1.2rem;
+  color: var(--bad);
 }
 
 .numpad {
   display: grid;
   grid-template-columns: repeat(3, 88px);
-  gap: 12px;
+  gap: 10px;
 }
 
 .numpad__key {
@@ -432,20 +509,27 @@ body {
   font: inherit;
   font-size: 1.8rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--card);
-  border: 3px solid var(--accent);
-  border-radius: 20px;
+  border: 2px solid var(--rule-strong);
+  border-radius: 12px;
   cursor: pointer;
 }
 
+.numpad__key:active {
+  background: var(--accent-soft);
+}
+
 .numpad__key--minor {
-  border-color: #cfc7ee;
+  border-color: var(--rule);
+  color: var(--ink-soft);
 }
 
 .numpad__key--ok {
   color: #fff;
   background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* The Check key's glyph: heavy, and sized to sit comfortably inside a digit-sized key. */
@@ -455,42 +539,71 @@ body {
   line-height: 1;
 }
 
-/* Parent area */
+/* Parent area: the back pages of the same book. A slim green bar on top, then plain ruled rows. */
 .parent__nav {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--cover);
+}
+
+.parent__nav .home-button {
+  min-height: 56px;
+  padding: 0 18px;
+  font-size: 1.1rem;
+  background: rgb(255 255 255 / 14%);
+  border: 2px solid rgb(255 255 255 / 55%);
+}
+
+.parent__nav .home-button:focus-visible {
+  outline-color: #fff;
+}
+
+.parent .screen__title {
+  font-size: 1.7rem;
+  margin: 20px 0 12px;
 }
 
 .parent__entries {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  border-top: 2px solid var(--rule);
 }
 
 .parent__entry {
   display: flex;
   align-items: center;
-  min-height: 72px;
-  padding: 0 20px;
-  font-size: 1.4rem;
+  gap: 10px;
+  min-height: 64px;
+  padding: 0 8px;
+  font-size: 1.25rem;
   font-weight: 700;
   color: inherit;
   text-decoration: none;
-  background: var(--card);
-  border: 4px solid var(--accent);
-  border-radius: 20px;
+  border-bottom: 2px solid var(--rule);
+}
+
+.parent__entry::after {
+  content: '›' / '';
+  margin-left: auto;
+  font-size: 1.8rem;
+  color: var(--rule-strong);
+}
+
+.parent__entry:hover {
+  background: var(--accent-soft);
 }
 
 /* Parent-area install tip (src/pwa/install-tip.tsx). */
 .install-tip {
   margin: 0 0 16px;
   padding: 16px 20px;
-  border-radius: 16px;
-  background: var(--card);
+  border-radius: 10px;
+  background: var(--accent-soft);
   border: 2px solid var(--accent);
   font-size: 1.1rem;
 }
@@ -503,7 +616,7 @@ body {
   min-height: 48px;
   padding: 0 24px;
   border: 0;
-  border-radius: 24px;
+  border-radius: 10px;
   background: var(--accent);
   color: #fff;
   font: inherit;

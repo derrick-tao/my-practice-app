@@ -14,9 +14,6 @@ export function StarBar({ done, total }: { done: number; total: number }) {
       >
         <div class="starbar__fill" style={{ width: `${percent}%` }} />
       </div>
-      <span class="starbar__star" aria-hidden="true">
-        ⭐
-      </span>
       <span class="starbar__text" data-testid="progress-text">
         {done} / {total}
       </span>
