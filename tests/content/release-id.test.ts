@@ -36,6 +36,17 @@ describe('the built app knows which release it is', () => {
     expect(script.includes('older-plugh'), 'an older id is not').toBe(false);
   });
 
+  it('embeds what the newest release says too, so the app can show its own release without the log', async () => {
+    const ws = await createWorkspace({
+      'chinese/x.yaml': lessonYaml('x', '\n  - target: 大\n'),
+      'releases.json': JSON.stringify([release('newest-xyzzy', '2026-10-21'), release('older-plugh', '2026-10-20')]),
+    });
+    await ws.build();
+    const script = await appScript(ws.outDir);
+    expect(script.includes('Title of newest-xyzzy'), 'newest title is in the app').toBe(true);
+    expect(script.includes('Title of older-plugh'), 'an older title is not').toBe(false);
+  });
+
   it('still builds when there is no release log', async () => {
     const ws = await createWorkspace({ 'chinese/x.yaml': lessonYaml('x', '\n  - target: 大\n') });
     await ws.build();
