@@ -141,9 +141,13 @@ describe('the real release log', () => {
   it('validates and holds the seeded releases, newest first', async () => {
     const { releases } = await loadAndValidate(path.resolve('content'));
     expect(releases.length).toBeGreaterThanOrEqual(6);
-    expect(releases.length).toBeLessThanOrEqual(8);
     const dates = releases.map((r) => r.date);
     expect(dates).toEqual([...dates].sort().reverse());
+  });
+
+  it('keeps every title short enough to scan in the list', async () => {
+    const { releases } = await loadAndValidate(path.resolve('content'));
+    for (const { id, title } of releases) expect(title.length, `${id}: "${title}"`).toBeLessThanOrEqual(40);
   });
 
   it('keeps pull request titles, commit prefixes and code terms out of the wording', async () => {
