@@ -3,13 +3,13 @@
   gap: 16px;
 }
 
-/* Blue and orange: a colour-blind-safe pair, white text at 4.5:1 or better on each. Neither is the purple accent,
+/* Teal and orange: a colour-blind-safe pair, white text at 4.5:1 or better on each. Neither is the blue accent,
    the good green or the bad red, which already mean other things. */
 .true-false-pad .true-false-pad__button {
-  --true-false-blue: #1f6fd1; /* 4.9:1 with white */
+  --true-false-blue: #00697a; /* teal: 6.6:1 with white */
   --true-false-orange: #b85700; /* 4.8:1 with white */
   min-height: 132px;
-  border-radius: 48px;
+  border-radius: var(--radius);
   padding: 0 12px;
   font-size: clamp(2rem, 8vmin, 3rem);
   white-space: nowrap;

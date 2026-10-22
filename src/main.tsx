@@ -1,3 +1,4 @@
+import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
 import { render } from 'preact';
 import { App } from './app.tsx';
 import { registerServiceWorker } from './pwa/service-worker.ts';

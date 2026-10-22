@@ -1,9 +1,5 @@
-/* Practice screens (ticket 03). Kid UI: big touch targets (>= 64px, primary ~96px), icon-first. */
-
-:root {
-  --good: #1f9d55;
-  --bad: #d64545;
-}
+/* Practice screens. Kid UI: big touch targets (>= 64px, primary ~96px), icon-first. The learner writes on 田字格 squares
+   and the app marks in red ink; blue is only ever something to press. */
 
 .sr-only {
   position: absolute;
@@ -30,35 +26,43 @@
   gap: 16px;
 }
 
+/* Progress is a ruler: a tick for every tenth of the list, and the ink fills along it. */
 .starbar {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
 }
 
 .starbar__track {
+  position: relative;
   flex: 1;
   height: 20px;
-  border-radius: 10px;
-  background: #e6e0f7;
+  border-radius: 6px;
+  border: 2px solid var(--rule-strong);
+  background: var(--card);
   overflow: hidden;
+}
+
+.starbar__track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--paper) calc(10% - 2px) 10%);
+  pointer-events: none;
 }
 
 .starbar__fill {
   height: 100%;
-  background: #ffc21a;
-  border-radius: 10px;
+  background: var(--accent);
   transition: width 0.25s ease;
 }
 
-.starbar__star {
-  font-size: 1.6rem;
-}
-
 .starbar__text {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -115,19 +119,22 @@
   gap: 8px;
   min-height: 64px;
   padding: 0 20px;
-  border: 4px solid var(--accent);
-  border-radius: 32px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
   background: var(--card);
-  color: var(--ink);
+  color: var(--accent);
   font: inherit;
   font-size: 1.4rem;
   font-weight: 700;
   cursor: pointer;
 }
 
+.btn:active {
+  background: var(--accent-soft);
+}
+
 .btn--primary {
   min-height: 96px;
-  border-radius: 48px;
   font-size: clamp(1.2rem, 4.5vmin, 1.6rem);
   white-space: nowrap;
   padding: 0 12px;
@@ -135,16 +142,28 @@
   color: #fff;
 }
 
+.btn--primary:active {
+  background: #15339a;
+}
+
 .btn--good {
   border-color: var(--good);
   background: var(--good);
+}
+
+.btn--good:active {
+  background: #0f5d32;
 }
 
 .btn--bad {
   border-color: var(--bad);
   background: var(--bad);
   /* Distinct shape as well as color: squarer corners than the rounded green button. */
-  border-radius: 16px;
+  border-radius: 4px;
+}
+
+.btn--bad:active {
+  background: #99201a;
 }
 
 .pulse {
@@ -153,21 +172,21 @@
 
 @keyframes pulse {
   50% {
-    transform: scale(1.08);
-    box-shadow: 0 0 0 10px rgba(108, 79, 245, 0.25);
+    transform: scale(1.04);
+    box-shadow: 0 0 0 8px rgb(29 68 196 / 22%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pulse {
     animation: none;
-    box-shadow: 0 0 0 8px rgba(108, 79, 245, 0.35);
+    box-shadow: 0 0 0 6px rgb(29 68 196 / 35%);
   }
 }
 
 .prompt {
   font-size: 2.2rem;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -179,17 +198,25 @@
   text-align: center;
 }
 
+/* The target sits on 田字格 squares, one per character: the square is 1.15 characters wide and the character is centred
+   in it by letter-spacing and a half-gap of indent. */
 .reveal__target {
   /* About 40% of the short side of the screen; long targets shrink to stay on screen. */
   font-size: calc(40vmin / var(--scale, 1));
-  line-height: 1.05;
+  line-height: 1.15;
+  letter-spacing: 0.15em;
+  text-indent: 0.075em;
+  text-align: left;
+  white-space: nowrap;
+  width: calc(var(--chars, 1) * 1.15em);
   font-family: 'Practice Kai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'PingFang SC', system-ui, serif;
+  background: var(--tian) 0 0 / 1.15em 1.15em repeat-x;
 }
 
-/* A phrase is as large as fits on one line: its share of the stage's width, but no larger than a single character. */
+/* A phrase is as large as fits on one line: its share of the stage's width (its squares included), but no larger than a
+   single character. */
 .reveal__target.phrase {
-  font-size: min(calc(96cqw / var(--chars, 1)), 40vmin);
-  white-space: nowrap;
+  font-size: min(calc(83cqw / var(--chars, 1)), 40vmin);
 }
 
 .reveal__pinyin {
@@ -199,7 +226,7 @@
 
 .reveal__clue {
   font-size: 1.1rem;
-  opacity: 0.8;
+  color: var(--ink-soft);
 }
 
 .summary {
@@ -216,6 +243,7 @@
   gap: 32px;
   font-size: 3rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .count--good {
@@ -237,16 +265,19 @@
   padding: 0 24px;
 }
 
+/* From round 2 on, the round number is circled in red ink, the way a teacher circles a page. */
 .round-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
   padding: 0 16px;
-  border-radius: 24px;
-  border: 3px solid var(--accent);
+  border-radius: 999px;
+  border: 3px solid var(--bad);
+  color: var(--bad);
   font-size: 1.3rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -262,7 +293,43 @@
   font-weight: 700;
 }
 
-/* Keep going card on the home screen (ticket 05) */
+/* The teacher's seal: 优 ("excellent") in red ink, pressed once on the finished page. */
+.seal {
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  color: var(--bad);
+  font-family: 'Practice Kai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'PingFang SC', serif;
+  font-size: 5rem;
+  line-height: 1;
+  transform: rotate(-9deg);
+  box-shadow:
+    inset 0 0 0 5px var(--paper),
+    inset 0 0 0 8px var(--bad),
+    inset 0 0 0 10px var(--paper),
+    inset 0 0 0 11.5px var(--bad);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .seal {
+    animation: seal-press 0.45s cubic-bezier(0.2, 0.9, 0.25, 1) 0.15s 1 both;
+  }
+}
+
+@keyframes seal-press {
+  0% {
+    opacity: 0;
+    transform: rotate(-18deg) scale(1.7);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-9deg) scale(1);
+  }
+}
+
+/* Keep going card on the home screen */
 .keep-going {
   display: flex;
   flex-direction: column;
@@ -270,7 +337,7 @@
   min-height: 120px;
   margin-bottom: 16px;
   padding: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: #fff;
   text-decoration: none;
@@ -299,6 +366,20 @@
 
 .keep-going .round-badge {
   border-color: #fff;
+  color: #fff;
+}
+
+.keep-going .starbar__track {
+  border-color: rgb(255 255 255 / 70%);
+  background: rgb(255 255 255 / 14%);
+}
+
+.keep-going .starbar__track::after {
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--accent) calc(10% - 2px) 10%);
+}
+
+.keep-going .starbar__fill {
+  background: #fff;
 }
 
 /* "Couldn't save — tap to retry" */
@@ -310,15 +391,15 @@
   width: 100%;
 }
 
-/* "↩️ Undo" chip beside Home (ticket 06): small and calm, but still a 64px touch target. */
+/* "↩️ Undo" chip beside Home: small and calm, but still a 64px touch target. */
 .btn--chip {
   padding: 0 14px;
-  border-radius: 24px;
+  border-radius: 10px;
   font-size: 1.1rem;
   white-space: nowrap;
 }
 
-/* "Great job! Take a break?" (ticket 06) */
+/* "Great job! Take a break?" */
 .break-prompt {
   flex: 1;
   display: flex;
@@ -339,7 +420,7 @@
   width: min(100%, 520px);
 }
 
-/* Confetti on the completion screen (ticket 15): falls once, never blocks a tap. */
+/* Confetti on the completion screen: falls once, never blocks a tap. */
 .confetti {
   position: fixed;
   inset: 0;
@@ -376,7 +457,7 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 40%, rgba(255, 194, 26, 0.55), rgba(255, 194, 26, 0) 70%);
+  background: radial-gradient(circle at 50% 40%, rgb(255 214 64 / 50%), rgb(255 214 64 / 0%) 70%);
   animation: completion-fade 1.6s ease-in-out 1 both;
 }
 
@@ -398,7 +479,7 @@
   }
 }
 
-/* "No sound? Turn up the volume" after repeated audio failures (ticket 15) */
+/* "No sound? Turn up the volume" after repeated audio failures: a highlighter stroke. */
 .volume-hint-slot:empty {
   display: none;
 }
@@ -406,14 +487,14 @@
 .volume-hint {
   margin: 0;
   padding: 12px 16px;
-  border-radius: 24px;
-  background: #fff4cc;
+  border-radius: 10px;
+  background: #ffef9f;
   font-size: 1.3rem;
   font-weight: 700;
   text-align: center;
 }
 
-/* Stroke order: the drawing is a square sized by the short side of the screen, and no wider than the stage. */
+/* Stroke order: the drawing is a 田字格 square sized by the short side of the screen, and no wider than the stage. */
 .drawing {
   width: min(60vmin, 100cqw);
 }
@@ -421,9 +502,7 @@
 .drawing__canvas {
   width: 100%;
   aspect-ratio: 1;
-  border: 3px solid var(--outline, #ece8f6);
-  border-radius: 24px;
-  background: var(--card);
+  background: var(--tian) 0 0 / 100% 100% no-repeat, var(--card);
 }
 
 .drawing__canvas svg {
@@ -478,6 +557,7 @@
   margin: 0;
   font-size: 3.4rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -489,15 +569,17 @@
   width: 2.2em; /* holds two digits and a bit more, so it never grows when filled */
   height: 1.25em;
   padding: 0 0.15em;
-  border: 4px solid var(--accent);
-  border-radius: 0.2em;
-  line-height: calc(1.25em - 8px);
+  border: 3px solid var(--accent);
+  border-radius: 0.14em;
+  background: var(--card);
+  line-height: calc(1.25em - 6px);
   text-align: center;
   vertical-align: middle;
 }
 
 .math__answer--done {
   border-color: transparent;
+  background: transparent;
 }
 
 .math__feedback {
@@ -529,6 +611,7 @@
 .math__step {
   margin: 0;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -538,11 +621,11 @@
   color: var(--ink);
 }
 
-/* The trick's name: a small rounded purple badge on its own line above the question. */
+/* The trick's name: a small label on its own line above the question. */
 .math__badge {
   margin: 0;
   padding: 4px 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--accent);
   color: #fff;
   font-size: clamp(0.95rem, 3.6vw, 1.1rem);
@@ -565,7 +648,7 @@
   width: 64px;
   height: 64px;
   padding: 0;
-  border: 4px solid var(--accent);
+  border: 2px solid var(--accent);
   border-radius: 50%;
   background: var(--card);
   color: var(--accent);
@@ -583,8 +666,8 @@
   margin: auto;
   padding: 0;
   overflow-y: auto;
-  border: 4px solid var(--accent);
-  border-radius: 24px;
+  border: 2px solid var(--rule-strong);
+  border-radius: var(--radius);
   background: var(--card);
   color: var(--ink);
   font-size: 1.25rem;
@@ -592,7 +675,7 @@
 }
 
 .help-sheet::backdrop {
-  background: rgb(43 34 80 / 55%);
+  background: rgb(22 33 61 / 55%);
 }
 
 .help-sheet__content {
@@ -626,8 +709,9 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 16px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--paper);
+  border: 2px solid var(--rule);
 }
 
 .help-sheet__example p {
@@ -654,6 +738,6 @@
   margin: 0;
   font-size: clamp(1rem, 4vw, 1.2rem);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--ink-soft);
   text-align: center;
 }

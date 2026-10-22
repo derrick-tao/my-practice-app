@@ -32,9 +32,9 @@ export function useDrawing(): Drawing {
   return drawing;
 }
 
-/** A faint gray for the outline of the whole character, the screen's ink for the strokes drawn. */
-const OUTLINE_COLOR = '#dcd8e8';
-const STROKE_COLOR = '#2b2250';
+/** A faint blue-gray for the outline of the whole character (it must read over the 田字格 lines), the screen's ink for the strokes drawn. */
+const OUTLINE_COLOR = '#c3cfdc';
+const STROKE_COLOR = '#16213d';
 
 /**
  * The learner's stroke speed setting as Hanzi Writer's `strokeAnimationSpeed`. It draws a stroke in

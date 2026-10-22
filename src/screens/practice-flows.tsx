@@ -90,7 +90,11 @@ function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testI
       class={fit ? 'reveal__target phrase' : 'reveal__target'}
       data-testid={testId}
       lang="zh-CN"
-      style={fit ? { '--chars': [...item.target].length } : { '--scale': Math.max(1, [...item.target].length / 2) }}
+      style={
+        fit
+          ? { '--chars': [...item.target].length }
+          : { '--chars': [...item.target].length, '--scale': Math.max(1, [...item.target].length / 2) }
+      }
     >
       {item.target}
     </div>

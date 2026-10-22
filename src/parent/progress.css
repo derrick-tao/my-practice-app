@@ -16,9 +16,9 @@
 .progress-header {
   margin: 0 0 16px;
   padding: 16px 20px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--card);
-  border: 4px solid var(--accent);
+  border: 2px solid var(--rule-strong);
 }
 
 .progress-header__title {
@@ -51,9 +51,9 @@
   gap: 4px 20px;
   min-height: 64px;
   padding: 12px 20px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--card);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--rule);
   color: inherit;
   text-decoration: none;
   font-size: 1.1rem;
@@ -71,9 +71,9 @@
 
 .progress-round {
   padding: 12px 20px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--card);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--rule);
 }
 
 .progress-round__facts {
@@ -95,9 +95,9 @@
   align-items: center;
   gap: 16px;
   padding: 8px 20px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--card);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--rule);
 }
 
 .progress-tricky__count {
@@ -116,7 +116,7 @@
   min-height: 64px;
   padding: 0 16px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--accent);
   color: #fff;
   font: inherit;
