@@ -12,7 +12,7 @@ import { expect, NEW_TITLE, NEWER_RELEASE_ID, test, type PwaSite } from './pwa-s
 /** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
 async function startAtHome(page: Page): Promise<void> {
   await setUpLearner(page);
-  await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Fixture Three/ }).first()).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -193,7 +193,7 @@ test.describe('release log', () => {
     expect(await readLog(page)).toBeNull();
     // The app itself is unharmed.
     await page.reload();
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Fixture Three/ }).first()).toBeVisible();
   });
 });
 
@@ -254,7 +254,7 @@ test.describe('updates', () => {
 
     // Back on home there is still no prompt, and nothing has reloaded.
     await practice.home.click();
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Fixture Three/ }).first()).toBeVisible();
     await expect(prompt).toHaveCount(0);
     expect(await stillHere(page)).toBe(true);
 
@@ -276,10 +276,10 @@ test.describe('updates', () => {
     // The new content now comes from the new cache, so it also works offline.
     expect(await servedTitle(page)).toBe(NEW_TITLE);
 
-    // Now installed and up to date: nothing left to update.
+    // Nothing is waiting any more, so there is no Update now. (The fake deploy reuses the old bundle, so the page
+    // still thinks the log is ahead of it; "You're up to date" is covered in whats-new.spec.ts.)
     await openWhatsNew(page);
     await expect(updateNow(page)).toHaveCount(0);
-    await expect(updateCard(page)).toContainText("You're up to date");
   });
 
   test('a deploy with no release of its own still offers Update now, with a generic line', async ({ page, site }) => {
@@ -359,7 +359,7 @@ test.describe('updates', () => {
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Fixture Three/ }).first()).toBeVisible();
     await openWhatsNew(page);
     await expect(updateCard(page)).toContainText("You're up to date");
     await expect(updateNow(page)).toHaveCount(0);
@@ -368,7 +368,7 @@ test.describe('updates', () => {
   test('Update now is not offered when nothing new was published', async ({ page }) => {
     await startAtHome(page);
     await page.evaluate(async () => void (await (await navigator.serviceWorker.getRegistration())!.update()));
-    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Fixture Three/ }).first()).toBeVisible();
     expect(await swState(page)).toEqual({ waiting: false, installing: false });
     await openWhatsNew(page);
     await expect(updateCard(page)).toContainText("You're up to date");

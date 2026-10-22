@@ -8,7 +8,7 @@
 // Behaviour:
 //  - install: precache everything into a cache named for the build id. If any file fails, the install
 //    fails and the previous worker keeps serving (no half-cached version). It does NOT skipWaiting: a new
-//    worker waits until the page asks (the home screen's "New words are ready!" button) or until every
+//    worker waits until the page asks (a grown-up's "Update now" in the parent area's What's new) or until every
 //    tab is closed, so a practice session is never swapped out from under the child.
 //  - activate: drop caches of other builds and take control of open pages.
 //  - fetch (same-origin GET only; nothing is ever fetched from another origin):
