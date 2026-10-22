@@ -40,7 +40,7 @@ export async function generateAudio(options: Omit<BuildOptions, 'outDir'>): Prom
 }
 
 export async function buildContent(options: BuildOptions): Promise<BuildResult> {
-  const { sources, warnings, strokes } = await loadAndValidate(options.contentDir, options.strokeDataDir);
+  const { sources, warnings, strokes, releases } = await loadAndValidate(options.contentDir, options.strokeDataDir);
   const resolved = await resolveAudio(sources, options);
   const audioFiles = new Map<string, string>();
 
@@ -97,6 +97,9 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
     await writeFile(path.join(options.outDir, STROKE_LICENCE_REF), await readStrokeLicence());
   }
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  // Published as its own file (never inside a lesson or the manifest) so a running old version can read a newer
+  // version's notes; always written, empty when the repo has no log, so there is always a file to precache.
+  await writeFile(path.join(options.outDir, RELEASES_FILE), JSON.stringify(releases, null, 2));
 
   // The Kai font is for Chinese items only: a build with none (math lessons alone) has no font to cut.
   const items = sources.flatMap((s) => listEntries(s.lists).flatMap(([, list]) => list));

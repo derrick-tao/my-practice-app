@@ -37,6 +37,22 @@ describe('release log validation: a good log passes', () => {
   });
 });
 
+describe('the release log is published next to the manifest', () => {
+  it('writes releases.json beside manifest.json, as validated, newest first', async () => {
+    const log = [release({ id: 'newer', date: '2026-10-21' }), release({ id: 'older', date: '2026-10-20' })];
+    const ws = await createWorkspace({ 'releases.json': JSON.stringify(log) });
+    await ws.build();
+    expect(JSON.parse(await readFile(path.join(ws.outDir, 'releases.json'), 'utf8'))).toEqual(log);
+    await expect(readFile(path.join(ws.outDir, 'manifest.json'), 'utf8')).resolves.toBeTruthy();
+  });
+
+  it('publishes an empty list when the repo has no release log, so the file is always there to cache', async () => {
+    const ws = await createWorkspace();
+    await ws.build();
+    expect(JSON.parse(await readFile(path.join(ws.outDir, 'releases.json'), 'utf8'))).toEqual([]);
+  });
+});
+
 describe('release log validation: every rule fails with file, release and rule', () => {
   it('rejects a log that is not a list of releases', async () => {
     const message = await failureFor({ releases: [] });
