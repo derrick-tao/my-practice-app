@@ -1,0 +1,14 @@
+[
+  {
+    "id": "fixture-second",
+    "date": "2026-02-02",
+    "title": "Fixture second release",
+    "bullets": ["The second thing got better."]
+  },
+  {
+    "id": "fixture-first",
+    "date": "2026-01-01",
+    "title": "Fixture first release",
+    "bullets": ["The first thing got better."]
+  }
+]

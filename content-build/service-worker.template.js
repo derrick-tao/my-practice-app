@@ -1,7 +1,7 @@
 // Service worker template. content-build/pwa-plugin.ts fills in PRECACHE at build time and writes the
 // result to <site>/sw.js. Nothing here is hand-maintained per release:
-//  - PRECACHE.urls is derived from the build output (app shell + content manifest + font subset + every lesson + every
-//    audio and stroke file the lessons reference + the stroke data licence), as paths relative to the worker's scope.
+//  - PRECACHE.urls is derived from the build output (app shell + content manifest + release log + font subset + every
+//    lesson + every audio and stroke file the lessons reference + the stroke data licence), as paths relative to the worker's scope.
 //  - PRECACHE.buildId is a hash of those files' contents, so any change to the app or the content gives
 //    the worker (and its cache) a new identity. That is the cache busting.
 //
@@ -14,6 +14,8 @@
 //  - fetch (same-origin GET only; nothing is ever fetched from another origin):
 //      navigations      -> the cached app shell
 //      content manifest -> network first (short timeout), cached copy when offline
+//      release log      -> the same, so a running old version can read a newer version's notes (and falls back to
+//                         the copy cached with this build, then to nothing)
 //      anything else precached (assets, lessons, audio, icons) -> cache first; files have hashed or
 //                         build-scoped names, so a cached copy is always the right one for this build
 //    Audio range requests (Safari always sends them) are answered with a 206 cut from the cached file.
@@ -25,7 +27,8 @@ const CACHE_PREFIX = 'practice-';
 const CACHE = CACHE_PREFIX + PRECACHE.buildId;
 const SHELL = 'index.html';
 const MANIFEST = 'content/manifest.json';
-const MANIFEST_TIMEOUT_MS = 4000;
+const RELEASES = 'content/releases.json';
+const NETWORK_FIRST_TIMEOUT_MS = 4000;
 
 const scopeUrl = (path) => new URL(path, self.registration.scope).href;
 const relativeToScope = (url) => (url.startsWith(self.registration.scope) ? url.slice(self.registration.scope.length) : null);
@@ -65,8 +68,8 @@ self.addEventListener('fetch', (event) => {
   }
   const path = relativeToScope(url.origin + url.pathname);
   if (path === null) return;
-  if (path === MANIFEST) {
-    event.respondWith(networkFirst(request, scopeUrl(MANIFEST)));
+  if (path === MANIFEST || path === RELEASES) {
+    event.respondWith(networkFirst(request, scopeUrl(path)));
   } else if (PRECACHE.urls.includes(path)) {
     event.respondWith(fromCache(scopeUrl(path), request));
   }
@@ -82,7 +85,7 @@ async function networkFirst(request, key) {
   try {
     const response = await Promise.race([
       fetch(request),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), MANIFEST_TIMEOUT_MS)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NETWORK_FIRST_TIMEOUT_MS)),
     ]);
     if (response.ok) return response;
   } catch {

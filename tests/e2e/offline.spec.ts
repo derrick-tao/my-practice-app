@@ -6,7 +6,7 @@ import type { LessonData } from '../../src/content/types.ts';
 import { openParentArea, passGate, setUpLearner } from './parent-driver.ts';
 import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import { lessonPath } from './harness.ts';
-import { expect, NEW_TITLE, test } from './pwa-site.ts';
+import { expect, NEW_TITLE, NEWER_RELEASE_ID, test } from './pwa-site.ts';
 
 /** Where every spec here starts: set up through the real first run, on home, online, with the service worker in control. */
 async function startAtHome(page: Page): Promise<void> {
@@ -142,6 +142,57 @@ test.describe('offline', () => {
       expect(statuses, id).toEqual(statuses.map(() => 200));
     }
     await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
+  });
+});
+
+/** The ids in the release log as a running page can read it, or null when the page gets nothing. */
+function readLog(page: Page): Promise<string[] | null> {
+  return page.evaluate(async () => {
+    try {
+      const response = await fetch('content/releases.json');
+      return response.ok ? ((await response.json()) as Array<{ id: string }>).map((r) => r.id) : null;
+    } catch {
+      return null;
+    }
+  });
+}
+
+const installedRelease = (page: Page): Promise<string | undefined> => page.evaluate(() => document.documentElement.dataset.release);
+
+test.describe('release log', () => {
+  test('the app knows which release it is: the newest one in the log it was built with', async ({ page }) => {
+    await startAtHome(page);
+    expect(await installedRelease(page)).toBe('fixture-second');
+  });
+
+  test('online, a running old build reads the newer log that a deploy published', async ({ page, site }) => {
+    await startAtHome(page);
+    expect(await readLog(page)).toEqual(['fixture-second', 'fixture-first']);
+
+    await site.deployNewVersion();
+
+    expect(await readLog(page)).toEqual([NEWER_RELEASE_ID, 'fixture-second', 'fixture-first']);
+    // The page itself is still the old build.
+    expect(await installedRelease(page)).toBe('fixture-second');
+  });
+
+  test('offline, it reads the copy cached with the installed build, even after a deploy it never saw', async ({ page, context, site }) => {
+    await startAtHome(page);
+    await site.deployNewVersion();
+    await context.setOffline(true);
+    expect(await readLog(page)).toEqual(['fixture-second', 'fixture-first']);
+  });
+
+  test('offline with no cached copy, it gets nothing and nothing breaks', async ({ page, context }) => {
+    await startAtHome(page);
+    await page.evaluate(async () => {
+      for (const name of await caches.keys()) await (await caches.open(name)).delete('content/releases.json');
+    });
+    await context.setOffline(true);
+    expect(await readLog(page)).toBeNull();
+    // The app itself is unharmed.
+    await page.reload();
+    await expect(page.getByRole('link', { name: /Fixture Three/ })).toBeVisible();
   });
 });
 
