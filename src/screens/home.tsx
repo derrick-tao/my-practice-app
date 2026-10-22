@@ -8,7 +8,6 @@ import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
 import { RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
-import { applyUpdate, useUpdateReady } from '../pwa/service-worker.ts';
 import { lessonHref, parentHref } from '../router.ts';
 import { getStorage } from '../storage/index.ts';
 import { useLoad } from '../use-async.ts';
@@ -132,7 +131,6 @@ export function HomeScreen() {
   const published = usePublishedLessons();
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
-  const updateReady = useUpdateReady();
   const sessions = resume.status === 'ready' ? resume.value : [];
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedLessonIds);
@@ -153,11 +151,6 @@ export function HomeScreen() {
         </a>
       </header>
       <ProfileSwitcher />
-      {updateReady && (
-        <button type="button" class="update-banner" onClick={applyUpdate}>
-          New words are ready! <span aria-hidden="true">🔄</span>
-        </button>
-      )}
       {published.status === 'loading' && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
       {resumable.map(({ session, lesson }) => (
