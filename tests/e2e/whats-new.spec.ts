@@ -22,6 +22,8 @@ async function openWhatsNew(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: "What's new", exact: true })).toBeVisible();
 }
 
+const updateCard = (page: Page): Locator => page.getByTestId('update-card');
+
 /** One release in the list, found by its title. */
 const release = (page: Page, title: string): Locator => page.getByRole('listitem').filter({ hasText: title });
 
@@ -81,6 +83,9 @@ test.describe("What's new: the list", () => {
     await expect(release(page, SECOND.title)).toContainText('Installed');
     await expect(page.getByText(SECOND.bullet)).toBeVisible();
     await expect(page.getByText('Some other release')).toHaveCount(0);
+    // With the notes unknown, the card cannot claim the app is current.
+    await expect(updateCard(page)).toContainText('No update is waiting');
+    await expect(updateCard(page)).not.toContainText("You're up to date");
   });
 
   test('when the log cannot be loaded at all, it says so and still shows the installed release', async ({ page }) => {
@@ -92,10 +97,11 @@ test.describe("What's new: the list", () => {
     await expectTitles(page, [SECOND.title]);
     await expect(release(page, SECOND.title)).toContainText('Installed');
     await expect(page.getByText('Update available')).toHaveCount(0);
+    await expect(updateCard(page)).toContainText('No update is waiting');
+    await expect(updateCard(page)).not.toContainText("You're up to date");
   });
 });
 
-const updateCard = (page: Page): Locator => page.getByTestId('update-card');
 
 test.describe("What's new: the top card", () => {
   test("nothing waiting and the app is the newest release: \"You're up to date\" with its date, no Update now", async ({ page }) => {

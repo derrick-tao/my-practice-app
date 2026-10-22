@@ -289,7 +289,23 @@ test.describe('updates', () => {
 
     await expect(updateNow(page)).toBeVisible();
     await expect(updateCard(page)).toContainText('An update is ready');
+    await expect(updateCard(page)).toContainText('Install it to get the latest version');
     await expect(updateCard(page)).not.toContainText('Fixture newer release');
+  });
+
+  test('Update now is there at once, even while the notes are still loading', async ({ page, site }) => {
+    // The log never arrives (a slow or stuck connection); the update must not wait for it.
+    await page.addInitScript(() => {
+      const realFetch = window.fetch;
+      window.fetch = (input, init) =>
+        String(input instanceof Request ? input.url : input).includes('releases.json') ? new Promise<Response>(() => {}) : realFetch(input, init);
+    });
+    await startAtHome(page);
+    await publishAndWaitForUpdate(page, site);
+    await openWhatsNew(page);
+
+    await expect(updateNow(page)).toBeVisible({ timeout: 1000 });
+    await expect(page.getByText('Loading…')).toBeVisible();
   });
 
   test('Update now works even when the notes could not load', async ({ page, context, site }) => {
@@ -305,6 +321,7 @@ test.describe('updates', () => {
 
     await expect(page.getByText("Couldn't load the latest notes")).toBeVisible();
     await expect(updateNow(page)).toBeVisible();
+    await expect(updateCard(page)).toContainText('Install it to get the latest version');
     await updateNow(page).click();
 
     await page.getByRole('link', { name: 'Home' }).click();
