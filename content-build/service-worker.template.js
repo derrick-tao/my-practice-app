@@ -27,6 +27,7 @@ const CACHE_PREFIX = 'practice-';
 const CACHE = CACHE_PREFIX + PRECACHE.buildId;
 const SHELL = 'index.html';
 const MANIFEST = 'content/manifest.json';
+// Must match RELEASES_FILE in content-build/releases.ts under content/ (this template can't import it).
 const RELEASES = 'content/releases.json';
 const NETWORK_FIRST_TIMEOUT_MS = 4000;
 
