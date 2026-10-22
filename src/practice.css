@@ -312,6 +312,20 @@
     inset 0 0 0 11.5px var(--bad);
 }
 
+/* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal. */
+@media (max-height: 500px) {
+  .seal {
+    width: 56px;
+    height: 56px;
+    font-size: 2.2rem;
+    box-shadow:
+      inset 0 0 0 3px var(--paper),
+      inset 0 0 0 5px var(--bad),
+      inset 0 0 0 6px var(--paper),
+      inset 0 0 0 7px var(--bad);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .seal {
     animation: seal-press 0.45s cubic-bezier(0.2, 0.9, 0.25, 1) 0.15s 1 both;

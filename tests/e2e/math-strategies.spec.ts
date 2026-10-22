@@ -20,10 +20,10 @@ import {
 
 const LESSON = 'Fixture Strategies';
 
-/** The app's normal ink colour (--ink: #2b2250), as the browser reports it. */
-const DARK_INK = 'rgb(43, 34, 80)';
-/** The app's purple accent (--accent: #6c4ff5), the badge's colour. */
-const ACCENT_PURPLE = 'rgb(108, 79, 245)';
+/** The app's normal ink colour (--ink: #16213d), as the browser reports it. */
+const DARK_INK = 'rgb(22, 33, 61)';
+/** The app's accent blue (--accent: #1d44c4), the badge's colour. */
+const ACCENT_BLUE = 'rgb(29, 68, 196)';
 
 interface Fixtures {
   page: Page;
@@ -114,9 +114,9 @@ test.describe('a Tricks session', () => {
         expect(badge.bottom, 'the badge is above the steps').toBeLessThanOrEqual(firstStepTop);
       }
     });
-    // One purple for all seven tricks, and unlike the question's ink.
+    // One blue for all seven tricks, and unlike the question's ink.
     expect(new Set(layouts.map(({ badge }) => badge.background)).size).toBe(1);
-    expect(layouts[0]!.badge.background).toBe(ACCENT_PURPLE);
+    expect(layouts[0]!.badge.background).toBe(ACCENT_BLUE);
   });
 
   test('follows the lesson rules: a lesson that only adds has no subtraction kinds', async ({ page, audio }) => {
