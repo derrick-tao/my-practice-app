@@ -49,11 +49,29 @@ describe('service worker precache: stroke data', () => {
   });
 });
 
+describe('service worker precache: release log', () => {
+  it('lists the release log so a fresh install has a copy to read offline', async () => {
+    const { siteDir } = await site({ 'chinese/x.yaml': lessonYaml('x', '\n  - target: 大\n') });
+    const { urls } = await collectPrecache(siteDir);
+    expect(urls).toContain('content/releases.json');
+  });
+
+  it('fails when the release log is missing from the output', async () => {
+    const { siteDir } = await site({ 'chinese/x.yaml': lessonYaml('x', '\n  - target: 大\n') });
+    await rm(path.join(siteDir, 'content', 'releases.json'));
+    await expect(collectPrecache(siteDir)).rejects.toThrow(/ENOENT/);
+  });
+});
+
 describe('service worker precache: math lessons', () => {
   it('caches the math lesson and manifest, with no font, audio or stroke files', async () => {
     const { siteDir } = await site({ 'math/m.yaml': 'id: m\ntitle: Math\nsubject: math\nfacts:\n  within: 20\n' }, 'm');
     const { urls } = await collectPrecache(siteDir);
     const content = urls.filter((url) => url.startsWith('content/'));
-    expect(content).toEqual([expect.stringMatching(/^content\/lessons\/m\.[0-9a-f]{12}\.json$/), 'content/manifest.json']);
+    expect(content).toEqual([
+      expect.stringMatching(/^content\/lessons\/m\.[0-9a-f]{12}\.json$/),
+      'content/manifest.json',
+      'content/releases.json',
+    ]);
   });
 });

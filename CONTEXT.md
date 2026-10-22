@@ -109,3 +109,13 @@ _Avoid_: Learn mode
 **Problems per practice setting**:
 A per-profile choice of 10, 15 or 20 (20 by default) for how many problems a new math session has. It applies when a session starts: a session in progress keeps its size, and its retry rounds cover only the problems missed. It never affects Chinese, whose sessions are as long as their lists. Where a lesson says how many problems it has, it shows this number.
 _Avoid_: Session length, quiz size
+
+### Releases
+
+**Release**:
+One dated entry in the app's change log: a short title and a few plain-language lines, written for the grown-up, about what is better for the learner or parent. Entries are written by hand for visible changes only, so most deploys have no release of their own. Newest first.
+_Avoid_: Version, build, changelog entry (in the parent area's words)
+
+**What's new**:
+The parent area section that lists releases, newest first, and is where a grown-up applies a waiting update. The learner never sees an update prompt.
+_Avoid_: Updates, release notes (as the section's name)

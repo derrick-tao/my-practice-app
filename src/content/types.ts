@@ -94,3 +94,16 @@ export function listEntries<T>(lists: Partial<Record<ListTypeId, T>>): Array<[Li
 export function rulesEntries<T>(rules: Partial<Record<RulesTypeId, T>> | undefined): Array<[RulesTypeId, T]> {
   return RULES_TYPE_IDS.flatMap((type) => (rules?.[type] === undefined ? [] : [[type, rules[type]] as [RulesTypeId, T]]));
 }
+
+/** One entry of the release log (`content/releases.json`, newest first): what got better, in plain words for the grown-up. */
+export interface Release {
+  /** Stable name for the entry (lowercase words and dashes); never reused. */
+  id: string;
+  /** The day it shipped, `YYYY-MM-DD`. */
+  date: string;
+  title: string;
+  /** One to four short lines. */
+  bullets: string[];
+}
+
+export const MAX_RELEASE_BULLETS = 4;

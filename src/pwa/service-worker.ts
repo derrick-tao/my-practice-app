@@ -1,7 +1,7 @@
 // Registers the service worker (production builds only) and tracks whether a newer version is waiting.
 //
 // A new worker installs in the background and then WAITS. Nothing here ever reloads the page by itself:
-// the page only reloads after the child taps "New words are ready!" on the home screen (applyUpdate).
+// the page only reloads after a grown-up taps "Update now" in the parent area's What's new section (applyUpdate).
 import { useEffect, useState } from 'preact/hooks';
 
 let waiting: ServiceWorker | undefined;

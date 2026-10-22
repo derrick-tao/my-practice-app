@@ -1,0 +1,89 @@
+[
+  {
+    "id": "whats-new-in-parent-area",
+    "date": "2026-10-21",
+    "title": "Updates moved to What's new",
+    "bullets": [
+      "The update prompt no longer appears on your child's Home screen. Updates are now applied from What's new in the parent area.",
+      "What's new lists every release, newest first, so you can see what an update brings before you install it.",
+      "A small dot on the gear and on the What's new menu entry shows that an update is waiting."
+    ]
+  },
+  {
+    "id": "tricks-help-and-practice-fixes",
+    "date": "2026-10-21",
+    "title": "Clearer Tricks and smoother practice",
+    "bullets": [
+      "🧠 Tricks now shows the trick's name, the question on its own line, and a ? button that explains how the trick works.",
+      "A right answer on the second try now plays the happy chime, and the Check key shows a check mark.",
+      "⚖️ True? uses blue and orange buttons and gives only one try.",
+      "Pinching or double-tapping no longer zooms the screen in the middle of practice."
+    ]
+  },
+  {
+    "id": "math-blank-and-problem-count",
+    "date": "2026-10-20",
+    "title": "A steady blank, and problem counts",
+    "bullets": [
+      "Math problems show the missing number as one box that stays the same size, instead of a question mark.",
+      "🧠 Tricks walks through each problem with a title and a hint for every step.",
+      "Settings has a new Problems per practice choice for math: 10, 15 or 20 (20 until you change it)."
+    ]
+  },
+  {
+    "id": "math-arrives",
+    "date": "2026-10-20",
+    "title": "Math is here",
+    "bullets": [
+      "Math is now a second subject, with the Fall 2026 math lesson for Grade 1 addition and subtraction.",
+      "Five ways to practice: ⚡ Facts, 🔍 Missing, ⚖️ True?, 📖 Stories and 🧠 Tricks.",
+      "The app checks the answers itself and gives a second try before showing the answer.",
+      "The parent area shows which kinds of problems are trickiest, and which answer was entered for a missed problem."
+    ]
+  },
+  {
+    "id": "draw-plays-itself",
+    "date": "2026-10-20",
+    "title": "Draw plays by itself",
+    "bullets": [
+      "🖌️ Draw now starts drawing the character as soon as it opens; the only button is Replay.",
+      "New learners start with a half-second pause after each stroke. Learners you already set up keep their pause."
+    ]
+  },
+  {
+    "id": "say-learning-setting",
+    "date": "2026-10-20",
+    "title": "Learn the phrases first in Say",
+    "bullets": [
+      "A new Learning setting turns 🗣️ Say into a gentle first look: each phrase is shown and heard, and your child taps Next.",
+      "Nothing is marked and no score is kept, so it does not count toward attempts."
+    ]
+  },
+  {
+    "id": "smoother-practice",
+    "date": "2026-10-20",
+    "title": "Practice stays quick",
+    "bullets": [
+      "Fixed a slowdown that built up after several 🖌️ Draw sessions in one visit, where the next character started drawing before its sound or played over the chime."
+    ]
+  },
+  {
+    "id": "draw-speed-and-pause",
+    "date": "2026-10-19",
+    "title": "Draw: set the stroke speed and pause",
+    "bullets": [
+      "Settings has new choices for how fast each stroke is drawn (Slow, Normal or Fast) and how long to pause after it.",
+      "Each learner has their own pace, and it applies the next time practice opens."
+    ]
+  },
+  {
+    "id": "draw-and-say",
+    "date": "2026-10-19",
+    "title": "Draw and Say, with the Pre-K lesson",
+    "bullets": [
+      "🖌️ Draw shows a character being drawn one stroke at a time, so your child can copy each stroke on paper.",
+      "🗣️ Say shows a phrase to say aloud, then plays it so your child can check themselves.",
+      "A lesson can now offer several kinds of practice, and a new Pre-K lesson (2026-10-19) uses 🖌️ Draw and 🗣️ Say."
+    ]
+  }
+]

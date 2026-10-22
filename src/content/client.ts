@@ -1,4 +1,4 @@
-import type { LessonData, Manifest } from './types.ts';
+import type { LessonData, Manifest, Release } from './types.ts';
 
 /** Content lives at `<base>content/` (the base path is `/my-practice-app/` in production). */
 export function contentUrl(path: string): string {
@@ -12,6 +12,20 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export const fetchManifest = (): Promise<Manifest> => getJson<Manifest>('manifest.json');
+
+/**
+ * The published release log, newest first: the network's copy when online (so an old build can read a newer
+ * build's notes), else the copy cached with the installed build (the service worker decides), else nothing.
+ * Never throws: a missing or unreadable log is `undefined`.
+ */
+export async function fetchReleases(): Promise<Release[] | undefined> {
+  try {
+    const log = await getJson<unknown>('releases.json');
+    return Array.isArray(log) ? (log as Release[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * A lesson together with the content version it belongs to. The manifest names the lesson's data file (which

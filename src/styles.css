@@ -127,6 +127,28 @@ body {
   text-decoration: none;
   background: #ece7fb;
   opacity: 0.8;
+  position: relative;
+}
+
+/* The "an update is waiting" dot (src/pwa/update-dot.tsx): small, red against the lavender gear and the white
+   entry, with a white ring so it holds up on both. On the gear it sits on the top right corner. */
+.update-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #c62828;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.gear .update-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.parent__entry .update-dot {
+  margin-left: 12px;
 }
 
 .home-button--quiet {
@@ -485,22 +507,5 @@ body {
   background: var(--accent);
   color: #fff;
   font: inherit;
-  font-weight: 700;
-}
-
-/* "New words are ready!" on the home screen: a big, obvious button. */
-.update-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 72px;
-  margin: 0 0 16px;
-  border: 0;
-  border-radius: 36px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-size: 1.4rem;
   font-weight: 700;
 }

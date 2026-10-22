@@ -8,9 +8,11 @@ import {
   type LessonData,
   type LessonSummary,
   type Manifest,
+  type Release,
 } from '../src/content/types.ts';
 import { DEFAULT_PROBLEM_COUNT } from '../src/math/rules.ts';
 import { formatIssue, validateAcrossFiles, validateLessonFile, type Issue, type SourceLesson } from './validate.ts';
+import { RELEASES_FILE, validateReleases } from './releases.ts';
 import { itemPinyin } from './pinyin.ts';
 import { resolveAudio, type AudioOptions, type AudioStats } from './audio.ts';
 import { FONT_REF, buildFontSubset } from './font.ts';
@@ -38,7 +40,7 @@ export async function generateAudio(options: Omit<BuildOptions, 'outDir'>): Prom
 }
 
 export async function buildContent(options: BuildOptions): Promise<BuildResult> {
-  const { sources, warnings, strokes } = await loadAndValidate(options.contentDir, options.strokeDataDir);
+  const { sources, warnings, strokes, releases } = await loadAndValidate(options.contentDir, options.strokeDataDir);
   const resolved = await resolveAudio(sources, options);
   const audioFiles = new Map<string, string>();
 
@@ -95,6 +97,9 @@ export async function buildContent(options: BuildOptions): Promise<BuildResult> 
     await writeFile(path.join(options.outDir, STROKE_LICENCE_REF), await readStrokeLicence());
   }
   await writeFile(path.join(options.outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  // Published as its own file (never inside a lesson or the manifest) so a running old version can read a newer
+  // version's notes; always written, empty when the repo has no log, so there is always a file to precache.
+  await writeFile(path.join(options.outDir, RELEASES_FILE), JSON.stringify(releases, null, 2));
 
   // The Kai font is for Chinese items only: a build with none (math lessons alone) has no font to cut.
   const items = sources.flatMap((s) => listEntries(s.lists).flatMap(([, list]) => list));
@@ -143,11 +148,14 @@ export class ContentBuildError extends Error {
   }
 }
 
-/** Validate every lesson file (and that each stroke order character has stroke data); throws ContentBuildError (naming file, item and rule) on any error. */
+/**
+ * Validate every lesson file (and that each stroke order character has stroke data) and the release log
+ * (`<contentDir>/releases.json`, optional); throws ContentBuildError (naming file, item and rule) on any error.
+ */
 export async function loadAndValidate(
   contentDir: string,
   strokeDataDir?: string,
-): Promise<{ sources: SourceLesson[]; warnings: string[]; strokes: Map<string, StrokeFile> }> {
+): Promise<{ sources: SourceLesson[]; warnings: string[]; strokes: Map<string, StrokeFile>; releases: Release[] }> {
   const entries = (await readdir(contentDir, { recursive: true })).filter((e) => e.endsWith('.yaml')).sort();
   const errors: Issue[] = [];
   const warnings: Issue[] = [];
@@ -162,8 +170,19 @@ export async function loadAndValidate(
   errors.push(...validateAcrossFiles(parsed));
   const { files: strokes, issues: strokeIssues } = await resolveStrokes(parsed, strokeDataDir);
   errors.push(...strokeIssues);
+  const log = await readReleaseLog(contentDir);
+  errors.push(...log.errors);
   if (errors.length > 0) throw new ContentBuildError(errors.map(formatIssue));
-  return { sources: parsed.map((p) => p.lesson), warnings: warnings.map(formatIssue), strokes };
+  return { sources: parsed.map((p) => p.lesson), warnings: warnings.map(formatIssue), strokes, releases: log.releases };
+}
+
+async function readReleaseLog(contentDir: string): Promise<ReturnType<typeof validateReleases>> {
+  try {
+    return validateReleases(await readFile(path.join(contentDir, RELEASES_FILE), 'utf8'));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { releases: [], errors: [] };
+    throw error;
+  }
 }
 
 function hash(text: string): string {

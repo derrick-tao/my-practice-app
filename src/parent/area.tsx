@@ -3,7 +3,26 @@ import { HOME_HREF, parentHref } from '../router.ts';
 import { ParentGate } from './gate.tsx';
 import { unlockParentArea, useParentAreaUnlocked } from './gate-state.ts';
 import { AddToHomeScreenTip } from '../pwa/install-tip.tsx';
-import { PARENT_SECTIONS } from './sections.ts';
+import { UpdateDot } from '../pwa/update-dot.tsx';
+import { PARENT_SECTIONS, type ParentSection } from './sections.ts';
+
+/** A section's entry in the menu; a section that has something waiting (What's new: an update) carries the dot. */
+function SectionEntry({ section }: { section: ParentSection }) {
+  const attention = section.useAttention?.() ?? false;
+  return (
+    <li>
+      <a
+        class="parent__entry"
+        href={parentHref(section.id)}
+        aria-label={attention ? `${section.title}, update waiting` : undefined}
+      >
+        <span aria-hidden="true">{section.icon} </span>
+        {section.title}
+        {attention && <UpdateDot />}
+      </a>
+    </li>
+  );
+}
 
 export function ParentArea({ path }: { path: string[] }) {
   const unlocked = useParentAreaUnlocked();
@@ -43,12 +62,7 @@ export function ParentArea({ path }: { path: string[] }) {
           <AddToHomeScreenTip />
           <ul class="parent__entries">
             {PARENT_SECTIONS.map((s) => (
-              <li key={s.id}>
-                <a class="parent__entry" href={parentHref(s.id)}>
-                  <span aria-hidden="true">{s.icon} </span>
-                  {s.title}
-                </a>
-              </li>
+              <SectionEntry key={s.id} section={s} />
             ))}
           </ul>
         </>

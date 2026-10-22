@@ -8,11 +8,12 @@
 //     title: 'Settings',       // the entry's label in the parent area (and the section's heading)
 //     icon: '⚙️',
 //     order: 30,               // position among the entries (see below)
+//     useAttention,            // optional hook: true puts the update dot on the entry (What's new only so far)
 //     Component: SettingsSection,
 //   };
 //
 // Suggested `order` values (the spec's order): Profiles 10, Assign lessons 20, Settings 30, Progress 40,
-// Lesson preview 50, Backup 60, Danger zone 70.
+// Lesson preview 50, Backup 60, What's new 65, Danger zone 70.
 //
 // A section reads and changes the app record with `useAppRecord()` (src/app-context.tsx). The gate is
 // already passed and the idle timer is managed by the parent area; a section does nothing about locking.
@@ -25,6 +26,8 @@ export interface ParentSection {
   title: string;
   icon: string;
   order: number;
+  /** Optional hook, called once per render of the menu entry: true puts the update dot on it. */
+  useAttention?: () => boolean;
   Component: ComponentType<{ path: string[] }>;
 }
 

@@ -2,7 +2,7 @@
 //
 // The list is derived from what the build actually produced, never from a hand-kept glob:
 //   - the app shell: every file in the output folder except content/ and the worker itself
-//   - the content: manifest.json, the font subset, every lesson file, and every audio and stroke file those lessons
+//   - the content: manifest.json, the release log, the font subset, every lesson file, and every audio and stroke file those lessons
 //     reference, plus the stroke data licence published with them
 // A lesson that references audio or stroke data missing from the output fails the build instead of shipping a worker
 // that could never finish installing.
@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 import { listEntries, type LessonData } from '../src/content/types.ts';
 import { FONT_REF } from './font.ts';
+import { RELEASES_FILE } from './releases.ts';
 import { STROKE_LICENCE_REF } from './strokes.ts';
 
 const PLACEHOLDER = "/*PRECACHE*/ { buildId: 'dev', urls: [] }";
@@ -41,6 +42,7 @@ export async function collectPrecache(outDir: string): Promise<Precache> {
 
   const contentDir = path.join(outDir, 'content');
   urls.add('content/manifest.json');
+  urls.add(`content/${RELEASES_FILE}`);
   // The font exists only when some lesson has Chinese items.
   if (await exists(path.join(contentDir, FONT_REF))) urls.add(`content/${FONT_REF}`);
   const lessonFiles = (await readdir(path.join(contentDir, 'lessons'))).filter((f) => f.endsWith('.json')).sort();
