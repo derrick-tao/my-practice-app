@@ -1,4 +1,6 @@
 // Validation of the release log (content/releases.json). Every problem names the file, the release and the rule.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { MAX_RELEASE_BULLETS, type Release } from '../src/content/types.ts';
 import type { Issue } from './validate.ts';
 
@@ -100,6 +102,19 @@ export function validateReleases(source: string): ReleasesResult {
     }
   }
   return { releases, errors };
+}
+
+/**
+ * The id of the newest release in a built content folder's `releases.json` (the build embeds it in the app so the
+ * running build knows which release it is), or '' when there is no log or it is empty.
+ */
+export function newestReleaseId(contentOutDir: string): string {
+  try {
+    const log = JSON.parse(readFileSync(path.join(contentOutDir, RELEASES_FILE), 'utf8')) as Array<{ id?: unknown }>;
+    return typeof log[0]?.id === 'string' ? log[0].id : '';
+  } catch {
+    return '';
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
