@@ -2,9 +2,9 @@
 // "Update now" in the parent area's What's new section.
 // These specs opt in to the service worker (the rest of Seam 1 runs with it blocked, see playwright.config.ts)
 // and run against pwa-site.ts, a server that can publish a new version while the app is open.
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
-import { openParentArea, openParentSection, passGate, setUpLearner } from './parent-driver.ts';
+import { addLearner, openParentArea, openParentSection, openProfiles, passGate, setUpLearner } from './parent-driver.ts';
 import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import { lessonPath } from './harness.ts';
 import { expect, NEW_TITLE, NEWER_RELEASE_ID, test, type PwaSite } from './pwa-site.ts';
@@ -373,6 +373,57 @@ test.describe('updates', () => {
     await openWhatsNew(page);
     await expect(updateCard(page)).toContainText("You're up to date");
     await expect(updateNow(page)).toHaveCount(0);
+  });
+});
+
+test.describe('update dot', () => {
+  const gear = (page: Page) => page.getByRole('link', { name: /^Parent area/ });
+  const dot = (locator: Locator) => locator.getByTestId('update-dot');
+
+  test('the Home gear and the What\'s new menu entry carry a dot while an update waits, for every learner, until it is applied', async ({
+    page,
+    site,
+  }) => {
+    await startAtHome(page);
+    await openProfiles(page);
+    await addLearner(page, { name: 'Leo', avatar: '🦊', lessons: ['fixture-three'] });
+    await page.getByRole('link', { name: 'Home' }).click();
+
+    // Nothing is waiting: no dot, and the gear keeps its plain name.
+    await expect(gear(page)).toHaveAccessibleName('Parent area');
+    await expect(dot(gear(page))).toHaveCount(0);
+
+    await publishAndWaitForUpdate(page, site);
+
+    // The gear shows it, and says so to assistive tech; switching learner changes nothing.
+    await expect(dot(gear(page))).toBeVisible();
+    await expect(gear(page)).toHaveAccessibleName('Parent area, update waiting');
+    const learners = page.getByRole('group', { name: 'Who is practicing?' });
+    await learners.getByRole('button', { name: 'Leo' }).click();
+    await expect(page.getByRole('heading', { name: /Hi .* Leo!/ })).toBeVisible();
+    await expect(dot(gear(page))).toBeVisible();
+    await learners.getByRole('button', { name: 'Mia' }).click();
+    await expect(page.getByRole('heading', { name: /Hi .* Mia!/ })).toBeVisible();
+    await expect(dot(gear(page))).toBeVisible();
+
+    // Inside the parent area the What's new entry carries it, and no other entry does.
+    await openParentArea(page);
+    const entry = page.getByRole('link', { name: /^.?\s?What's new/ });
+    await expect(dot(entry)).toBeVisible();
+    await expect(entry).toHaveAccessibleName("What's new, update waiting");
+    await expect(page.getByTestId('update-dot')).toHaveCount(1);
+
+    // Applying the update reloads onto the new build: the dot is gone from both.
+    await openParentSection(page, "What's new");
+    await page.evaluate(() => void ((window as unknown as { __stillHere: boolean }).__stillHere = true));
+    await updateNow(page).click();
+    await expect.poll(() => stillHere(page)).toBeUndefined();
+    await page.getByRole('link', { name: 'Home' }).click();
+    await expect(gear(page)).toHaveAccessibleName('Parent area');
+    await expect(dot(gear(page))).toHaveCount(0);
+    await openParentArea(page);
+    await expect(page.getByTestId('update-dot')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /What's new/ })).toHaveAccessibleName("What's new");
   });
 });
 
