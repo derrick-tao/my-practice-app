@@ -1,5 +1,15 @@
 [
   {
+    "id": "whats-new-in-parent-area",
+    "date": "2026-10-21",
+    "title": "Updates moved to What's new",
+    "bullets": [
+      "The update prompt no longer appears on your child's Home screen. Updates are now applied from What's new in the parent area.",
+      "What's new lists every release, newest first, so you can see what an update brings before you install it.",
+      "A small dot on the gear and on the What's new menu entry shows that an update is waiting."
+    ]
+  },
+  {
     "id": "tricks-help-and-practice-fixes",
     "date": "2026-10-21",
     "title": "Clearer Tricks and smoother practice",
@@ -13,7 +23,7 @@
   {
     "id": "math-blank-and-problem-count",
     "date": "2026-10-20",
-    "title": "One box for the blank, and a choice of 10, 15 or 20 problems",
+    "title": "A steady blank, and problem counts",
     "bullets": [
       "Math problems show the missing number as one box that stays the same size, instead of a question mark.",
       "🧠 Tricks walks through each problem with a title and a hint for every step.",
@@ -52,9 +62,9 @@
   {
     "id": "smoother-practice",
     "date": "2026-10-20",
-    "title": "Practice stays quick after many sessions",
+    "title": "Practice stays quick",
     "bullets": [
-      "Fixed a slowdown that built up after several Draw sessions in one visit, where the next character started drawing before its sound or played over the chime."
+      "Fixed a slowdown that built up after several 🖌️ Draw sessions in one visit, where the next character started drawing before its sound or played over the chime."
     ]
   },
   {
@@ -73,7 +83,7 @@
     "bullets": [
       "🖌️ Draw shows a character being drawn one stroke at a time, so your child can copy each stroke on paper.",
       "🗣️ Say shows a phrase to say aloud, then plays it so your child can check themselves.",
-      "A lesson can now offer several kinds of practice, and a new Pre-K lesson (2026-10-19) uses Draw and Say."
+      "A lesson can now offer several kinds of practice, and a new Pre-K lesson (2026-10-19) uses 🖌️ Draw and 🗣️ Say."
     ]
   }
 ]
