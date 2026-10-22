@@ -25,9 +25,9 @@ async function openWhatsNew(page: Page): Promise<void> {
 /** One release in the list, found by its title. */
 const release = (page: Page, title: string): Locator => page.getByRole('listitem').filter({ hasText: title });
 
-/** The titles in the list, top to bottom. */
-const titles = (page: Page): Promise<string[]> =>
-  page.getByTestId('release-title').allTextContents();
+/** The list holds exactly these releases, top to bottom. */
+const expectTitles = (page: Page, expected: string[]): Promise<void> =>
+  expect(page.getByTestId('release-title')).toHaveText(expected);
 
 test.describe("What's new: the list", () => {
   test("appears in the parent area menu between Backup and Danger zone, with Danger zone last", async ({ page }) => {
@@ -42,7 +42,7 @@ test.describe("What's new: the list", () => {
     await setUpLearner(page);
     await openWhatsNew(page);
 
-    expect(await titles(page)).toEqual([SECOND.title, FIRST.title]);
+    await expectTitles(page, [SECOND.title, FIRST.title]);
     await expect(release(page, SECOND.title)).toContainText(SECOND.date);
     await expect(release(page, FIRST.title)).toContainText(FIRST.date);
 
@@ -77,7 +77,7 @@ test.describe("What's new: the list", () => {
     await openWhatsNew(page);
 
     await expect(page.getByText("Couldn't load the latest notes")).toBeVisible();
-    expect(await titles(page)).toEqual([SECOND.title]);
+    await expectTitles(page, [SECOND.title]);
     await expect(release(page, SECOND.title)).toContainText('Installed');
     await expect(page.getByText(SECOND.bullet)).toBeVisible();
     await expect(page.getByText('Some other release')).toHaveCount(0);
@@ -89,7 +89,7 @@ test.describe("What's new: the list", () => {
     await openWhatsNew(page);
 
     await expect(page.getByText("Couldn't load the latest notes")).toBeVisible();
-    expect(await titles(page)).toEqual([SECOND.title]);
+    await expectTitles(page, [SECOND.title]);
     await expect(release(page, SECOND.title)).toContainText('Installed');
     await expect(page.getByText('Update available')).toHaveCount(0);
   });
@@ -111,7 +111,7 @@ pwaTest.describe("What's new: with a newer release published", () => {
     await page.reload();
     await openWhatsNew(page);
 
-    pwaExpect(await titles(page)).toEqual([NEWER.title, SECOND.title, FIRST.title]);
+    await expectTitles(page, [NEWER.title, SECOND.title, FIRST.title]);
     await pwaExpect(release(page, NEWER.title)).toContainText('Update available');
     await pwaExpect(release(page, NEWER.title)).toContainText(NEWER.date);
     await pwaExpect(release(page, SECOND.title)).toContainText('Installed');
@@ -132,7 +132,7 @@ pwaTest.describe("What's new: offline", () => {
     await page.reload();
     await openWhatsNew(page);
 
-    pwaExpect(await titles(page)).toEqual([SECOND.title, FIRST.title]);
+    await expectTitles(page, [SECOND.title, FIRST.title]);
     await pwaExpect(release(page, SECOND.title)).toContainText('Installed');
     await pwaExpect(page.getByText("Couldn't load the latest notes")).toHaveCount(0);
   });
@@ -147,7 +147,7 @@ pwaTest.describe("What's new: offline", () => {
     await openWhatsNew(page);
 
     await pwaExpect(page.getByText("Couldn't load the latest notes")).toBeVisible();
-    pwaExpect(await titles(page)).toEqual([SECOND.title]);
+    await expectTitles(page, [SECOND.title]);
     await pwaExpect(release(page, SECOND.title)).toContainText('Installed');
     await pwaExpect(page.getByText(SECOND.bullet)).toBeVisible();
   });

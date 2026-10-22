@@ -105,15 +105,16 @@ export function validateReleases(source: string): ReleasesResult {
 }
 
 /**
- * The id of the newest release in a built content folder's `releases.json` (the build embeds it in the app so the
- * running build knows which release it is), or '' when there is no log or it is empty.
+ * The newest release in a built content folder's `releases.json` (the build embeds it in the app so the running
+ * build knows which release it is, and can show it even when the log can't be loaded), or undefined when there
+ * is no log or it is empty.
  */
-export function newestReleaseId(contentOutDir: string): string {
+export function newestRelease(contentOutDir: string): Release | undefined {
   try {
-    const log = JSON.parse(readFileSync(path.join(contentOutDir, RELEASES_FILE), 'utf8')) as Array<{ id?: unknown }>;
-    return typeof log[0]?.id === 'string' ? log[0].id : '';
+    const log = JSON.parse(readFileSync(path.join(contentOutDir, RELEASES_FILE), 'utf8')) as Release[];
+    return typeof log[0]?.id === 'string' ? log[0] : undefined;
   } catch {
-    return '';
+    return undefined;
   }
 }
 
