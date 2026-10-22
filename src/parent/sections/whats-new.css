@@ -1,4 +1,33 @@
 /* What's new section (src/parent/sections/whats-new.tsx). */
+.whats-new__card {
+  margin: 0 0 16px;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  font-size: 1.2rem;
+}
+
+.whats-new__card p {
+  margin: 0 0 8px;
+}
+
+.whats-new__headline {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.whats-new__update {
+  min-height: 56px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
 .whats-new__problem {
   margin: 0 0 16px;
   font-size: 1.2rem;
