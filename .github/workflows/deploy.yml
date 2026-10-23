@@ -84,9 +84,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # Playwright's image ships WebKit and its system libraries, so nothing is fetched from the Ubuntu
-    # mirror (which sometimes crawls). Keep the tag in step with @playwright/test in package.json.
+    # mirror (which sometimes crawls). Keep matrix.playwright in step with @playwright/test.
     container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      image: mcr.microsoft.com/playwright:v${{ matrix.playwright }}-noble
       env:
         HOME: /root
     timeout-minutes: 25
@@ -94,6 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
+        playwright: ['1.64.1'] # image tag; must equal @playwright/test in package-lock
     steps:
       - uses: actions/checkout@v5
         with:
@@ -110,7 +111,7 @@ jobs:
       # The image's browser version is fixed by its tag, so it must match the installed Playwright.
       - name: Check the image matches Playwright
         run: |
-          want="${{ job.container.image }}"; want="${want#*:v}"; want="${want%%-*}"
+          want='${{ matrix.playwright }}'
           have="$(npx playwright --version | awk '{print $2}')"
           test "$want" = "$have" || { echo "Image is Playwright $want but package-lock has $have: bump the image tag in both workflows"; exit 1; }
 
