@@ -111,7 +111,7 @@ async function undersizedControls(page: Page): Promise<string[]> {
 
 /**
  * Walk every kid-facing screen in turn (the listening screen, the revealed ✅/❌, the Undo chip, the break
- * prompt, a round summary, completion, home with Keep going, home with two Keep going cards) and
+ * prompt, a round summary, completion, home with Keep going, home with two lessons in progress) and
  * collect what `inspect` reports for each. An empty lesson per screen means nothing is wrong there.
  */
 async function inspectKidScreens(
@@ -156,13 +156,13 @@ async function inspectKidScreens(
   await expect(three.keepGoing).toBeVisible();
   await record('home with Keep going');
 
-  // Another lesson while one is active: nothing is stopped, and home shows a Keep going card for each.
+  // Another lesson while one is active: nothing is stopped, and home shows Keep going on each lesson's card.
   const five = new PracticeScreen(page, audio, await loadLesson('fixture-five'));
   await five.lessonCard().click();
   await five.markNext(true);
   await five.home.click();
-  await expect(page.getByRole('group', { name: /^Keep going/ })).toHaveCount(2);
-  await record('home with two Keep going cards');
+  await expect(page.getByRole('link', { name: /Keep going/ })).toHaveCount(2);
+  await record('home with two lessons in progress');
   return screens;
 }
 

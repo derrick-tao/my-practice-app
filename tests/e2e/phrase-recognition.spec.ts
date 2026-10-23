@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import type { ItemData, LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';
 import { openSettings, setUpLearner } from './parent-driver.ts';
-import { allowAudioPlayback, PracticeScreen, rejectAudioPlayback } from './practice-driver.ts';
+import { allowAudioPlayback, lessonGroup, PracticeScreen, rejectAudioPlayback } from './practice-driver.ts';
 
 interface Fixtures {
   page: Page;
@@ -279,7 +279,7 @@ test.describe('phrase recognition: a phrase is its own item', () => {
     await phrases.home.click();
 
     // Dictation still has its own miss to practice again.
-    await page.getByRole('group', { name: 'Keep going: Fixture Five, Write' }).getByRole('link').click();
+    await lessonGroup(page, 'Fixture Five').getByRole('link', { name: /^Write · Keep going/ }).click();
     await expect(dictation.summary).toContainText("Let's practice 1 more!");
   });
 

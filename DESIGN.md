@@ -111,7 +111,7 @@ Radius 14px for cards, buttons and bands; 10px for rows and inputs in the parent
 
 - **Cover band**: green, the learner's name on a label, and the gear as a translucent square with a white outline.
 - **Lesson card**: a worksheet: bold title on a ruled underline, a small subject tag, one blue button per practice type.
-- **Keep going**: blue card with a ruler progress bar (a tick every 10%) filled in white.
+- **Keep going**: a lesson card's button for a practice type in progress, with a ruler progress bar (a tick every 10%) filled in white and a 🔄 button beside it.
 - **田字格 stage**: a square cell with a dashed cross (`--tian` token). One cell per character in Write; the drawing canvas in Draw.
 - **优 seal**: red double-ring stamp on completion; its press animation runs only when reduced motion is not requested.
 - **Parent rows**: ruled rows with a › at the end, below a slim green bar.

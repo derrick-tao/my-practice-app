@@ -34,7 +34,7 @@ export async function rejectAudioPlayback(page: Page): Promise<void> {
 export const allowAudioPlayback = (page: Page): Promise<void> =>
   page.evaluate(() => void (window.__rejectAudio = false));
 
-/** A lesson's card on the home screen (not the Keep going cards, which also name it). */
+/** A lesson's card on the home screen. */
 export const lessonGroup = (page: Page, title: string): Locator => page.getByRole('group', { name: title, exact: true });
 
 /** The button label a child sees for each practice type (see the practice-type registry). */
@@ -70,7 +70,7 @@ export class PracticeScreen {
   readonly breakPrompt: Locator;
   readonly keepOn: Locator;
   readonly takeBreak: Locator;
-  /** The home screen's resume card. */
+  /** The home screen's Keep going button (the lesson card's button for a practice type in progress). */
   readonly keepGoing: Locator;
   /** Stroke order: the drawing (it exposes `data-strokes-drawn` and `data-strokes-total` for tests). */
   readonly drawing: Locator;
@@ -109,7 +109,7 @@ export class PracticeScreen {
     this.next = page.getByRole('button', { name: 'Next', exact: true });
   }
 
-  /** The lesson's button for this practice type on its home card (not the Keep going card, which also names the lesson). */
+  /** The lesson's button for this practice type on its home card (a practice type in progress says Keep going there, after the same label). */
   lessonCard(): Locator {
     return lessonGroup(this.page, this.lesson.title).getByRole('link', { name: new RegExp(`${BUTTON_LABEL[this.practiceType]} ·`) });
   }

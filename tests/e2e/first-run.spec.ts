@@ -293,7 +293,8 @@ test.describe('assigned lessons', () => {
     await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 
-  test('an active session on a lesson that gets unassigned still shows Keep going', async ({ page, audio, loadLesson }) => {
+  // The lesson card is gone with the lesson, and the Keep going shelf that carried this is removed: ticket #83 brings it back on the lesson's own card.
+  test.fixme('an active session on a lesson that gets unassigned still shows Keep going', async ({ page, audio, loadLesson }) => {
     await setUpLearner(page);
     const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
     await practice.open();

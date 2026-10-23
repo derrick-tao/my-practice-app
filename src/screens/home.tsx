@@ -16,36 +16,12 @@ import { useLoad } from '../use-async.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-/** A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count. */
-function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
-  const problemCount = useProblemCount();
-  return (
-    <section class="lesson-card" role="group" aria-label={lesson.title}>
-      <span class="lesson-card__title">{lesson.title}</span>
-      <span class="lesson-card__subject" data-testid="subject-tag">
-        {subjectLabel(subject)}
-      </span>
-      {lesson.testDates && (
-        <span class="lesson-card__meta">
-          <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
-        </span>
-      )}
-      {lesson.practiceTypes.map(({ id, itemCount }) => {
-        const type = PRACTICE_TYPES[id];
-        return (
-          <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
-            <span aria-hidden="true">{type.icon} </span>
-            {type.label} · {countLabel(type, itemsIn(id, itemCount, problemCount))}
-            <span class="sr-only"> for {lesson.title}</span>
-          </a>
-        );
-      })}
-    </section>
-  );
-}
-
-/** Resume one session in progress exactly where it was left, or (after a confirmation) start only that one over. */
-function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSummary }) {
+/**
+ * A practice type with a session in progress: its button says Keep going, with the round and stars in place of
+ * the count, and opens the same route as ever, so the learner lands exactly where they stopped. The 🔄 beside it,
+ * after a confirmation, stops only that session and opens the list afresh.
+ */
+function KeepGoingButton({ session, lesson }: { session: Session; lesson: LessonSummary }) {
   const round = currentRound(session);
   const href = lessonHref(session.subject, session.practiceType, session.lessonId);
   const type = PRACTICE_TYPES[session.practiceType];
@@ -53,7 +29,7 @@ function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSu
   const { busy: saving, failed, run } = useSave();
 
   // Yes: this session is stopped (kept in history) and saved, and no other; opening the list then starts a
-  // fresh, freshly ordered one, exactly like tapping the lesson's button with nothing in progress.
+  // fresh, freshly ordered one, exactly like tapping the button with nothing in progress.
   const startOver = (): Promise<void> =>
     run(
       () => stopSession(getStorage(), session),
@@ -62,24 +38,21 @@ function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSu
 
   return (
     <>
-      <div class="keep-going-card" role="group" aria-label={`Keep going: ${lesson.title}, ${type.label}`}>
-        <a class="keep-going" href={href}>
-          <span class="keep-going__label">
-            <span aria-hidden="true">▶️ </span>Keep going
-          </span>
-          <span class="keep-going__title">{lesson.title}</span>
-          <span class="keep-going__type">
+      <div class="lesson-card__row">
+        <a class="lesson-card__button lesson-card__button--keep-going" href={href}>
+          <span>
             <span aria-hidden="true">{type.icon} </span>
-            {type.label}
+            {type.label} · <span aria-hidden="true">▶️ </span>Keep going
           </span>
-          <span class="keep-going__progress">
+          <span class="lesson-card__progress">
             <RoundBadge index={round.index} />
             <StarBar done={round.position} total={round.itemIds.length} />
           </span>
+          <span class="sr-only"> for {lesson.title}</span>
         </a>
-        <button type="button" class="btn keep-going-card__restart" onClick={() => setAsking(true)}>
+        <button type="button" class="btn lesson-card__restart" onClick={() => setAsking(true)}>
           <span aria-hidden="true">🔄</span>
-          <span class="sr-only">Start over</span>
+          <span class="sr-only">Start over {type.label}</span>
         </button>
       </div>
       {asking && !failed && (
@@ -92,6 +65,46 @@ function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSu
       )}
       {failed && <SaveFailed onRetry={() => void startOver()} />}
     </>
+  );
+}
+
+/**
+ * A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count,
+ * or Keep going where a session is in progress (`inProgress`: this lesson's). A session of a type the lesson no
+ * longer offers keeps its button too, so opening it can settle it.
+ */
+function LessonCard({ subject, lesson, inProgress }: { subject: string; lesson: LessonSummary; inProgress: Session[] }) {
+  const problemCount = useProblemCount();
+  const offered = new Set<string>(lesson.practiceTypes.map(({ id }) => id));
+  return (
+    <section class="lesson-card" role="group" aria-label={lesson.title}>
+      <span class="lesson-card__title">{lesson.title}</span>
+      <span class="lesson-card__subject" data-testid="subject-tag">
+        {subjectLabel(subject)}
+      </span>
+      {lesson.testDates && (
+        <span class="lesson-card__meta">
+          <span aria-hidden="true">📅 </span>Test: {lesson.testDates}
+        </span>
+      )}
+      {lesson.practiceTypes.map(({ id, itemCount }) => {
+        const session = inProgress.find((s) => s.practiceType === id);
+        if (session) return <KeepGoingButton key={id} session={session} lesson={lesson} />;
+        const type = PRACTICE_TYPES[id];
+        return (
+          <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
+            <span aria-hidden="true">{type.icon} </span>
+            {type.label} · {countLabel(type, itemsIn(id, itemCount, problemCount))}
+            <span class="sr-only"> for {lesson.title}</span>
+          </a>
+        );
+      })}
+      {inProgress
+        .filter((session) => !offered.has(session.practiceType))
+        .map((session) => (
+          <KeepGoingButton key={session.id} session={session} lesson={lesson} />
+        ))}
+    </section>
   );
 }
 
@@ -139,11 +152,6 @@ export function HomeScreen() {
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedLessonIds);
   const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
-  // Practice in progress stays reachable even when its lesson has since been unassigned.
-  const resumable = sessions.flatMap((session) => {
-    const lesson = all.find((p) => p.lesson.id === session.lessonId)?.lesson;
-    return lesson ? [{ session, lesson }] : [];
-  });
   return (
     <main class="screen">
       <header class="home__top">
@@ -158,16 +166,18 @@ export function HomeScreen() {
       <ProfileSwitcher />
       {published.status === 'loading' && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
-      {resumable.map(({ session, lesson }) => (
-        <KeepGoingCard key={session.id} session={session} lesson={lesson} />
-      ))}
-      {published.status === 'ready' && shown.length === 0 && resumable.length === 0 && (
+      {published.status === 'ready' && shown.length === 0 && (
         <p class="notice">No lessons yet. Ask a grown-up to pick some!</p>
       )}
       {shown.length > 0 && (
         <section class="cards">
           {shown.map(({ subject, lesson }) => (
-            <LessonCard key={lesson.id} subject={subject} lesson={lesson} />
+            <LessonCard
+              key={lesson.id}
+              subject={subject}
+              lesson={lesson}
+              inProgress={sessions.filter((session) => session.lessonId === lesson.id)}
+            />
           ))}
         </section>
       )}

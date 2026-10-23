@@ -23,7 +23,7 @@ It practices the child's own school word and phrase lists, not a generic curricu
 ## Operating Context
 
 - Hosted on GitHub Pages. Lessons are YAML files in `content/<subject>/`, committed to `main`; the deploy workflow validates, builds and publishes them.
-- Practice type screens: Home with a Keep going card per session in progress, a lesson list, and one screen per practice type. Math uses an on-screen number pad and a True/False pad.
+- Practice type screens: Home with a lesson card per lesson (Keep going on each practice type in progress), a lesson list, and one screen per practice type. Math uses an on-screen number pad and a True/False pad.
 - Updates are applied only from What's new in the parent area, which lists releases newest first. The learner never sees an update prompt.
 - Backup and restore of learner data are by exported file. Names and backup files must never be committed.
 
