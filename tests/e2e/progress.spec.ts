@@ -2,10 +2,10 @@
 // and the audio requests the app makes. Scripted attempts are put on the device through backup import
 // (backup-driver.ts); nothing here reads or writes storage directly.
 import type { Page } from '@playwright/test';
-import { restoreSessions, type SessionJson } from './backup-driver.ts';
+import { editSavedData, restoreSessions, type SessionJson } from './backup-driver.ts';
 import { expect, test } from './harness.ts';
-import { addOtherLearner } from './saved-sessions.ts';
-import { openParentArea, openParentSection, setUpLearner } from './parent-driver.ts';
+import { addOtherLearner, OTHER_LEARNER, savedSessions } from './saved-sessions.ts';
+import { addLearner, openParentArea, openParentSection, openProfiles, setUpLearner } from './parent-driver.ts';
 
 type Mark = 'correct' | 'wrong';
 type PracticeType = 'dictation' | 'stroke-order' | 'phrase-recognition';
@@ -596,5 +596,102 @@ test.describe('parent progress page', () => {
     await expect(write(page).getByTestId('trend')).toHaveText(/^\s*0\s*$/);
     await expect(write(page).getByTestId('attempt')).toContainText('First try: 0 of 1');
     await expect(draw(page).getByTestId('attempt')).toHaveCount(1);
+  });
+});
+
+// A grown-up can end all of a lesson's unfinished practice (kept in history as stopped) from its Progress page.
+test.describe('ending unfinished practice', () => {
+  const THREE = 'fixture-three';
+  const ALL = ['猫', '狗', '鸟', '年', '只'];
+  const stopAll = (page: Page) => page.getByRole('button', { name: 'Stop all unfinished practice' });
+  const statuses = async (page: Page): Promise<Record<string, string>> =>
+    Object.fromEntries((await savedSessions(page)).map((s) => [s.id, s.status]));
+
+  /** Mia is half way through two practice types of Fixture Five and one of Fixture Three; Leo through Fixture Five's Write. */
+  async function unfinishedPractice(page: Page): Promise<void> {
+    await setUpLearner(page);
+    await openProfiles(page);
+    await addLearner(page, { ...OTHER_LEARNER, lessons: [FIVE] });
+    await page.getByRole('link', { name: 'Home' }).click();
+    await editSavedData(page, (saved) => {
+      const mia = saved.app.activeProfileId!;
+      const leo = saved.app.profiles.find((p) => p.name === OTHER_LEARNER.name)!.id;
+      const of = (s: SessionJson, profileId: string): SessionJson => ({ ...s, profileId });
+      return {
+        ...saved,
+        sessions: [
+          of(attempt('w-open', FIVE, 'active', '2026-10-05T12:00:00.000Z', [round(1, ALL, [ok('猫')], '2026-10-05T12:00:00.000Z')]), mia),
+          of(
+            attempt('p-open', FIVE, 'active', '2026-10-06T12:00:00.000Z', [round(1, ['书包', '猫'], [], '2026-10-06T12:00:00.000Z')], 'phrase-recognition'),
+            mia,
+          ),
+          of(attempt('w-done', FIVE, 'completed', '2026-10-01T12:00:00.000Z', [round(1, ALL, [ok('猫')], '2026-10-01T12:00:00.000Z', true)]), mia),
+          of(attempt('three-open', THREE, 'active', '2026-10-07T12:00:00.000Z', [round(1, ['找', '点', '分'], [], '2026-10-07T12:00:00.000Z')]), mia),
+          of(attempt('leo-open', FIVE, 'active', '2026-10-08T12:00:00.000Z', [round(1, ALL, [], '2026-10-08T12:00:00.000Z')]), leo),
+        ],
+      };
+    });
+    await openProgress(page, /Fixture Five/);
+  }
+
+  test('Yes stops every unfinished practice of that lesson for the learner, keeps it in history, and touches nothing else', async ({
+    page,
+  }) => {
+    await unfinishedPractice(page);
+    await expect(write(page).getByTestId('attempt').filter({ hasText: 'In progress' })).toHaveCount(1);
+
+    await stopAll(page).click();
+    await expect(page.getByText('Stop all unfinished practice for this lesson?')).toBeVisible();
+    await page.getByRole('button', { name: 'Yes' }).click();
+
+    await expect(stopAll(page)).toHaveCount(0);
+    await expect(write(page).getByTestId('attempt').filter({ hasText: 'In progress' })).toHaveCount(0);
+    await expect(write(page).getByTestId('attempt').filter({ hasText: 'Stopped' })).toHaveCount(1);
+    await expect(say(page).getByTestId('attempt')).toContainText('Stopped');
+    expect(await statuses(page)).toEqual({
+      'w-open': 'stopped',
+      'p-open': 'stopped',
+      'w-done': 'completed',
+      'three-open': 'active',
+      'leo-open': 'active',
+    });
+  });
+
+  test('No leaves the practice as it was', async ({ page }) => {
+    await unfinishedPractice(page);
+
+    await stopAll(page).click();
+    await page.getByRole('button', { name: 'No' }).click();
+
+    await expect(page.getByText('Stop all unfinished practice for this lesson?')).toHaveCount(0);
+    await expect(stopAll(page)).toBeVisible();
+    const saved = await statuses(page);
+    expect([saved['w-open'], saved['p-open']]).toEqual(['active', 'active']);
+  });
+
+  test('it is only offered for a lesson with unfinished practice', async ({ page }) => {
+    await setUpLearner(page);
+    await restoreSessions(page, SCRIPTED);
+    await openProgress(page, /Fixture Five/);
+
+    await expect(write(page).getByTestId('attempt')).toHaveCount(3);
+    await expect(stopAll(page)).toHaveCount(0);
+  });
+
+  test('a failed save says so and ends nothing; trying again ends it', async ({ page }) => {
+    await unfinishedPractice(page);
+
+    await stopAll(page).click();
+    await page.evaluate(() => void (window.__failStorageWrites = true));
+    await page.getByRole('button', { name: 'Yes' }).click();
+    await expect(page.getByRole('alert')).toContainText("Couldn't save");
+    const failed = await statuses(page);
+    expect([failed['w-open'], failed['p-open']]).toEqual(['active', 'active']);
+
+    await page.evaluate(() => void (window.__failStorageWrites = false));
+    await page.getByRole('button', { name: 'Yes' }).click();
+    await expect(stopAll(page)).toHaveCount(0);
+    const saved = await statuses(page);
+    expect([saved['w-open'], saved['p-open']]).toEqual(['stopped', 'stopped']);
   });
 });

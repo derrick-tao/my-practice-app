@@ -50,6 +50,11 @@ export async function stopSession(storage: StorageAdapter, session: Session): Pr
   await storage.putSession({ ...session, status: 'stopped' });
 }
 
+/** Stop every session in progress of one lesson for a profile (any practice type), keeping them all in history. Other lessons and profiles are untouched. */
+export async function stopLessonSessions(storage: StorageAdapter, profileId: string, lessonId: string): Promise<void> {
+  for (const session of await storage.listSessions(profileId, { lessonId, status: 'active' })) await stopSession(storage, session);
+}
+
 /**
  * Open a lesson's list for one practice type: continue its session in progress, or start a new one. Other
  * lists' sessions are never touched. Whatever is returned is saved first, so nothing is on screen that is
