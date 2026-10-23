@@ -62,7 +62,7 @@ The Chinese text of an item: the character to write in dictation or draw in stro
 ### Practice
 
 **Session**:
-One learner's run through one list, made of rounds (one without marks, in stroke order or a learning session, has just one). Also called an attempt in the parent area. A learner has at most one session in progress per lesson and practice type, all at once; opening a list continues its session or starts one, and never stops another. Home shows a Keep going card for each, most recently used first.
+One learner's run through one list, made of rounds (one without marks, in stroke order or a learning session, has just one). Also called an attempt in the parent area. A learner has at most one session in progress per lesson and practice type, all at once; opening a list continues its session or starts one, and never stops another. A session never expires: it stays until it is finished, started over, or ended by a grown-up. Home shows each lesson once; its card shows every practice type in progress as Keep going, with its round and stars. Lessons with practice in progress come first, most recently used first. A lesson no longer assigned still shows its practice in progress, and only that, until it is finished or ended. A grown-up can end all of a lesson's unfinished practice from Progress; it stays in history as stopped.
 
 **Learning session**:
 A phrase recognition session started while the learner's learning setting is on: one pass where each phrase is shown and heard and the learner moves on with Next. It has no marks and no score, and does not count toward attempts or the first-try trend. A session stays the kind it started as, even if the setting changes before it finishes.
