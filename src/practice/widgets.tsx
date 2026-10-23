@@ -1,4 +1,4 @@
-// Small pieces shared by the practice screen and the home screen's Keep going card.
+// Small pieces shared by the practice screen and the home screen's Keep going buttons.
 
 export function StarBar({ done, total }: { done: number; total: number }) {
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);

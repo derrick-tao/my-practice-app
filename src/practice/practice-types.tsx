@@ -18,7 +18,7 @@ import {
 
 export interface PracticeType {
   id: PracticeTypeId;
-  /** What the child sees on its button and Keep going card. */
+  /** What the child sees on its button and Keep going button. */
   label: string;
   icon: string;
   /** What its items are called. */
