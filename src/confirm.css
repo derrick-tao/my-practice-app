@@ -10,6 +10,14 @@
   background: var(--card);
 }
 
+/* Inside a lesson card: no box of its own (cards are never nested). */
+.confirm--flat {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .confirm__question {
   margin: 0;
   font-size: 1.6rem;
@@ -21,19 +29,13 @@
   opacity: 0.6;
 }
 
-/* The Keep going card with its 🔄 Start over button in the corner (a button can't live inside the card's link). */
-.keep-going-card {
-  position: relative;
+/* A practice type in progress: its Keep going button with the 🔄 Start over button beside it (a button can't live inside the link). */
+.lesson-card__row {
+  display: flex;
+  gap: 8px;
 }
 
-.keep-going-card .keep-going {
-  margin-bottom: 16px;
-}
-
-.keep-going-card__restart {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+.lesson-card__restart {
   min-width: 64px;
   min-height: 64px;
   padding: 0;

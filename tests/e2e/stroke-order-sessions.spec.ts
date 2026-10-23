@@ -7,7 +7,7 @@ import { chooseBackupFile, confirmImport, exportBackup, openBackupSection } from
 import { expect, test, type AudioProbe } from './harness.ts';
 import { publishLessonEdit } from './lesson-edits.ts';
 import { openSettings, setUpLearner } from './parent-driver.ts';
-import { PracticeScreen, seedRandom } from './practice-driver.ts';
+import { lessonGroup, PracticeScreen, seedRandom } from './practice-driver.ts';
 
 interface Fixtures {
   page: Page;
@@ -172,7 +172,7 @@ test.describe('stroke order: break prompt', () => {
 const CLOCK_START = new Date('2026-10-19T09:00:00.000Z');
 
 test.describe('stroke order: leaving and coming back', () => {
-  test('Home has a Keep going card for Draw; opening it returns to the same character, redrawn from its first stroke', async ({
+  test('Home shows Keep going on Draw; opening it returns to the same character, redrawn from its first stroke', async ({
     page,
     audio,
     loadLesson,
@@ -190,7 +190,7 @@ test.describe('stroke order: leaving and coming back', () => {
 
     await practice.home.click();
 
-    await expect(page.getByRole('group', { name: 'Keep going: Fixture Eleven Strokes, Draw' })).toBeVisible();
+    await expect(lessonGroup(page, 'Fixture Eleven Strokes').getByRole('link', { name: /^Draw · Keep going/ })).toBeVisible();
     // The resumed character auto-plays from its first stroke; freeze the clock just after that stroke begins.
     await practice.keepGoing.click();
     await expect(page).toHaveURL(/#\/chinese\/stroke-order\/fixture-eleven-strokes$/);

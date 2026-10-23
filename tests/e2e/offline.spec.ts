@@ -272,9 +272,9 @@ test.describe('updates', () => {
     // The app reloads onto the new build: the gate is shut again and the new content is on home.
     await expect.poll(() => stillHere(page)).toBeUndefined();
     await page.getByRole('link', { name: 'Home' }).click();
-    await expect(page.getByRole('link', { name: new RegExp(NEW_TITLE) }).filter({ hasNotText: 'Keep going' })).toBeVisible();
+    await expect(lessonGroup(page, NEW_TITLE)).toBeVisible();
     // The practice that was in progress is still there to keep going.
-    await expect(page.getByRole('group', { name: new RegExp(`Keep going: ${NEW_TITLE}`) })).toBeVisible();
+    await expect(lessonGroup(page, NEW_TITLE).getByRole('link', { name: /Keep going/ })).toBeVisible();
     await expect(prompt).toHaveCount(0);
 
     // The new content now comes from the new cache, so it also works offline.

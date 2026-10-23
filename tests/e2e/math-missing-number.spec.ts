@@ -335,7 +335,7 @@ test.describe('reloading resumes the exact state', () => {
     expect(rest[0]).toEqual(problem);
   });
 
-  test('in a retry round, and the Keep going card names the practice type', async ({ page, audio }) => {
+  test('in a retry round, and the Keep going button names the practice type', async ({ page, audio }) => {
     const missing = await start({ page, audio });
     await missing.playRound((_, index) => (index < 2 ? 'missed' : 'first'));
     await missing.retry.click();

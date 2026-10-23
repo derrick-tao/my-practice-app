@@ -1,5 +1,5 @@
 // Seam 1: never lose progress (ticket 05). A reload (or closing and reopening the browser) stands in for
-// an app restart; the child gets back to exactly where they were through the Keep going card.
+// an app restart; the child gets back to exactly where they were through the Keep going button.
 import type { Page } from '@playwright/test';
 import type { LessonData } from '../../src/content/types.ts';
 import { expect, test, type AudioProbe } from './harness.ts';

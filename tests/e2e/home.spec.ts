@@ -60,12 +60,11 @@ test.describe('home screen', () => {
 
     await page.getByRole('link', { name: 'Home' }).click();
     await expect(page).toHaveURL(/#\/$/);
-    // Each list started is waiting under Keep going with its own icon and label, next to the lesson's own card.
-    await expect(page.getByRole('group', { name: /^Keep going/ })).toHaveCount(3);
-    await expect(page.getByRole('group', { name: 'Keep going: Fixture Three, Write' })).toContainText('✏️');
-    await expect(page.getByRole('group', { name: 'Keep going: Fixture Five, Say' })).toContainText('🗣️');
-    await expect(page.getByRole('group', { name: 'Keep going: Fixture Five, Write' })).toBeVisible();
-    await expect(lessonGroup(page, 'Fixture Three')).toBeVisible();
+    // Each list started says Keep going on its own button (icon and label kept), on the lesson's one card.
+    await expect(page.getByRole('link', { name: /Keep going/ })).toHaveCount(3);
+    await expect(lessonGroup(page, 'Fixture Three').getByRole('link', { name: /^Write · Keep going/ })).toContainText('✏️');
+    await expect(lessonGroup(page, 'Fixture Five').getByRole('link', { name: /^Say · Keep going/ })).toContainText('🗣️');
+    await expect(lessonGroup(page, 'Fixture Five').getByRole('link', { name: /^Write · Keep going/ })).toBeVisible();
   });
 
   test('opening a lesson route directly works', async ({ page }) => {

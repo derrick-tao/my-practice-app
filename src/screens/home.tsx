@@ -16,9 +16,81 @@ import { useLoad } from '../use-async.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { useSave } from '../use-save.ts';
 
-/** A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count. */
-function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummary }) {
+/**
+ * A practice type with a session in progress: its button says Keep going, with the round and stars in place of
+ * the count, and opens the same route as ever, so the learner lands exactly where they stopped. The 🔄 beside it,
+ * after a confirmation, stops only that session and opens the list afresh.
+ */
+function KeepGoingButton({ session, lesson }: { session: Session; lesson: LessonSummary }) {
+  const round = currentRound(session);
+  const href = lessonHref(session.subject, session.practiceType, session.lessonId);
+  const type = PRACTICE_TYPES[session.practiceType];
+  const [asking, setAsking] = useState(false);
+  const { busy: saving, failed, run } = useSave();
+
+  // Yes: this session is stopped (kept in history) and saved, and no other; opening the list then starts a
+  // fresh, freshly ordered one, exactly like tapping the button with nothing in progress.
+  const startOver = (): Promise<void> =>
+    run(
+      () => stopSession(getStorage(), session),
+      () => void (location.hash = href),
+    );
+
+  return (
+    <>
+      <div class="lesson-card__row">
+        <a class="lesson-card__button lesson-card__button--keep-going" href={href}>
+          <span>
+            <span aria-hidden="true">{type.icon} </span>
+            {type.label} · <span aria-hidden="true">▶️ </span>Keep going
+          </span>
+          <span class="lesson-card__progress">
+            <RoundBadge index={round.index} />
+            <StarBar done={round.position} total={round.itemIds.length} />
+          </span>
+          <span class="sr-only"> for {lesson.title}</span>
+        </a>
+        <button type="button" class="btn lesson-card__restart" onClick={() => setAsking(true)}>
+          <span aria-hidden="true">🔄</span>
+          <span class="sr-only">Start over {type.label}</span>
+        </button>
+      </div>
+      {asking && !failed && (
+        <ConfirmYesNo
+          question={`Start ${type.label} again from the beginning?`}
+          flat
+          busy={saving}
+          onYes={() => void startOver()}
+          onNo={() => setAsking(false)}
+        />
+      )}
+      {failed && <SaveFailed onRetry={() => void startOver()} />}
+    </>
+  );
+}
+
+/**
+ * A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count,
+ * or Keep going where a session is in progress (`inProgress`: this lesson's). A session of a type the lesson no
+ * longer offers keeps its button too, so opening it can settle it. A lesson no longer `assigned` to the learner
+ * shows only what is in progress.
+ */
+function LessonCard({
+  subject,
+  lesson,
+  assigned,
+  inProgress,
+}: {
+  subject: string;
+  lesson: LessonSummary;
+  assigned: boolean;
+  inProgress: Session[];
+}) {
   const problemCount = useProblemCount();
+  const offered = new Set<string>(lesson.practiceTypes.map(({ id }) => id));
+  // At most one per practice type (findSessionsInProgress); in recency order, which the extras below keep.
+  const byType = new Map(inProgress.map((session) => [session.practiceType, session]));
+  const extras = [...byType.values()].filter((session) => !offered.has(session.practiceType));
   return (
     <section class="lesson-card" role="group" aria-label={lesson.title}>
       <span class="lesson-card__title">{lesson.title}</span>
@@ -31,6 +103,9 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
         </span>
       )}
       {lesson.practiceTypes.map(({ id, itemCount }) => {
+        const session = byType.get(id);
+        if (session) return <KeepGoingButton key={id} session={session} lesson={lesson} />;
+        if (!assigned) return null; // nothing new is offered from a lesson that is no longer assigned
         const type = PRACTICE_TYPES[id];
         return (
           <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
@@ -40,58 +115,10 @@ function LessonCard({ subject, lesson }: { subject: string; lesson: LessonSummar
           </a>
         );
       })}
+      {extras.map((session) => (
+        <KeepGoingButton key={session.id} session={session} lesson={lesson} />
+      ))}
     </section>
-  );
-}
-
-/** Resume one session in progress exactly where it was left, or (after a confirmation) start only that one over. */
-function KeepGoingCard({ session, lesson }: { session: Session; lesson: LessonSummary }) {
-  const round = currentRound(session);
-  const href = lessonHref(session.subject, session.practiceType, session.lessonId);
-  const type = PRACTICE_TYPES[session.practiceType];
-  const [asking, setAsking] = useState(false);
-  const { busy: saving, failed, run } = useSave();
-
-  // Yes: this session is stopped (kept in history) and saved, and no other; opening the list then starts a
-  // fresh, freshly ordered one, exactly like tapping the lesson's button with nothing in progress.
-  const startOver = (): Promise<void> =>
-    run(
-      () => stopSession(getStorage(), session),
-      () => void (location.hash = href),
-    );
-
-  return (
-    <>
-      <div class="keep-going-card" role="group" aria-label={`Keep going: ${lesson.title}, ${type.label}`}>
-        <a class="keep-going" href={href}>
-          <span class="keep-going__label">
-            <span aria-hidden="true">▶️ </span>Keep going
-          </span>
-          <span class="keep-going__title">{lesson.title}</span>
-          <span class="keep-going__type">
-            <span aria-hidden="true">{type.icon} </span>
-            {type.label}
-          </span>
-          <span class="keep-going__progress">
-            <RoundBadge index={round.index} />
-            <StarBar done={round.position} total={round.itemIds.length} />
-          </span>
-        </a>
-        <button type="button" class="btn keep-going-card__restart" onClick={() => setAsking(true)}>
-          <span aria-hidden="true">🔄</span>
-          <span class="sr-only">Start over</span>
-        </button>
-      </div>
-      {asking && !failed && (
-        <ConfirmYesNo
-          question="Start again from the beginning?"
-          busy={saving}
-          onYes={() => void startOver()}
-          onNo={() => setAsking(false)}
-        />
-      )}
-      {failed && <SaveFailed onRetry={() => void startOver()} />}
-    </>
   );
 }
 
@@ -133,17 +160,27 @@ export function HomeScreen() {
   const published = usePublishedLessons();
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
-  const sessions = resume.status === 'ready' ? resume.value : [];
+  // Cards wait for the sessions: their order, and which unassigned lessons stay, depend on them.
+  const settled = published.status === 'ready' && resume.status !== 'loading';
   // Per device, not per learner: a waiting update is told to the grown-up by a dot on the gear, never to the child.
   const updateWaiting = useUpdateReady();
   const all = published.status === 'ready' ? published.value : [];
-  const assigned = new Set(profile.assignedLessonIds);
-  const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
-  // Practice in progress stays reachable even when its lesson has since been unassigned.
-  const resumable = sessions.flatMap((session) => {
-    const lesson = all.find((p) => p.lesson.id === session.lessonId)?.lesson;
-    return lesson ? [{ session, lesson }] : [];
-  });
+  const assignedIds = new Set(profile.assignedLessonIds);
+  // Lessons with practice in progress first, most recently used first (the sessions are already in that order, so
+  // a lesson's rank is that of its most recently used session); the rest keep their usual order. A lesson that is
+  // no longer assigned stays only while it has practice in progress (and only if it is still published).
+  const inProgressBy = new Map<string, { rank: number; sessions: Session[] }>();
+  for (const session of resume.status === 'ready' ? resume.value : []) {
+    const lesson = inProgressBy.get(session.lessonId) ?? { rank: inProgressBy.size, sessions: [] };
+    lesson.sessions.push(session);
+    inProgressBy.set(session.lessonId, lesson);
+  }
+  const rankOf = (lessonId: string): number => inProgressBy.get(lessonId)?.rank ?? Infinity;
+  const shown = settled
+    ? all
+        .filter(({ lesson }) => assignedIds.has(lesson.id) || inProgressBy.has(lesson.id))
+        .sort((a, b) => (rankOf(a.lesson.id) < rankOf(b.lesson.id) ? -1 : rankOf(a.lesson.id) > rankOf(b.lesson.id) ? 1 : 0))
+    : [];
   return (
     <main class="screen">
       <header class="home__top">
@@ -156,18 +193,21 @@ export function HomeScreen() {
         </a>
       </header>
       <ProfileSwitcher />
-      {published.status === 'loading' && <p class="notice">Loading…</p>}
+      {published.status !== 'error' && !settled && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
-      {resumable.map(({ session, lesson }) => (
-        <KeepGoingCard key={session.id} session={session} lesson={lesson} />
-      ))}
-      {published.status === 'ready' && shown.length === 0 && resumable.length === 0 && (
+      {settled && shown.length === 0 && (
         <p class="notice">No lessons yet. Ask a grown-up to pick some!</p>
       )}
       {shown.length > 0 && (
         <section class="cards">
           {shown.map(({ subject, lesson }) => (
-            <LessonCard key={lesson.id} subject={subject} lesson={lesson} />
+            <LessonCard
+              key={lesson.id}
+              subject={subject}
+              lesson={lesson}
+              assigned={assignedIds.has(lesson.id)}
+              inProgress={inProgressBy.get(lesson.id)?.sessions ?? []}
+            />
           ))}
         </section>
       )}

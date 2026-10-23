@@ -21,6 +21,14 @@
   border: 2px solid var(--rule-strong);
 }
 
+.progress-header:focus {
+  outline: none;
+}
+
+.progress-end {
+  margin: 0 0 16px;
+}
+
 .progress-header__title {
   margin: 0 0 8px;
   font-size: 1.6rem;
