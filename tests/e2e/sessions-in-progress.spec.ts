@@ -109,16 +109,41 @@ test.describe('a session in progress for every list', () => {
     ]);
   });
 
+  test('the 🔄 questions name their practice, sit flat inside the card (no card in a card), and two open at once are each labelled by their own question', async ({
+    page,
+    audio,
+    loadLesson,
+  }) => {
+    await setUpLearner(page);
+    const lesson = await loadLesson('fixture-five');
+    await practiceThenHome({ page, audio, loadLesson }, 'fixture-five', 1);
+    const say = new PracticeScreen(page, audio, lesson, 'phrase-recognition');
+    await say.lessonCard().click();
+    await say.markMany(1);
+    await expect(say.check).toBeVisible();
+    await say.home.click();
+
+    await startOverFor(page, 'Fixture Five', 'Write').click();
+    await startOverFor(page, 'Fixture Five', 'Say').click();
+    const panels = lessonGroup(page, 'Fixture Five').locator('.confirm');
+    await expect(panels).toHaveCount(2);
+    await expect(page.getByText('Start Write again from the beginning?')).toBeVisible();
+    await expect(page.getByText('Start Say again from the beginning?')).toBeVisible();
+    await expect(panels.first()).toHaveCSS('border-top-width', '0px');
+    await expect(lessonGroup(page, 'Fixture Five').getByRole('region', { name: 'Start Say again from the beginning?' })).toHaveCount(1);
+    await expect(lessonGroup(page, 'Fixture Five').getByRole('region', { name: 'Start Write again from the beginning?' })).toHaveCount(1);
+  });
+
   test('🔄 appears only beside Keep going buttons, asks first, and No leaves the session alone', async ({ page, audio, loadLesson }) => {
     await setUpLearner(page);
     await practiceThenHome({ page, audio, loadLesson }, 'fixture-five', 2);
 
     await expect(lessonGroup(page, 'Fixture Five').getByRole('button')).toHaveCount(1); // Say has nothing in progress
     await startOverFor(page, 'Fixture Five', 'Write').click();
-    await expect(page.getByText('Start again from the beginning?')).toBeVisible();
+    await expect(page.getByText('Start Write again from the beginning?')).toBeVisible();
     await page.getByRole('button', { name: 'No', exact: true }).click();
 
-    await expect(page.getByText('Start again from the beginning?')).toHaveCount(0);
+    await expect(page.getByText('Start Write again from the beginning?')).toHaveCount(0);
     await expect(keepGoingFor(page, 'Fixture Five', 'Write').getByTestId('progress-text')).toHaveText('2 / 5');
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);
   });
@@ -138,7 +163,7 @@ test.describe('a session in progress for every list', () => {
     await say.home.click();
 
     await startOverFor(page, 'Fixture Five', 'Write').click();
-    await expect(page.getByText('Start again from the beginning?')).toBeVisible();
+    await expect(page.getByText('Start Write again from the beginning?')).toBeVisible();
     await page.getByRole('button', { name: 'Yes', exact: true }).click();
     const five = new PracticeScreen(page, audio, await loadLesson('fixture-five'));
     await expect(five.progressText()).toHaveText('0 / 5');
@@ -355,6 +380,32 @@ test.describe('lessons in the order they were last used', () => {
   const cardTitles = (page: Page): Promise<(string | null)[]> =>
     page.getByRole('group').evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label')));
 
+  /** A dictation session of a fixture lesson, one item done, last worked on at `updatedAt`. */
+  const saved = async (
+    loadLesson: Fixtures['loadLesson'],
+    lessonId: string,
+    id: string,
+    startedAt: string,
+    updatedAt: string,
+  ): Promise<SessionJson> => {
+    const ids = (await loadLesson(lessonId)).lists.dictation!.map((item) => item.target);
+    return {
+      id,
+      profileId: 'replaced-on-restore',
+      subject: 'chinese',
+      practiceType: 'dictation',
+      lessonId,
+      contentVersion: 'saved-before',
+      status: 'active',
+      startedAt,
+      updatedAt,
+      rounds: [
+        { index: 1, itemIds: ids, position: 1, phase: 'prompt', heardCurrent: false, marks: { [ids[0]!]: 'correct' }, startedAt },
+      ],
+      undo: null,
+      marksSinceBreak: 0,
+    };
+  };
   test('lessons with practice in progress come first, most recently used first, a session never worked on since it started counting from its start; the rest keep their usual order', async ({
     page,
     loadLesson,
@@ -363,34 +414,34 @@ test.describe('lessons in the order they were last used', () => {
     const usual = await cardTitles(page);
     expect([...usual].sort()).toEqual(['Fixture Five', 'Fixture Strokes', 'Fixture Three', 'Fixture Twelve']);
 
-    const saved = async (lessonId: string, id: string, startedAt: string, updatedAt: string): Promise<SessionJson> => {
-      const ids = (await loadLesson(lessonId)).lists.dictation!.map((item) => item.target);
-      return {
-        id,
-        profileId: 'replaced-on-restore',
-        subject: 'chinese',
-        practiceType: 'dictation',
-        lessonId,
-        contentVersion: 'saved-before',
-        status: 'active',
-        startedAt,
-        updatedAt,
-        rounds: [
-          { index: 1, itemIds: ids, position: 1, phase: 'prompt', heardCurrent: false, marks: { [ids[0]!]: 'correct' }, startedAt },
-        ],
-        undo: null,
-        marksSinceBreak: 0,
-      };
-    };
     await restoreSessions(page, [
       // Worked on 3 Oct, though started 1 Oct.
-      await saved('fixture-twelve', 'twelve', '2026-10-01T09:00:00.000Z', '2026-10-03T09:00:00.000Z'),
+      await saved(loadLesson, 'fixture-twelve', 'twelve', '2026-10-01T09:00:00.000Z', '2026-10-03T09:00:00.000Z'),
       // Not worked on since it was started on 4 Oct (its last-used time is its start), so it is the most recent.
-      await saved('fixture-three', 'three', '2026-10-04T09:00:00.000Z', '2026-10-04T09:00:00.000Z'),
+      await saved(loadLesson, 'fixture-three', 'three', '2026-10-04T09:00:00.000Z', '2026-10-04T09:00:00.000Z'),
     ]);
 
     await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
     const rest = usual.filter((title) => title !== 'Fixture Three' && title !== 'Fixture Twelve');
     expect(await cardTitles(page)).toEqual(['Fixture Three', 'Fixture Twelve', ...rest]);
+  });
+
+  test('working on an older session moves its lesson to the top', async ({ page, audio, loadLesson }) => {
+    await setUpLearner(page, { lessons: ['fixture-three', 'fixture-five', 'fixture-twelve', 'fixture-strokes'] });
+    await restoreSessions(page, [
+      await saved(loadLesson, 'fixture-twelve', 'twelve', '2026-10-01T09:00:00.000Z', '2026-10-03T09:00:00.000Z'),
+      await saved(loadLesson, 'fixture-three', 'three', '2026-10-04T09:00:00.000Z', '2026-10-04T09:00:00.000Z'),
+    ]);
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
+    expect((await cardTitles(page)).slice(0, 2)).toEqual(['Fixture Three', 'Fixture Twelve']);
+
+    // Keep going on the older one and back home: it is now the one used last.
+    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-twelve'));
+    await practice.lessonCard().click();
+    await expect(practice.progressText()).toHaveText('1 / 12');
+    await practice.home.click();
+
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
+    expect((await cardTitles(page)).slice(0, 2)).toEqual(['Fixture Twelve', 'Fixture Three']);
   });
 });

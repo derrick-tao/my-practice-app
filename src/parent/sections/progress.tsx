@@ -1,7 +1,7 @@
 // Parent area section: how practice is going, per lesson, for the active learner.
 //   #/parent/progress                      the lessons
 //   #/parent/progress/<lessonId>             header (with, while any practice of the lesson is in progress, a button that
-//                                            ends all of it, kept in history as Stopped), then a part per practice
+//                                            stops all of it, kept in history as Stopped), then a part per practice
 //                                            type: its attempts (newest first), first-try trend, best score and trickiest items
 //   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
 //                                            its counts and the missed items
@@ -14,7 +14,7 @@
 // The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useAppRecord, useProblemCount } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
 import { isListType, isRulesType, PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
@@ -74,8 +74,8 @@ interface LessonView {
   parts: Part[];
 }
 
-/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them (worked out again when `version` changes). */
-function useLessonView(lessonId: string, version = 0): Loadable<LessonView | 'unknown'> {
+/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them (worked out again when `reloadKey` changes). */
+function useLessonView(lessonId: string, reloadKey = 0): Loadable<LessonView | 'unknown'> {
   const { app } = useAppRecord();
   const profileId = activeProfileOf(app)?.id;
   const published = usePublishedLessons();
@@ -94,7 +94,7 @@ function useLessonView(lessonId: string, version = 0): Loadable<LessonView | 'un
       });
       return { lesson, parts };
     },
-    [lessonId, known, profileId, version],
+    [lessonId, known, profileId, reloadKey],
   );
   if (published.status !== 'ready') return published;
   return loaded;
@@ -258,12 +258,36 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
   );
 }
 
-/** Ends all of the lesson's practice in progress for the active learner, after asking; `onEnded` then reloads the page. */
-function EndUnfinished({ lessonId, onEnded }: { lessonId: string; onEnded: () => void }) {
+/**
+ * Stops all of the lesson's practice in progress for the active learner, after asking. It saves one session at a
+ * time, so a failure can leave some stopped: `onChanged` runs either way (the page looks again and shows the
+ * truth), and `onStopped` only when all of it worked.
+ */
+function StopUnfinished({
+  lessonId,
+  onChanged,
+  onStopped,
+}: {
+  lessonId: string;
+  onChanged: () => void;
+  onStopped: () => void;
+}) {
   const profileId = activeProfileOf(useAppRecord().app)?.id;
   const [asking, setAsking] = useState(false);
   const { busy, failed, run } = useSave();
   if (profileId === undefined) return null;
+  const stop = (): Promise<void> =>
+    run(
+      () =>
+        stopLessonSessions(getStorage(), profileId, lessonId).catch((error: unknown) => {
+          onChanged();
+          throw error;
+        }),
+      () => {
+        onChanged();
+        onStopped();
+      },
+    );
   return (
     <>
       {!asking && (
@@ -275,25 +299,36 @@ function EndUnfinished({ lessonId, onEnded }: { lessonId: string; onEnded: () =>
         <ConfirmYesNo
           question="Stop all unfinished practice for this lesson?"
           busy={busy}
-          onYes={() => void run(() => stopLessonSessions(getStorage(), profileId, lessonId), onEnded)}
+          onYes={() => void stop()}
           onNo={() => setAsking(false)}
         />
       )}
-      {failed && <SaveFailed />}
+      {failed && (
+        <div role="alert" class="save-failed">
+          <span aria-hidden="true">⚠️ </span>Couldn't save everything — some practice may already be stopped. Please try again.
+        </div>
+      )}
     </>
   );
 }
 
 function LessonProgressPage({ lessonId }: { lessonId: string }) {
-  const [version, setVersion] = useState(0);
-  const view = useLessonView(lessonId, version);
+  const [reloadKey, setReloadKey] = useState(0);
+  const loaded = useLessonView(lessonId, reloadKey);
+  // Looking again keeps showing the page as it was until the new numbers arrive, so it never flashes "Loading…".
+  const shownBefore = useRef<{ lessonId: string; view: Loadable<LessonView | 'unknown'> } | undefined>(undefined);
+  if (loaded.status === 'ready') shownBefore.current = { lessonId, view: loaded };
+  const view = loaded.status === 'loading' && shownBefore.current?.lessonId === lessonId ? shownBefore.current.view : loaded;
+  const [stopped, setStopped] = useState(false);
+  const header = useRef<HTMLDivElement>(null);
   const player = useAudioPlayer();
   return (
     <Page view={view}>
       {({ lesson, parts }) => (
         <>
           <Who />
-          <div class="progress-header" data-testid="progress-header">
+          {/* tabIndex -1: focus lands here when the button that had it goes away. */}
+          <div class="progress-header" data-testid="progress-header" tabIndex={-1} ref={header}>
             <h2 class="progress-header__title">{lesson.title}</h2>
             <div class="progress-header__facts">
               {lesson.testDates && (
@@ -303,8 +338,16 @@ function LessonProgressPage({ lessonId }: { lessonId: string }) {
               )}
             </div>
           </div>
+          <div role="status">{stopped && <p class="notice">Unfinished practice stopped</p>}</div>
           {parts.some((part) => part.sessions.some((session) => session.status === 'active')) && (
-            <EndUnfinished lessonId={lessonId} onEnded={() => setVersion((v) => v + 1)} />
+            <StopUnfinished
+              lessonId={lessonId}
+              onChanged={() => setReloadKey((key) => key + 1)}
+              onStopped={() => {
+                setStopped(true);
+                header.current?.focus();
+              }}
+            />
           )}
           {parts.map((part) => (
             <PartProgress key={part.type.id} lessonId={lessonId} part={part} player={player} />
