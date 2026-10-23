@@ -151,7 +151,15 @@ export function HomeScreen() {
   const updateWaiting = useUpdateReady();
   const all = published.status === 'ready' ? published.value : [];
   const assigned = new Set(profile.assignedLessonIds);
-  const shown = all.filter(({ lesson }) => assigned.has(lesson.id));
+  // Lessons with practice in progress first, most recently used first (`sessions` is already in that order, so a
+  // lesson's place is that of its most recently used session); the rest keep their usual order.
+  const rank = (lessonId: string): number => {
+    const place = sessions.findIndex((session) => session.lessonId === lessonId);
+    return place < 0 ? Infinity : place;
+  };
+  const shown = all
+    .filter(({ lesson }) => assigned.has(lesson.id))
+    .sort((a, b) => (rank(a.lesson.id) === rank(b.lesson.id) ? 0 : rank(a.lesson.id) < rank(b.lesson.id) ? -1 : 1));
   return (
     <main class="screen">
       <header class="home__top">

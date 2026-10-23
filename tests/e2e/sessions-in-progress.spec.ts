@@ -349,3 +349,48 @@ test.describe('a session in progress for every list', () => {
     ]);
   });
 });
+
+test.describe('lessons in the order they were last used', () => {
+  /** The titles of the lesson cards on home, top to bottom. */
+  const cardTitles = (page: Page): Promise<(string | null)[]> =>
+    page.getByRole('group').evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label')));
+
+  test('lessons with practice in progress come first, most recently used first, a session never worked on since it started counting from its start; the rest keep their usual order', async ({
+    page,
+    loadLesson,
+  }) => {
+    await setUpLearner(page, { lessons: ['fixture-three', 'fixture-five', 'fixture-twelve', 'fixture-strokes'] });
+    const usual = await cardTitles(page);
+    expect([...usual].sort()).toEqual(['Fixture Five', 'Fixture Strokes', 'Fixture Three', 'Fixture Twelve']);
+
+    const saved = async (lessonId: string, id: string, startedAt: string, updatedAt: string): Promise<SessionJson> => {
+      const ids = (await loadLesson(lessonId)).lists.dictation!.map((item) => item.target);
+      return {
+        id,
+        profileId: 'replaced-on-restore',
+        subject: 'chinese',
+        practiceType: 'dictation',
+        lessonId,
+        contentVersion: 'saved-before',
+        status: 'active',
+        startedAt,
+        updatedAt,
+        rounds: [
+          { index: 1, itemIds: ids, position: 1, phase: 'prompt', heardCurrent: false, marks: { [ids[0]!]: 'correct' }, startedAt },
+        ],
+        undo: null,
+        marksSinceBreak: 0,
+      };
+    };
+    await restoreSessions(page, [
+      // Worked on 3 Oct, though started 1 Oct.
+      await saved('fixture-twelve', 'twelve', '2026-10-01T09:00:00.000Z', '2026-10-03T09:00:00.000Z'),
+      // Not worked on since it was started on 4 Oct (its last-used time is its start), so it is the most recent.
+      await saved('fixture-three', 'three', '2026-10-04T09:00:00.000Z', '2026-10-04T09:00:00.000Z'),
+    ]);
+
+    await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
+    const rest = usual.filter((title) => title !== 'Fixture Three' && title !== 'Fixture Twelve');
+    expect(await cardTitles(page)).toEqual(['Fixture Three', 'Fixture Twelve', ...rest]);
+  });
+});
