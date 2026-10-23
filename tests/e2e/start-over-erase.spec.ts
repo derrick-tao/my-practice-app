@@ -40,10 +40,10 @@ test.describe('start over', () => {
     const practice = await practiceThenHome({ page, audio, loadLesson }, 'fixture-three', 2);
 
     await startOverButton(page).click();
-    await expect(page.getByText('Start again from the beginning?')).toBeVisible();
+    await expect(page.getByText('Start Write again from the beginning?')).toBeVisible();
     await no(page).click();
 
-    await expect(page.getByText('Start again from the beginning?')).toHaveCount(0);
+    await expect(page.getByText('Start Write again from the beginning?')).toHaveCount(0);
     await practice.keepGoing.click();
     await expect(practice.progressText()).toHaveText('2 / 3');
     expect((await savedSessions(page)).map((s) => s.status)).toEqual(['active']);

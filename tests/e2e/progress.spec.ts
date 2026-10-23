@@ -599,8 +599,8 @@ test.describe('parent progress page', () => {
   });
 });
 
-// A grown-up can end all of a lesson's unfinished practice (kept in history as stopped) from its Progress page.
-test.describe('ending unfinished practice', () => {
+// A grown-up can stop all of a lesson's unfinished practice (kept in history as stopped) from its Progress page.
+test.describe('stopping unfinished practice', () => {
   const THREE = 'fixture-three';
   const ALL = ['猫', '狗', '鸟', '年', '只'];
   const stopAll = (page: Page) => page.getByRole('button', { name: 'Stop all unfinished practice' });
@@ -644,6 +644,8 @@ test.describe('ending unfinished practice', () => {
     await expect(page.getByText('Stop all unfinished practice for this lesson?')).toBeVisible();
     await page.getByRole('button', { name: 'Yes' }).click();
 
+    await expect(page.getByRole('status')).toHaveText('Unfinished practice stopped');
+    await expect(page.getByTestId('progress-header')).toBeFocused();
     await expect(stopAll(page)).toHaveCount(0);
     await expect(write(page).getByTestId('attempt').filter({ hasText: 'In progress' })).toHaveCount(0);
     await expect(write(page).getByTestId('attempt').filter({ hasText: 'Stopped' })).toHaveCount(1);
@@ -685,6 +687,7 @@ test.describe('ending unfinished practice', () => {
     await page.evaluate(() => void (window.__failStorageWrites = true));
     await page.getByRole('button', { name: 'Yes' }).click();
     await expect(page.getByRole('alert')).toContainText("Couldn't save");
+    await expect(page.getByRole('alert')).toContainText('some practice may already be stopped');
     const failed = await statuses(page);
     expect([failed['w-open'], failed['p-open']]).toEqual(['active', 'active']);
 

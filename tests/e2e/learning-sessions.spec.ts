@@ -161,6 +161,8 @@ test.describe('learning setting: leaving and coming back', () => {
     const current = await practice.target.textContent();
 
     await practice.home.click();
+    // On its lesson's card, the Say button says Keep going, as for any session in progress.
+    await expect(practice.lessonCard()).toContainText('Keep going');
     await setLearning(page, false);
     await practice.keepGoing.click();
 

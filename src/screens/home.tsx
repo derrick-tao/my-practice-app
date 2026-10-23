@@ -57,7 +57,8 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
       </div>
       {asking && !failed && (
         <ConfirmYesNo
-          question="Start again from the beginning?"
+          question={`Start ${type.label} again from the beginning?`}
+          flat
           busy={saving}
           onYes={() => void startOver()}
           onNo={() => setAsking(false)}
@@ -87,6 +88,9 @@ function LessonCard({
 }) {
   const problemCount = useProblemCount();
   const offered = new Set<string>(lesson.practiceTypes.map(({ id }) => id));
+  // At most one per practice type (findSessionsInProgress); in recency order, which the extras below keep.
+  const byType = new Map(inProgress.map((session) => [session.practiceType, session]));
+  const extras = [...byType.values()].filter((session) => !offered.has(session.practiceType));
   return (
     <section class="lesson-card" role="group" aria-label={lesson.title}>
       <span class="lesson-card__title">{lesson.title}</span>
@@ -99,7 +103,7 @@ function LessonCard({
         </span>
       )}
       {lesson.practiceTypes.map(({ id, itemCount }) => {
-        const session = inProgress.find((s) => s.practiceType === id);
+        const session = byType.get(id);
         if (session) return <KeepGoingButton key={id} session={session} lesson={lesson} />;
         if (!assigned) return null; // nothing new is offered from a lesson that is no longer assigned
         const type = PRACTICE_TYPES[id];
@@ -111,11 +115,9 @@ function LessonCard({
           </a>
         );
       })}
-      {inProgress
-        .filter((session) => !offered.has(session.practiceType))
-        .map((session) => (
-          <KeepGoingButton key={session.id} session={session} lesson={lesson} />
-        ))}
+      {extras.map((session) => (
+        <KeepGoingButton key={session.id} session={session} lesson={lesson} />
+      ))}
     </section>
   );
 }
@@ -158,21 +160,27 @@ export function HomeScreen() {
   const published = usePublishedLessons();
   // Each learner has their own practice in progress: look again whenever the learner changes.
   const resume = useLoad(loadResume, [profile.id]);
-  const sessions = resume.status === 'ready' ? resume.value : [];
+  // Cards wait for the sessions: their order, and which unassigned lessons stay, depend on them.
+  const settled = published.status === 'ready' && resume.status !== 'loading';
   // Per device, not per learner: a waiting update is told to the grown-up by a dot on the gear, never to the child.
   const updateWaiting = useUpdateReady();
   const all = published.status === 'ready' ? published.value : [];
   const assignedIds = new Set(profile.assignedLessonIds);
-  // Lessons with practice in progress first, most recently used first (`sessions` is already in that order, so a
-  // lesson's place is that of its most recently used session); the rest keep their usual order. A lesson that is
+  // Lessons with practice in progress first, most recently used first (the sessions are already in that order, so
+  // a lesson's rank is that of its most recently used session); the rest keep their usual order. A lesson that is
   // no longer assigned stays only while it has practice in progress (and only if it is still published).
-  const rank = (lessonId: string): number => {
-    const place = sessions.findIndex((session) => session.lessonId === lessonId);
-    return place < 0 ? Infinity : place;
-  };
-  const shown = all
-    .filter(({ lesson }) => assignedIds.has(lesson.id) || rank(lesson.id) < Infinity)
-    .sort((a, b) => (rank(a.lesson.id) === rank(b.lesson.id) ? 0 : rank(a.lesson.id) < rank(b.lesson.id) ? -1 : 1));
+  const inProgressBy = new Map<string, { rank: number; sessions: Session[] }>();
+  for (const session of resume.status === 'ready' ? resume.value : []) {
+    const lesson = inProgressBy.get(session.lessonId) ?? { rank: inProgressBy.size, sessions: [] };
+    lesson.sessions.push(session);
+    inProgressBy.set(session.lessonId, lesson);
+  }
+  const rankOf = (lessonId: string): number => inProgressBy.get(lessonId)?.rank ?? Infinity;
+  const shown = settled
+    ? all
+        .filter(({ lesson }) => assignedIds.has(lesson.id) || inProgressBy.has(lesson.id))
+        .sort((a, b) => (rankOf(a.lesson.id) < rankOf(b.lesson.id) ? -1 : rankOf(a.lesson.id) > rankOf(b.lesson.id) ? 1 : 0))
+    : [];
   return (
     <main class="screen">
       <header class="home__top">
@@ -185,9 +193,9 @@ export function HomeScreen() {
         </a>
       </header>
       <ProfileSwitcher />
-      {published.status === 'loading' && <p class="notice">Loading…</p>}
+      {published.status !== 'error' && !settled && <p class="notice">Loading…</p>}
       {published.status === 'error' && <p class="notice">Couldn't load the lessons. Check the internet and try again.</p>}
-      {published.status === 'ready' && shown.length === 0 && (
+      {settled && shown.length === 0 && (
         <p class="notice">No lessons yet. Ask a grown-up to pick some!</p>
       )}
       {shown.length > 0 && (
@@ -198,7 +206,7 @@ export function HomeScreen() {
               subject={subject}
               lesson={lesson}
               assigned={assignedIds.has(lesson.id)}
-              inProgress={sessions.filter((session) => session.lessonId === lesson.id)}
+              inProgress={inProgressBy.get(lesson.id)?.sessions ?? []}
             />
           ))}
         </section>

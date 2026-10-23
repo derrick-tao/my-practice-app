@@ -10,6 +10,14 @@
   background: var(--card);
 }
 
+/* Inside a lesson card: no box of its own (cards are never nested). */
+.confirm--flat {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .confirm__question {
   margin: 0;
   font-size: 1.6rem;
