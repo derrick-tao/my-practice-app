@@ -1,5 +1,16 @@
 [
   {
+    "id": "keep-going-on-lesson-cards",
+    "date": "2026-10-22",
+    "title": "Keep going lives on the lesson",
+    "bullets": [
+      "Home shows each lesson once. A practice you are in the middle of says Keep going, with your round and stars.",
+      "Lessons you are in the middle of come first, newest at the top.",
+      "A 🔄 beside Keep going starts that practice over, after asking first.",
+      "Grown-ups can stop all of a lesson's unfinished practice from Progress. It stays in history as stopped."
+    ]
+  },
+  {
     "id": "exercise-book-look",
     "date": "2026-10-21",
     "title": "A new look: the exercise book",
