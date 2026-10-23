@@ -53,6 +53,7 @@ function kindOfBadge(shown: Shown): StrategyKind {
 
 test.describe('the ? help on a Tricks problem', () => {
   test('opens a sheet with what the trick is, why it helps and a worked example with other numbers, on every kind of trick', async ({ page, audio }) => {
+    test.slow(); // it plays a whole round, checking the sheet on every problem: ~27s of the 30s default on CI
     const tricks = await start({ page, audio });
     const kinds = new Set<string>();
 
