@@ -262,11 +262,14 @@ test.describe('saved data from before the problems-per-practice setting (schema 
     await expect(page.getByRole('radio', { name: 'Fast' })).toBeChecked();
     await expect(page.getByRole('radio', { name: '1 s', exact: true })).toBeChecked();
 
-    // Home says 20 problems for math; the Chinese lesson is as it was, with its practice in progress.
+    // Home: the math practice is in progress, so its Facts button is Keep going (the size shows as 4 / 20); the Chinese lesson is as it was, with its practice in progress.
     await page.goto('./');
-    await expect(page.getByRole('group', { name: 'Fixture Math', exact: true }).getByRole('link', { name: /Facts · 20 problems/ })).toBeVisible();
+    const mathCard = page.getByRole('group', { name: 'Fixture Math', exact: true });
+    await expect(mathCard.getByRole('link', { name: /^Facts · Keep going/ })).toBeVisible();
+    await expect(mathCard.getByRole('link', { name: /problems/ })).toHaveCount(0);
     const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
-    await expect(practice.lessonCard()).toContainText('3 characters');
+    await expect(practice.lessonCard()).toContainText('Keep going'); // in progress: no item count on its button
+    await expect(practice.lessonCard()).not.toContainText('3 characters');
     await expect(practice.keepGoing.filter({ hasText: 'Fixture Three' }).getByTestId('progress-text')).toHaveText('1 / 2');
     await expectMathResumes({ page, audio, loadLesson });
   }

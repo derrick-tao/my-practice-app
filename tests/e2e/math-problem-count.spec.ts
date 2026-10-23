@@ -146,9 +146,11 @@ test.describe('a session in progress', () => {
 
     await setProblemCount(page, 20);
 
-    // Home: the card still says 10 for the one in progress, and the lesson's button now says 20.
+    // Home: the card still says 10 for the one in progress, and the lesson's Facts button is Keep going (not a count).
     await expect(facts.keepGoing.getByTestId('progress-text')).toHaveText('1 / 10');
-    await expect(page.getByRole('group', { name: 'Fixture Math', exact: true }).getByRole('link', { name: /Facts · 20 problems/ })).toBeVisible();
+    const lesson = page.getByRole('group', { name: 'Fixture Math', exact: true });
+    await expect(lesson.getByRole('link', { name: /^Facts · Keep going/ })).toBeVisible();
+    await expect(lesson.getByRole('link', { name: /problems/ })).toHaveCount(0);
     await facts.keepGoing.click();
     await expect(facts.progress).toHaveText('1 / 10');
 
