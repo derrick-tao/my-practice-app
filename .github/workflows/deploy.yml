@@ -83,6 +83,12 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
+    # Playwright's image ships WebKit and its system libraries, so nothing is fetched from the Ubuntu
+    # mirror (which sometimes crawls). Keep the tag in step with @playwright/test in package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      env:
+        HOME: /root
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -101,20 +107,12 @@ jobs:
       # A stalled registry request otherwise hangs for npm's 5-minute default.
       - run: npm ci --fetch-timeout=30000 --fetch-retries=5
 
-      - name: Install WebKit for Playwright (Seam 1)
-        # The Ubuntu mirror sometimes crawls (apt downloads for ~5 minutes instead of ~10 seconds).
-        # Killing a slow attempt orphans its apt-get, which keeps the dpkg lock, so stop it before
-        # retrying; downloaded packages stay cached, so the next attempt resumes.
+      # The image's browser version is fixed by its tag, so it must match the installed Playwright.
+      - name: Check the image matches Playwright
         run: |
-          for attempt in 1 2 3 4; do
-            timeout -k 5 150 npx playwright install --with-deps webkit && exit 0
-            echo "Playwright install attempt $attempt failed or timed out"
-            sudo pkill -x apt-get || true
-            sleep 3
-            sudo dpkg --configure -a || true
-          done
-          exit 1
-        timeout-minutes: 12
+          want="${{ job.container.image }}"; want="${want#*:v}"; want="${want%%-*}"
+          have="$(npx playwright --version | awk '{print $2}')"
+          test "$want" = "$have" || { echo "Image is Playwright $want but package-lock has $have: bump the image tag in both workflows"; exit 1; }
 
       - name: App tests in WebKit (Seam 1, shard ${{ matrix.shard }}/3)
         run: npx playwright test --shard=${{ matrix.shard }}/3
