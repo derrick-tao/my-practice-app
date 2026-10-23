@@ -1,4 +1,6 @@
 // Seam 1: parent gate, first-run setup, and assigned lessons (ticket 07).
+import type { Page } from '@playwright/test';
+import { editSavedData } from './backup-driver.ts';
 import { expect, test } from './harness.ts';
 import { lessonGroup, PracticeScreen } from './practice-driver.ts';
 import {
@@ -293,31 +295,89 @@ test.describe('assigned lessons', () => {
     await expect(lessonGroup(page, 'Fixture Five')).toBeVisible();
   });
 
-  // The lesson card is gone with the lesson, and the Keep going shelf that carried this is removed: ticket #83 brings it back on the lesson's own card.
-  test.fixme('an active session on a lesson that gets unassigned still shows Keep going', async ({ page, audio, loadLesson }) => {
-    await setUpLearner(page);
-    const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
-    await practice.open();
-    await practice.reveal();
-    await practice.gotIt.click();
-    await expect(practice.progressText()).toHaveText('1 / 3');
-    await expect(practice.check).toBeVisible(); // the next item's heard flag is saved
-    await practice.home.click();
-    await expect(practice.keepGoing).toBeVisible();
+  // A lesson that gets unassigned keeps a card for as long as the learner has practice in progress on it: only
+  // those buttons (nothing new to start), and the card goes once none is left.
+  test.describe('a lesson that gets unassigned with practice in progress', () => {
+    const noticeText = 'No lessons yet';
 
-    await openParentArea(page);
-    await openParentSection(page, /Assign lessons/);
-    await page.getByRole('switch', { name: /Fixture Three/ }).click();
-    await expect(page.getByRole('switch', { name: /Fixture Three/ })).not.toBeChecked();
-    await page.getByRole('link', { name: 'Home' }).click();
+    async function unassignThreeMidPractice(page: Page, practice: PracticeScreen): Promise<void> {
+      await practice.open();
+      await practice.reveal();
+      await practice.gotIt.click();
+      await expect(practice.progressText()).toHaveText('1 / 3');
+      await expect(practice.check).toBeVisible(); // the next item's heard flag is saved
+      await practice.home.click();
 
-    await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
-    await expect(practice.lessonCard()).toHaveCount(0); // no card to start it afresh...
-    await expect(practice.keepGoing).toBeVisible(); // ...but the practice in progress is still there
-    await expect(practice.keepGoing).toContainText('Fixture Three');
-    await practice.keepGoing.click();
-    await expect(practice.check).toBeVisible();
-    await expect(practice.progressText()).toHaveText('1 / 3');
+      await openParentArea(page);
+      await openParentSection(page, /Assign lessons/);
+      await page.getByRole('switch', { name: /Fixture Three/ }).click();
+      await expect(page.getByRole('switch', { name: /Fixture Three/ })).not.toBeChecked();
+      await page.getByRole('link', { name: 'Home' }).click();
+      await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+    }
+
+    test('keeps a card with only its in-progress buttons, which resumes, and the card goes once the practice is finished', async ({
+      page,
+      audio,
+      loadLesson,
+    }) => {
+      await setUpLearner(page, { lessons: ['fixture-three'] });
+      const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
+      await unassignThreeMidPractice(page, practice);
+
+      const card = lessonGroup(page, 'Fixture Three');
+      await expect(card).toBeVisible();
+      await expect(card.getByRole('link')).toHaveCount(1); // no new practice types offered
+      await expect(card.getByRole('link')).toContainText('Keep going');
+      await expect(page.getByText(noticeText)).toHaveCount(0); // there is a card
+
+      await practice.keepGoing.click();
+      await expect(practice.check).toBeVisible();
+      await expect(practice.progressText()).toHaveText('1 / 3');
+      await practice.markMany(2);
+      await expect(practice.completion).toBeVisible();
+      await practice.home.click();
+
+      await expect(lessonGroup(page, 'Fixture Three')).toHaveCount(0);
+      await expect(page.getByText(noticeText)).toBeVisible(); // no cards at all now
+    });
+
+    test('a lesson that is no longer published gets no card, so with nothing else the notice shows', async ({ page, audio, loadLesson }) => {
+      await setUpLearner(page, { lessons: ['fixture-three'] });
+      const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
+      await practice.open();
+      await practice.reveal();
+      await practice.gotIt.click();
+      await expect(practice.check).toBeVisible();
+      await practice.home.click();
+      await editSavedData(page, (saved) => ({
+        ...saved,
+        app: { ...saved.app, profiles: saved.app.profiles.map((p) => ({ ...p, assignedLessonIds: [] })) },
+        sessions: saved.sessions.map((s) => ({ ...s, lessonId: 'removed-lesson' })),
+      }));
+
+      await expect(page.getByRole('heading', { name: 'Hi 🐼 Mia!' })).toBeVisible();
+      await expect(page.getByRole('group')).toHaveCount(0);
+      await expect(page.getByText(noticeText)).toBeVisible();
+    });
+
+    test('the card goes once a grown-up ends the practice',async ({ page, audio, loadLesson }) => {
+      await setUpLearner(page, { lessons: ['fixture-three'] });
+      const practice = new PracticeScreen(page, audio, await loadLesson('fixture-three'));
+      await unassignThreeMidPractice(page, practice);
+      await expect(lessonGroup(page, 'Fixture Three')).toBeVisible();
+
+      await openParentArea(page);
+      await openParentSection(page, 'Progress');
+      await page.getByRole('link', { name: /Fixture Three/ }).click();
+      await page.getByRole('button', { name: 'Stop all unfinished practice' }).click();
+      await page.getByRole('button', { name: 'Yes' }).click();
+      await expect(page.getByRole('button', { name: 'Stop all unfinished practice' })).toHaveCount(0);
+      await page.getByRole('link', { name: 'Home' }).click();
+
+      await expect(lessonGroup(page, 'Fixture Three')).toHaveCount(0);
+      await expect(page.getByText(noticeText)).toBeVisible();
+    });
   });
 
   test('a failed save of a toggle says so and does not change it; retrying saves it', async ({ page }) => {

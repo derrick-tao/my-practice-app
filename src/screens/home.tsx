@@ -71,9 +71,20 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
 /**
  * A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count,
  * or Keep going where a session is in progress (`inProgress`: this lesson's). A session of a type the lesson no
- * longer offers keeps its button too, so opening it can settle it.
+ * longer offers keeps its button too, so opening it can settle it. A lesson no longer `assigned` to the learner
+ * shows only what is in progress.
  */
-function LessonCard({ subject, lesson, inProgress }: { subject: string; lesson: LessonSummary; inProgress: Session[] }) {
+function LessonCard({
+  subject,
+  lesson,
+  assigned,
+  inProgress,
+}: {
+  subject: string;
+  lesson: LessonSummary;
+  assigned: boolean;
+  inProgress: Session[];
+}) {
   const problemCount = useProblemCount();
   const offered = new Set<string>(lesson.practiceTypes.map(({ id }) => id));
   return (
@@ -90,6 +101,7 @@ function LessonCard({ subject, lesson, inProgress }: { subject: string; lesson: 
       {lesson.practiceTypes.map(({ id, itemCount }) => {
         const session = inProgress.find((s) => s.practiceType === id);
         if (session) return <KeepGoingButton key={id} session={session} lesson={lesson} />;
+        if (!assigned) return null; // nothing new is offered from a lesson that is no longer assigned
         const type = PRACTICE_TYPES[id];
         return (
           <a key={id} class="lesson-card__button" href={lessonHref(subject, id, lesson.id)}>
@@ -150,15 +162,16 @@ export function HomeScreen() {
   // Per device, not per learner: a waiting update is told to the grown-up by a dot on the gear, never to the child.
   const updateWaiting = useUpdateReady();
   const all = published.status === 'ready' ? published.value : [];
-  const assigned = new Set(profile.assignedLessonIds);
+  const assignedIds = new Set(profile.assignedLessonIds);
   // Lessons with practice in progress first, most recently used first (`sessions` is already in that order, so a
-  // lesson's place is that of its most recently used session); the rest keep their usual order.
+  // lesson's place is that of its most recently used session); the rest keep their usual order. A lesson that is
+  // no longer assigned stays only while it has practice in progress (and only if it is still published).
   const rank = (lessonId: string): number => {
     const place = sessions.findIndex((session) => session.lessonId === lessonId);
     return place < 0 ? Infinity : place;
   };
   const shown = all
-    .filter(({ lesson }) => assigned.has(lesson.id))
+    .filter(({ lesson }) => assignedIds.has(lesson.id) || rank(lesson.id) < Infinity)
     .sort((a, b) => (rank(a.lesson.id) === rank(b.lesson.id) ? 0 : rank(a.lesson.id) < rank(b.lesson.id) ? -1 : 1));
   return (
     <main class="screen">
@@ -184,6 +197,7 @@ export function HomeScreen() {
               key={lesson.id}
               subject={subject}
               lesson={lesson}
+              assigned={assignedIds.has(lesson.id)}
               inProgress={sessions.filter((session) => session.lessonId === lesson.id)}
             />
           ))}
