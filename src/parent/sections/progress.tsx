@@ -1,7 +1,8 @@
 // Parent area section: how practice is going, per lesson, for the active learner.
 //   #/parent/progress                      the lessons
-//   #/parent/progress/<lessonId>             header, then a part per practice type: its attempts (newest first),
-//                                            first-try trend, best score and trickiest items
+//   #/parent/progress/<lessonId>             header (with, while any practice of the lesson is in progress, a button that
+//                                            ends all of it, kept in history as Stopped), then a part per practice
+//                                            type: its attempts (newest first), first-try trend, best score and trickiest items
 //   #/parent/progress/<lessonId>/<sessionId> one attempt (a session belongs to one practice type): every round,
 //                                            its counts and the missed items
 // A practice type without marks (Draw) has no scores: its part is the attempt count and each attempt's date, status
@@ -13,7 +14,7 @@
 // The numbers come from src/practice/progress.ts. Missed and tricky items are buttons that play the item's
 // normal audio; an item the lesson's list no longer has is labeled "(removed)" and has no audio.
 import type { ComponentChildren } from 'preact';
-import { useMemo } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { useAppRecord, useProblemCount } from '../../app-context.tsx';
 import { fetchLesson } from '../../content/client.ts';
 import { isListType, isRulesType, PRACTICE_TYPE_IDS, type ItemData, type LessonData } from '../../content/types.ts';
@@ -22,6 +23,10 @@ import { formatDate } from '../../format-date.ts';
 import { usePublishedLessons } from '../../content/use-lessons.ts';
 import { activeProfileOf } from '../../profiles.ts';
 import { useAudioPlayer, type AudioPlayer } from '../../practice/audio.ts';
+import { ConfirmYesNo } from '../../confirm.tsx';
+import { SaveFailed } from '../../save-failed.tsx';
+import { stopLessonSessions } from '../../practice/resume.ts';
+import { useSave } from '../../use-save.ts';
 import { countLabel, itemsIn, listCountsLabel, PRACTICE_TYPES, type PracticeType } from '../../practice/practice-types.tsx';
 import {
   listProgress,
@@ -69,8 +74,8 @@ interface LessonView {
   parts: Part[];
 }
 
-/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them. */
-function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
+/** The lesson, the active learner's saved attempts at it, and the numbers worked out from them (worked out again when `version` changes). */
+function useLessonView(lessonId: string, version = 0): Loadable<LessonView | 'unknown'> {
   const { app } = useAppRecord();
   const profileId = activeProfileOf(app)?.id;
   const published = usePublishedLessons();
@@ -89,7 +94,7 @@ function useLessonView(lessonId: string): Loadable<LessonView | 'unknown'> {
       });
       return { lesson, parts };
     },
-    [lessonId, known, profileId],
+    [lessonId, known, profileId, version],
   );
   if (published.status !== 'ready') return published;
   return loaded;
@@ -253,8 +258,35 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
   );
 }
 
+/** Ends all of the lesson's practice in progress for the active learner, after asking; `onEnded` then reloads the page. */
+function EndUnfinished({ lessonId, onEnded }: { lessonId: string; onEnded: () => void }) {
+  const profileId = activeProfileOf(useAppRecord().app)?.id;
+  const [asking, setAsking] = useState(false);
+  const { busy, failed, run } = useSave();
+  if (profileId === undefined) return null;
+  return (
+    <>
+      {!asking && (
+        <button type="button" class="btn progress-end" onClick={() => setAsking(true)}>
+          <span aria-hidden="true">⏹️ </span>Stop all unfinished practice
+        </button>
+      )}
+      {asking && (
+        <ConfirmYesNo
+          question="Stop all unfinished practice for this lesson?"
+          busy={busy}
+          onYes={() => void run(() => stopLessonSessions(getStorage(), profileId, lessonId), onEnded)}
+          onNo={() => setAsking(false)}
+        />
+      )}
+      {failed && <SaveFailed />}
+    </>
+  );
+}
+
 function LessonProgressPage({ lessonId }: { lessonId: string }) {
-  const view = useLessonView(lessonId);
+  const [version, setVersion] = useState(0);
+  const view = useLessonView(lessonId, version);
   const player = useAudioPlayer();
   return (
     <Page view={view}>
@@ -271,6 +303,9 @@ function LessonProgressPage({ lessonId }: { lessonId: string }) {
               )}
             </div>
           </div>
+          {parts.some((part) => part.sessions.some((session) => session.status === 'active')) && (
+            <EndUnfinished lessonId={lessonId} onEnded={() => setVersion((v) => v + 1)} />
+          )}
           {parts.map((part) => (
             <PartProgress key={part.type.id} lessonId={lessonId} part={part} player={player} />
           ))}
