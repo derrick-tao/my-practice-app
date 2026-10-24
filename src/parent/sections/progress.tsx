@@ -156,6 +156,19 @@ function Page({
   return <>{children(view.value)}</>;
 }
 
+/** A trail of the part's attempts, oldest first: a ticked gold stop for each finished one, coral for a stopped one, open for one in progress. Decoration only; the list below says it all. */
+function AttemptTrail({ attempts }: { attempts: AttemptSummary[] }) {
+  if (attempts.length === 0) return null;
+  const oldestFirst = attempts.slice(0, 12).reverse();
+  return (
+    <div class="progress-trail" aria-hidden="true" data-testid="attempt-trail">
+      {oldestFirst.map((attempt) => (
+        <i key={attempt.id} class={`progress-trail__stop progress-trail__stop--${attempt.status}`} />
+      ))}
+    </div>
+  );
+}
+
 function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptSummary }) {
   const status = STATUS[attempt.status];
   const done = attempt.status === 'completed';
@@ -163,7 +176,7 @@ function AttemptRow({ lessonId, attempt }: { lessonId: string; attempt: AttemptS
     <li>
       <a class="progress-attempt" data-testid="attempt" href={parentHref('progress', lessonId, attempt.id)}>
         <span class="progress-attempt__date">{formatDate(attempt.startedAt)}</span>
-        <span class="progress-attempt__status">
+        <span class={`progress-attempt__status progress-attempt__status--${attempt.status}`}>
           <span aria-hidden="true">{status.icon} </span>
           {status.label}
         </span>
@@ -202,6 +215,8 @@ function PartProgress({ lessonId, part, player }: { lessonId: string; part: Part
         <span>Attempts: {progress.attemptCount}</span>
         {type.hasMarks && <span>Best first try: {progress.best ? scoreText(progress.best) : 'none yet'}</span>}
       </div>
+
+      <AttemptTrail attempts={progress.attempts} />
 
       {type.hasMarks && (
         <>

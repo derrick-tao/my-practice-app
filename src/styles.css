@@ -10,6 +10,7 @@
   --lilac: #ebc1ff;
   --flag: #ff705d;
   --gold: #f5e211;
+  --blue: #2ba0ff;
   --accent: #1d44c4;
   --accent-soft: #e3eafb;
   --good: #167a42;
@@ -83,6 +84,59 @@ body {
   background: var(--card);
   border: 3px solid var(--ink);
   color: inherit;
+}
+
+/* The card's hill: green for Chinese, blue for maths, with a dotted trail of ticked controls up to a coral flag. */
+.lesson-card__hill {
+  display: block;
+  width: 100%;
+  height: 110px;
+  margin: -4px 0 -2px;
+  overflow: visible;
+}
+
+.hill__body {
+  fill: var(--cover);
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.lesson-card[data-subject='math'] .hill__body {
+  fill: var(--blue);
+}
+
+.hill__trail {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1 7;
+}
+
+.hill__stop {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+.hill__stop--done {
+  fill: var(--gold);
+}
+
+.hill__tick {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hill__flag {
+  fill: var(--flag);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
 }
 
 /* One big button per practice type: icon, label and how many items. */

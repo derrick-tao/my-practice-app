@@ -69,6 +69,29 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
   );
 }
 
+/** The card's hill, drawn for show: a dotted trail of ticked controls up to a coral flag. */
+function Hill() {
+  const stops = [
+    [58, 92],
+    [88, 66],
+    [120, 52],
+    [152, 30],
+  ];
+  return (
+    <svg class="lesson-card__hill" viewBox="0 0 280 110" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+      <path class="hill__body" d="M8 108 C 50 96 80 12 150 12 S 240 96 272 108 Z" />
+      <path class="hill__trail" d="M36 104 L58 92 L88 66 L120 52 L152 30 L168 24" />
+      {stops.map(([x, y], i) => (
+        <g key={i} transform={`translate(${x} ${y})`}>
+          <circle r="9" class={i < 3 ? 'hill__stop hill__stop--done' : 'hill__stop'} />
+          {i < 3 && <path class="hill__tick" d="M-4 0l3 3.5 5.5-7" />}
+        </g>
+      ))}
+      <path class="hill__flag" d="M168 24 v-22 l16 6 -16 6" />
+    </svg>
+  );
+}
+
 /**
  * A lesson's card: its title and test dates, and a big button for each practice type it offers, with its count,
  * or Keep going where a session is in progress (`inProgress`: this lesson's). A session of a type the lesson no
@@ -92,7 +115,8 @@ function LessonCard({
   const byType = new Map(inProgress.map((session) => [session.practiceType, session]));
   const extras = [...byType.values()].filter((session) => !offered.has(session.practiceType));
   return (
-    <section class="lesson-card" role="group" aria-label={lesson.title}>
+    <section class="lesson-card" role="group" aria-label={lesson.title} data-subject={subject}>
+      <Hill />
       <span class="lesson-card__title">{lesson.title}</span>
       <span class="lesson-card__subject" data-testid="subject-tag">
         {subjectLabel(subject)}

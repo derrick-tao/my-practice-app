@@ -105,16 +105,18 @@ Flat. No shadows. Depth comes from 2px ruled borders and the paper/card tint dif
 
 ## Shapes
 
-Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 10px for rows and inputs in the parent area; 4px for the ❌ button so it differs from ✅ by shape as well as colour. The 优 seal and round badge are circles.
+Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 10px for rows and inputs in the parent area; the ❌ Not yet button is a pennant (squared left end, 16px, pill right end) in coral with an ink outline, so it differs from the green ✅ pill by shape and icon as well as colour. The 优 seal and round badge are circles.
 
 ## Components
 
 - **Cover band**: green, the learner's name, and the gear as a cream pill with an ink outline.
-- **Lesson card**: a worksheet: bold title on a ruled underline, a small subject tag, one blue button per practice type.
+- **Lesson card**: a worksheet topped by a decorative hill (green for Chinese, blue for Math, from `data-subject`) with a dotted trail of ticked controls up to a coral flag; then a bold title on a ruled underline, a small subject tag, one blue button per practice type.
 - **Keep going**: a lesson card's button for a practice type in progress, with the small trail (no ticks) and a 🔄 button beside it.
-- **Summit rail** (`StarBar`): one stop per item on a dotted trail, up to 12. Done stops are gold with a ✓, the current one is ringed and numbered. Across the top on narrow screens; up the left, winding to a 🚩, where the screen is at least 640×600.
+- **Summit rail** (`StarBar`): one stop per item on a dotted trail, up to 12. Done stops are gold with a ✓, the current one is ringed and numbered. Across the top on narrow screens; up the left, on the dotted line, to a 🚩, where the screen is at least 640×600.
 - **田字格 stage**: a square cell with a dashed cross (`--tian` token). One cell per character in Write; the drawing canvas in Draw.
+- **Finished page**: a coral lobe behind the screen, a dotted course of ticked gold controls ending in the 优 seal as the finish ring (course hidden on short screens).
 - **优 seal**: red double-ring stamp on completion; its press animation runs only when reduced motion is not requested.
+- **Attempt trail** (parent Progress): one stop per attempt, oldest first, gold with a tick when finished, coral when stopped; attempt status is a gold or coral pill.
 - **Parent rows**: ruled rows with a › at the end, below a slim green bar.
 
 ## Do's and Don'ts

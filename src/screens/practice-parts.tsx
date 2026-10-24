@@ -82,9 +82,26 @@ export function Completion({ lines }: { lines: string[] }) {
   return (
     <section class="summary completion" data-testid="completion">
       <Celebration />
-      <span class="seal" lang="zh-CN" aria-hidden="true">
-        优
-      </span>
+      <div class="completion__finish" aria-hidden="true">
+        <svg class="completion__course" viewBox="0 0 300 90" preserveAspectRatio="xMinYMid meet" focusable="false">
+          <path class="completion__path" d="M14 70 L62 28 L110 62 L158 24 L206 58 L254 30" />
+          {[
+            [14, 70],
+            [62, 28],
+            [110, 62],
+            [158, 24],
+            [206, 58],
+          ].map(([x, y]) => (
+            <g key={x} transform={`translate(${x} ${y})`}>
+              <circle r="11" class="completion__stop" />
+              <path class="completion__tick" d="M-5 0l3.5 4 7-9" />
+            </g>
+          ))}
+        </svg>
+        <span class="seal" lang="zh-CN">
+          优
+        </span>
+      </div>
       <p class="completion__title">
         <span aria-hidden="true">🎉 </span>You did it!
       </p>

@@ -142,3 +142,67 @@
   margin: 0 0 8px;
   font-size: 1.5rem;
 }
+
+/* A trail of attempts, oldest first, on a dotted line. */
+.progress-trail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 420px;
+  height: 32px;
+  margin: 12px 0 4px;
+}
+
+.progress-trail::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  border-top: 4px dotted var(--ink);
+  transform: translateY(-50%);
+}
+
+.progress-trail__stop {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 0.8rem;
+  font-style: normal;
+  line-height: 1;
+}
+
+.progress-trail__stop--completed {
+  background: var(--gold);
+}
+
+.progress-trail__stop--completed::after {
+  content: '✓';
+}
+
+.progress-trail__stop--stopped {
+  background: var(--flag);
+}
+
+/* The attempt's status as a small pill: gold finished, coral stopped. */
+.progress-attempt__status {
+  padding: 2px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+}
+
+.progress-attempt__status--completed {
+  background: var(--gold);
+}
+
+.progress-attempt__status--stopped {
+  background: var(--flag);
+}
