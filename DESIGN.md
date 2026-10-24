@@ -134,6 +134,7 @@ Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 1
 - **Number pad**: rounded keys (14px) with a 3px ink outline; the Check key is filled with the accent.
 - **优 seal**: red double-ring stamp on completion, ringed in ink, smaller on short screens; its press animation runs only when reduced motion is not requested.
 - **Attempt trail** (parent Progress): one stop per attempt, oldest first, gold with a tick when finished, coral when stopped; attempt status is a gold or coral pill.
+- **Results table** (parent attempt page, marked practice types only): one row per item with a numbered stop (green for a control hit, gold for fixed, coral for go again), the word, its clue and pinyin, its tries as marks (a round green ✓, a square red ✕) and a result pill (Control hit, Fixed, Go again). The pill text carries the result, never colour alone. The rounds list stays below it.
 - **Parent rows**: ruled rows with a › at the end, below a slim green bar.
 
 ## Do's and Don'ts

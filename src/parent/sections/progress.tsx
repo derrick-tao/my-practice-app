@@ -36,7 +36,7 @@ import {
   type Score,
 } from '../../practice/progress.ts';
 import { missedProblems, trickiestKinds } from '../../practice/math-progress.ts';
-import type { Round, Session, SessionStatus } from '../../practice/session.ts';
+import type { Mark, Round, Session, SessionStatus } from '../../practice/session.ts';
 import { parentHref } from '../../router.ts';
 import { getStorage } from '../../storage/index.ts';
 import { useLoad, type Loadable } from '../../use-async.ts';
@@ -443,6 +443,52 @@ function RoundBlock({
   );
 }
 
+type Result = 'hit' | 'fixed' | 'again' | 'none';
+
+const RESULT_LABEL: Record<Result, string> = { hit: 'Control hit', fixed: 'Fixed', again: 'Go again', none: 'Not reached' };
+
+/** An item's tries across the attempt's rounds, in order, and how they ended: right first try, missed then right, or never right. */
+function triesOf(target: string, rounds: Round[]): { marks: Mark[]; result: Result } {
+  const marks = rounds.flatMap((r) => (r.marks[target] ? [r.marks[target]] : []));
+  const last = marks[marks.length - 1];
+  const result: Result = last === undefined ? 'none' : last === 'wrong' ? 'again' : marks.includes('wrong') ? 'fixed' : 'hit';
+  return { marks, result };
+}
+
+/** The attempt as a results table: a numbered stop per item, its word and clue, its tries as ✓ (round) and ✕ (square) marks, and a result pill. Only for a practice type with marks. */
+function ResultsTable({ rounds, items }: { rounds: Round[]; items: Map<string, ItemData> }) {
+  const first = rounds[0];
+  if (!first) return null;
+  return (
+    <ol class="progress-results" data-testid="results">
+      {first.itemIds.map((target, i) => {
+        const { marks, result } = triesOf(target, rounds);
+        const item = items.get(target);
+        return (
+          <li key={target} class="progress-results__row" data-testid="result">
+            <span class={`progress-results__stop progress-results__stop--${result}`}>{i + 1}</span>
+            <span class="progress-results__word" lang="zh-Hans">
+              {target}
+            </span>
+            <span class="progress-results__clue">
+              {item?.clue ?? ''}
+              <small>{item ? item.pinyin : '(removed)'}</small>
+            </span>
+            <span class="progress-results__tries">
+              {marks.map((mark, n) => (
+                <b key={n} class={`progress-results__try progress-results__try--${mark}`} role="img" aria-label={mark === 'correct' ? 'Right' : 'Not yet'}>
+                  {mark === 'correct' ? '✓' : '✕'}
+                </b>
+              ))}
+            </span>
+            <span class={`progress-results__pill progress-results__pill--${result}`}>{RESULT_LABEL[result]}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: string }) {
   const view = useLessonView(lessonId);
   const player = useAudioPlayer();
@@ -473,6 +519,7 @@ function AttemptPage({ lessonId, attemptId }: { lessonId: string; attemptId: str
               {status.label}
             </h2>
             {attempt.hasMarks && <p>First try: {scoreText(attempt.firstTry)}</p>}
+            {attempt.hasMarks && !isRulesType(part.type.id) && <ResultsTable rounds={savedRounds} items={items} />}
             <ol class="progress-list">
               {attempt.rounds.map((round) =>
                 attempt.hasMarks ? (
