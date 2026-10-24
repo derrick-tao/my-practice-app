@@ -308,8 +308,8 @@
   border-color: var(--ink);
   background: var(--flag);
   color: var(--ink);
-  /* Distinct shape as well as colour and icon (❌ against ✅): a pennant, squared at the left, against the green button's full pill. */
-  border-radius: 16px var(--pill) var(--pill) 16px;
+  /* Distinct shape as well as colour and icon (❌ against ✅): a softly rounded left edge, against the green button's full pill. */
+  border-radius: 40px var(--pill) var(--pill) 40px;
 }
 
 .btn--bad:active {

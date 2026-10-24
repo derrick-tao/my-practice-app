@@ -37,7 +37,7 @@ typography:
     lineHeight: 1.15
 rounded:
   md: "10px"
-  pennant: "16px"
+  pennant: "40px"
   key: "14px"
   card: "28px"
   pill: "999px"
@@ -121,7 +121,7 @@ Flat. No shadows. Depth comes from 3px ink outlines and the paper/card tint diff
 
 ## Shapes
 
-Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 14px for number-pad keys; 10px for rows and inputs in the parent area; the ❌ Not yet button is a pennant (squared left end, 16px, pill right end) in coral with an ink outline, so it differs from the green ✅ pill by shape and icon as well as colour. The 优 seal and round badge are circles.
+Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 14px for number-pad keys; 10px for rows and inputs in the parent area; the ❌ Not yet button has a softer left end (40px, pill right end) in coral with an ink outline, so it differs from the green ✅ pill by corner shape and icon as well as colour. The 优 seal and round badge are circles.
 
 ## Components
 
