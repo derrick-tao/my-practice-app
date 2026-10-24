@@ -42,7 +42,7 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
         <a class="lesson-card__button lesson-card__button--keep-going" href={href}>
           <span>
             <span aria-hidden="true">{type.icon} </span>
-            {type.label} · <span aria-hidden="true">▶️ </span>Keep going
+            {type.label} · <span class="lesson-card__play" aria-hidden="true">▶️ </span>Keep going
           </span>
           <span class="lesson-card__progress">
             <RoundBadge index={round.index} />
