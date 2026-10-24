@@ -42,7 +42,7 @@ export function StarBar({ done, total, missed }: { done: number; total: number; 
         {Array.from({ length: controls }, (_, i) => (
           <i
             key={i}
-            class={`starbar__stop${i < reached ? ` starbar__stop--done${stopMissed(i) ? ' starbar__stop--missed' : ''}` : i === reached ? ' starbar__stop--here' : ''}`}
+            class={`starbar__stop${i < reached ? ' starbar__stop--done' : i === reached ? ' starbar__stop--here' : ''}${i <= reached && stopMissed(i) ? ' starbar__stop--missed' : ''}`}
           >
             {i === reached ? done + 1 : ''}
           </i>

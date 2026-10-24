@@ -133,7 +133,7 @@ export function MathRun({
 
   if (session.status === 'completed') {
     return (
-      <main class="screen practice">
+      <main class="screen practice practice--finished">
         <h1 class="sr-only">{lesson.title}</h1>
         <Completion lines={firstTryAndRounds(sessionResult(session))} />
       </main>

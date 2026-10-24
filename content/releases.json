@@ -1,22 +1,13 @@
 [
   {
-    "id": "missed-stops",
-    "date": "2026-10-24",
-    "title": "Not yet shows on the trail",
-    "bullets": [
-      "A stop you marked Not yet turns coral with a cross, so you can see which ones to try again.",
-      "A grown-up's attempt page now has a results table: each item's tries as marks and a Control hit, Fixed or Go again pill."
-    ]
-  },
-  {
     "id": "summit-climb-look",
-    "date": "2026-10-23",
+    "date": "2026-10-24",
     "title": "A new look: the summit climb",
     "bullets": [
       "Brighter colours: a green hill for Chinese, lilac for Math, and round buttons with a thick outline.",
       "Progress is a trail of numbered stops up to a flag. Finished stops turn gold with a tick.",
-      "Keep going shows the same trail, small, on the lesson. Each lesson sits on a hill with a flag.",
-      "The finished page is coral with a trail ending in the 优 stamp, and Not yet is a coral button."
+      "A stop you marked Not yet turns coral with a cross, so you can see which ones to try again.",
+      "A grown-up's attempt page has a results table: each item's tries as marks and a Control hit, Fixed or Go again pill."
     ]
   },
   {

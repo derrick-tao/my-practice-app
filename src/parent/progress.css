@@ -194,7 +194,7 @@
 /* The attempt's status as a small pill: gold finished, coral stopped. */
 .progress-attempt__status {
   padding: 2px 12px;
-  border-radius: 999px;
+  border-radius: var(--pill);
   border: 2px solid var(--ink);
   background: var(--card);
 }
@@ -293,7 +293,7 @@
 
 .progress-results__pill {
   padding: 4px 14px;
-  border-radius: 999px;
+  border-radius: var(--pill);
   border: 2px solid var(--ink);
   background: var(--card);
   font-weight: 700;
