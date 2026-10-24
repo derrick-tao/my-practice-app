@@ -171,7 +171,7 @@ function Import() {
           <div class="backup__actions">
             <button
               type="button"
-              class="btn btn--primary btn--bad"
+              class="btn btn--primary btn--danger"
               disabled={state.step === 'restoring'}
               onClick={() => void restore(state.backup, state.summary)}
             >

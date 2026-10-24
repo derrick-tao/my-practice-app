@@ -28,7 +28,7 @@ import {
   type PracticeEnv,
   type Session,
 } from '../practice/session.ts';
-import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { missedPositions, RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
@@ -133,7 +133,7 @@ export function MathRun({
 
   if (session.status === 'completed') {
     return (
-      <main class="screen practice">
+      <main class="screen practice practice--finished">
         <h1 class="sr-only">{lesson.title}</h1>
         <Completion lines={firstTryAndRounds(sessionResult(session))} />
       </main>
@@ -154,11 +154,11 @@ export function MathRun({
   const answerBox = problem && <MathBlank value={settled ? answerText(type, problem) : entry} testId="answer" done={settled && trueFalse} />;
 
   return (
-    <main class="screen practice">
+    <main class="screen practice practice--math">
       <header class="practice__top">
         <HomeButton />
         <RoundBadge index={round.index} />
-        <StarBar done={round.position} total={round.itemIds.length} />
+        <StarBar done={round.position} total={round.itemIds.length} missed={missedPositions(round)} />
       </header>
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{lesson.title}</h1>

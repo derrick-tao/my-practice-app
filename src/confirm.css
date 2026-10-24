@@ -31,6 +31,7 @@
 
 /* A practice type in progress: its Keep going button with the 🔄 Start over button beside it (a button can't live inside the link). */
 .lesson-card__row {
+  container-type: inline-size;
   display: flex;
   gap: 8px;
 }

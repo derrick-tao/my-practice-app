@@ -14,10 +14,31 @@
 }
 
 .practice {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-height: 100dvh;
+}
+
+/* The hill behind the screen: green for Chinese, lilac for maths. */
+.practice::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  /* Full-bleed: as wide as the viewport, however narrow the 960px column is (body clips the sideways overflow). */
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  height: 150px;
+  border-radius: 0 0 48px 48px;
+  background: var(--cover);
+}
+
+.practice--math::before {
+  background: var(--lilac);
 }
 
 .practice__top {
@@ -26,7 +47,7 @@
   gap: 16px;
 }
 
-/* Progress is a ruler: a tick for every tenth of the list, and the ink fills along it. */
+/* Progress is a climb: controls on a dotted trail. Across the top by default; up the left side where there is room. */
 .starbar {
   flex: 1;
   display: flex;
@@ -38,32 +59,166 @@
 .starbar__track {
   position: relative;
   flex: 1;
-  height: 20px;
-  border-radius: 6px;
-  border: 2px solid var(--rule-strong);
-  background: var(--card);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  height: 40px;
 }
 
-.starbar__track::after {
+.starbar__track::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--paper) calc(10% - 2px) 10%);
-  pointer-events: none;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  border-top: 5px dotted var(--ink);
+  transform: translateY(-50%);
 }
 
-.starbar__fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.25s ease;
+.starbar__stop {
+  position: relative;
+  /* Fluid: the stops shrink together on a narrow screen instead of spilling out of the track. */
+  flex: 0 1 22px;
+  min-width: 10px;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 1rem;
+  font-weight: 800;
+  font-style: normal;
+  line-height: 1;
+}
+
+.starbar__stop--done {
+  background: var(--gold);
+}
+
+.starbar__stop--done::after {
+  content: '✓';
+  font-size: 0.8rem;
+}
+
+.starbar__stop--missed {
+  background: var(--flag);
+}
+
+.starbar__stop--missed::after {
+  content: '✕';
+}
+
+/* The stop you are on keeps its ring and number even when its share of a long list has a miss. */
+.starbar__stop--here.starbar__stop--missed::after {
+  content: none;
+}
+
+.starbar__stop--here {
+  flex-basis: 38px;
+  min-width: 24px;
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--ink);
 }
 
 .starbar__text {
+  padding: 4px 14px;
+  border-radius: var(--pill);
+  background: var(--gold);
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* A narrow screen: the trail takes a row of its own under Home, so every stop has room. */
+@media (max-width: 639px) {
+  .practice__top {
+    flex-wrap: wrap;
+  }
+
+  .practice__top .starbar {
+    flex: 1 1 100%;
+  }
+}
+
+/* The rail: on a screen wide enough, the practice screen is a hill with its trail up the left. */
+@media (min-width: 640px) and (min-height: 600px) {
+  .screen.practice:not(.practice--finished) {
+    padding-left: 128px;
+  }
+
+  .practice__top {
+    margin-left: -108px;
+  }
+
+  /* A slimmer header: just tall enough for Home and Undo, so the rail and the card get the space. */
+  .practice:not(.practice--finished)::before {
+    height: 94px;
+  }
+
+  /* The lobe: the hill runs down the left behind the rail, rounded at its right and bottom. */
+  .practice:not(.practice--finished)::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: -100vw;
+    width: calc(100vw + 128px);
+    border-radius: 0 0 56px 0;
+    background: var(--cover);
+  }
+
+  .practice--math:not(.practice--finished)::after {
+    background: var(--lilac);
+  }
+
+  .practice .starbar {
+    position: absolute;
+    left: 20px;
+    top: 100px;
+    bottom: 24px;
+    width: 84px;
+    flex-direction: column-reverse;
+    gap: 48px;
+  }
+
+  .practice .starbar__track {
+    flex-direction: column-reverse;
+    width: 100%;
+    height: auto;
+  }
+
+  .practice .starbar__stop {
+    flex: none;
+    width: 22px;
+  }
+
+  .practice .starbar__stop--here {
+    width: 38px;
+  }
+
+  .practice .starbar__track::before {
+    left: 50%;
+    right: auto;
+    top: 8px;
+    bottom: 8px;
+    width: 5px;
+    border-top: 0;
+    background: repeating-linear-gradient(to bottom, var(--ink) 0 5px, transparent 5px 11px);
+    transform: translateX(-50%);
+  }
+
+  /* The finish: a flag at the top of the trail. */
+  .practice .starbar__track::after {
+    content: '🚩';
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    font-size: 1.6rem;
+    transform: translateX(-30%);
+  }
 }
 
 .practice__body {
@@ -119,8 +274,8 @@
   gap: 8px;
   min-height: 64px;
   padding: 0 20px;
-  border: 2px solid var(--accent);
-  border-radius: var(--radius);
+  border: 3px solid var(--ink);
+  border-radius: var(--pill);
   background: var(--card);
   color: var(--accent);
   font: inherit;
@@ -143,27 +298,38 @@
 }
 
 .btn--primary:active {
-  background: #15339a;
+  background: var(--accent-press);
 }
 
 .btn--good {
-  border-color: var(--good);
   background: var(--good);
 }
 
 .btn--good:active {
-  background: #0f5d32;
+  background: var(--good-press);
 }
 
 .btn--bad {
-  border-color: var(--bad);
-  background: var(--bad);
-  /* Distinct shape as well as color: squarer corners than the rounded green button. */
-  border-radius: 4px;
+  border-color: var(--ink);
+  background: var(--flag);
+  color: var(--ink);
+  /* Distinct shape as well as colour and icon (❌ against ✅): a softly rounded left edge, against the green button's full pill. */
+  border-radius: 40px var(--pill) var(--pill) 40px;
 }
 
 .btn--bad:active {
-  background: #99201a;
+  background: var(--flag-press);
+}
+
+/* Delete, retry and "No": not marking, so no coral pennant. An outline in red ink on the card, still a pill. */
+.btn--danger {
+  border-color: var(--bad);
+  background: var(--card);
+  color: var(--bad);
+}
+
+.btn--danger:active {
+  background: var(--flag-soft);
 }
 
 .pulse {
@@ -272,13 +438,94 @@
   justify-content: center;
   min-height: 48px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: var(--pill);
   border: 3px solid var(--bad);
   color: var(--bad);
   font-size: 1.3rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The finished page is the coral lobe: a course of ticked controls ends in the seal, the finish ring. */
+.practice--finished::before {
+  height: 100%;
+  background: var(--flag);
+  border-radius: 0;
+}
+
+.completion {
+  flex: 1;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+/* The course winds up from the lower left and leads into the seal, the finish ring at its end. */
+.completion__finish {
+  position: relative;
+  flex: 0 1 auto;
+  width: min(100%, 880px, 72dvh);
+  aspect-ratio: 3 / 2;
+  /* Free space on a tall screen goes above and below the course and words together, so they sit in the middle. */
+  margin-top: auto;
+}
+
+.completion__course {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.completion__words {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: auto;
+}
+
+.completion .home-button {
+  justify-content: center;
+  width: min(100%, 520px);
+  min-height: 96px;
+  margin-top: 8px;
+  font-size: 1.6rem;
+}
+
+.completion__path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 1 9;
+}
+
+.completion__stop {
+  fill: var(--gold);
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+
+.completion__tick {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.completion .seal {
+  position: absolute;
+  left: min(84%, calc(100% - 70px));
+  top: 22%;
+  margin: -66px 0 0 -66px;
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 5px var(--card),
+    inset 0 0 0 8px var(--bad),
+    inset 0 0 0 10px var(--card),
+    inset 0 0 0 11.5px var(--bad),
+    0 0 0 4px var(--ink);
 }
 
 .completion__title {
@@ -305,24 +552,69 @@
   font-size: 5rem;
   line-height: 1;
   transform: rotate(-9deg);
-  box-shadow:
-    inset 0 0 0 5px var(--paper),
-    inset 0 0 0 8px var(--bad),
-    inset 0 0 0 10px var(--paper),
-    inset 0 0 0 11.5px var(--bad);
 }
 
-/* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal. */
+/* A phone in portrait is narrow enough that the full-size seal would sit on the last stop of the course: a smaller seal,
+   tucked into the top right corner, keeps a gap between them. */
+@media (max-width: 600px) {
+  .completion .seal {
+    left: calc(100% - 54px);
+    top: 16%;
+    width: 92px;
+    height: 92px;
+    margin: -46px 0 0 -46px;
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .completion .seal {
+    left: calc(100% - 46px);
+    width: 76px;
+    height: 76px;
+    margin: -38px 0 0 -38px;
+    font-size: 2.9rem;
+  }
+}
+
+/* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal, and no course. These come
+   after (and match the specificity of) the finished page's seal above, so they win. */
 @media (max-height: 500px) {
-  .seal {
+  .completion .seal {
     width: 56px;
     height: 56px;
     font-size: 2.2rem;
     box-shadow:
-      inset 0 0 0 3px var(--paper),
+      inset 0 0 0 3px var(--card),
       inset 0 0 0 5px var(--bad),
-      inset 0 0 0 6px var(--paper),
-      inset 0 0 0 7px var(--bad);
+      inset 0 0 0 6px var(--card),
+      inset 0 0 0 7px var(--bad),
+      0 0 0 3px var(--ink);
+  }
+
+  .completion__course {
+    display: none;
+  }
+
+  .completion,
+  .completion__words {
+    gap: 8px;
+  }
+
+  .completion .home-button {
+    margin-top: 0;
+  }
+
+  .completion__finish {
+    position: static;
+    width: auto;
+    aspect-ratio: auto;
+    margin: 0;
+  }
+
+  .completion .seal {
+    position: static;
+    margin: 0;
   }
 }
 
@@ -343,12 +635,26 @@
   }
 }
 
-/* A lesson card's button for a practice type in progress: "Keep going" with the round and the ruler, in place of the count. */
+/* A lesson card's button for a practice type in progress: "Keep going" with the round and the place, in place of the count. */
 .lesson-card__button--keep-going {
   flex: 1;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 16px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
+}
+
+/* The label stays on one line; the round and place sit under it. */
+.lesson-card__button--keep-going > span:first-child {
+  white-space: nowrap;
+}
+
+/* In a narrow card (a small phone, or two cards side by side) the ▶️ goes, so "Keep going" still fits beside the 🔄 button. */
+@container (max-width: 270px) {
+  .lesson-card__play {
+    display: none;
+  }
 }
 
 .lesson-card__progress {
@@ -363,17 +669,16 @@
   color: #fff;
 }
 
+/* Beside the 🔄 button there is no room for a trail: the button shows only the place, as a small "2 / 12" chip. */
 .lesson-card__button--keep-going .starbar__track {
-  border-color: rgb(255 255 255 / 70%);
-  background: rgb(255 255 255 / 14%);
+  display: none;
 }
 
-.lesson-card__button--keep-going .starbar__track::after {
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--accent) calc(10% - 2px) 10%);
-}
-
-.lesson-card__button--keep-going .starbar__fill {
-  background: #fff;
+.lesson-card__button--keep-going .starbar__text {
+  padding: 2px 10px;
+  font-size: 0.95rem;
+  background: var(--card);
+  color: var(--ink);
 }
 
 /* "Couldn't save — tap to retry" */
@@ -417,6 +722,7 @@
 /* Confetti on the completion screen: falls once, never blocks a tap. */
 .confetti {
   position: fixed;
+  z-index: -1;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
@@ -449,6 +755,7 @@
 /* Reduced motion: a soft glow that fades in and out; nothing moves. */
 .completion-fade {
   position: fixed;
+  z-index: -1;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle at 50% 40%, rgb(255 214 64 / 50%), rgb(255 214 64 / 0%) 70%);
@@ -482,7 +789,7 @@
   margin: 0;
   padding: 12px 16px;
   border-radius: 10px;
-  background: #ffef9f;
+  background: var(--highlighter);
   font-size: 1.3rem;
   font-weight: 700;
   text-align: center;

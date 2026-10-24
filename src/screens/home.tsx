@@ -6,7 +6,7 @@ import { usePublishedLessons } from '../content/use-lessons.ts';
 import { countLabel, itemsIn, PRACTICE_TYPES, subjectLabel } from '../practice/practice-types.tsx';
 import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
-import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { missedPositions, RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { useUpdateReady } from '../pwa/service-worker.ts';
 import { UpdateDot } from '../pwa/update-dot.tsx';
@@ -42,11 +42,11 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
         <a class="lesson-card__button lesson-card__button--keep-going" href={href}>
           <span>
             <span aria-hidden="true">{type.icon} </span>
-            {type.label} · <span aria-hidden="true">▶️ </span>Keep going
+            {type.label} · <span class="lesson-card__play" aria-hidden="true">▶️ </span>Keep going
           </span>
           <span class="lesson-card__progress">
             <RoundBadge index={round.index} />
-            <StarBar done={round.position} total={round.itemIds.length} />
+            <StarBar done={round.position} total={round.itemIds.length} missed={missedPositions(round)} />
           </span>
           <span class="sr-only"> for {lesson.title}</span>
         </a>
@@ -66,6 +66,28 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
       )}
       {failed && <SaveFailed onRetry={() => void startOver()} />}
     </>
+  );
+}
+
+/** The card's hill, drawn for show: a dotted trail of open controls up to a coral flag (decoration: it shows no progress). */
+function Hill() {
+  const stops = [
+    [58, 92],
+    [88, 66],
+    [120, 52],
+    [152, 30],
+  ];
+  return (
+    <svg class="lesson-card__hill" viewBox="0 0 280 110" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+      <path class="hill__body" d="M8 108 C 50 96 80 12 150 12 S 240 96 272 108 Z" />
+      <path class="hill__trail" d="M36 104 L58 92 L88 66 L120 52 L152 30 L168 24" />
+      {stops.map(([x, y], i) => (
+        <g key={i} transform={`translate(${x} ${y})`}>
+          <circle r="9" class="hill__stop" />
+        </g>
+      ))}
+      <path class="hill__flag" d="M168 24 v-22 l16 6 -16 6" />
+    </svg>
   );
 }
 
@@ -92,7 +114,8 @@ function LessonCard({
   const byType = new Map(inProgress.map((session) => [session.practiceType, session]));
   const extras = [...byType.values()].filter((session) => !offered.has(session.practiceType));
   return (
-    <section class="lesson-card" role="group" aria-label={lesson.title}>
+    <section class="lesson-card" role="group" aria-label={lesson.title} data-subject={subject}>
+      <Hill />
       <span class="lesson-card__title">{lesson.title}</span>
       <span class="lesson-card__subject" data-testid="subject-tag">
         {subjectLabel(subject)}

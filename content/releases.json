@@ -1,5 +1,16 @@
 [
   {
+    "id": "summit-climb-look",
+    "date": "2026-10-24",
+    "title": "A new look: the summit climb",
+    "bullets": [
+      "Brighter colours: a green hill for Chinese, lilac for Math, and round buttons with a thick outline.",
+      "Progress is a trail of numbered stops up to a flag. Finished stops turn gold with a tick.",
+      "A stop you marked Not yet turns coral with a cross, so you can see which ones to try again.",
+      "A grown-up's attempt page has a results table: each item's tries as marks and a Control hit, Fixed or Go again pill."
+    ]
+  },
+  {
     "id": "keep-going-on-lesson-cards",
     "date": "2026-10-22",
     "title": "Keep going lives on the lesson",

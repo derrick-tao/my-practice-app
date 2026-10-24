@@ -29,7 +29,7 @@ export function ConfirmYesNo({
         <button type="button" class="btn btn--primary btn--good" disabled={busy} onClick={onYes}>
           <span aria-hidden="true">✅ </span>Yes
         </button>
-        <button type="button" class="btn btn--primary btn--bad" disabled={busy} onClick={onNo}>
+        <button type="button" class="btn btn--primary btn--danger" disabled={busy} onClick={onNo}>
           <span aria-hidden="true">❌ </span>No
         </button>
       </div>
