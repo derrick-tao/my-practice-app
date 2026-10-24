@@ -547,6 +547,29 @@
   transform: rotate(-9deg);
 }
 
+/* A phone in portrait is narrow enough that the full-size seal would sit on the last stop of the course: a smaller seal,
+   tucked into the top right corner, keeps a gap between them. */
+@media (max-width: 600px) {
+  .completion .seal {
+    left: calc(100% - 54px);
+    top: 16%;
+    width: 92px;
+    height: 92px;
+    margin: -46px 0 0 -46px;
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .completion .seal {
+    left: calc(100% - 46px);
+    width: 76px;
+    height: 76px;
+    margin: -38px 0 0 -38px;
+    font-size: 2.9rem;
+  }
+}
+
 /* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal, and no course. These come
    after (and match the specificity of) the finished page's seal above, so they win. */
 @media (max-height: 500px) {
