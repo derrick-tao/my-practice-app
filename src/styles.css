@@ -37,6 +37,8 @@
 
 body {
   margin: 0;
+  /* Hill bands are full-bleed (100vw) inside the 960px column; never let them scroll sideways. */
+  overflow-x: clip;
   min-height: 100dvh;
 }
 

@@ -27,13 +27,18 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: 0 0 auto;
+  /* Full-bleed: as wide as the viewport, however narrow the 960px column is (body clips the sideways overflow). */
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
   height: 150px;
   border-radius: 0 0 48px 48px;
   background: var(--cover);
 }
 
-.practice--math::before {
+.practice--math::before,
+.practice--math::after {
   background: var(--lilac);
 }
 
@@ -133,6 +138,23 @@
 
   .practice__top {
     margin-left: -108px;
+  }
+
+  /* The lobe: the hill runs down the left behind the rail, rounded at its right and bottom. */
+  .practice:not(:has(.completion))::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: -100vw;
+    width: calc(100vw + 128px);
+    border-radius: 0 0 56px 0;
+    background: var(--cover);
+  }
+
+  .practice--math:not(:has(.completion))::after {
+    background: var(--lilac);
   }
 
   .practice .starbar {
@@ -414,6 +436,7 @@
 .practice:has(.completion)::before {
   height: 100%;
   background: var(--flag);
+  border-radius: 0;
 }
 
 .completion {
