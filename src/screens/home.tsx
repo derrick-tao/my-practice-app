@@ -6,7 +6,7 @@ import { usePublishedLessons } from '../content/use-lessons.ts';
 import { countLabel, itemsIn, PRACTICE_TYPES, subjectLabel } from '../practice/practice-types.tsx';
 import { findSessionsInProgress, stopSession } from '../practice/resume.ts';
 import { currentRound, type Session } from '../practice/session.ts';
-import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { missedPositions, RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { activeProfileOf, setActiveProfile } from '../profiles.ts';
 import { useUpdateReady } from '../pwa/service-worker.ts';
 import { UpdateDot } from '../pwa/update-dot.tsx';
@@ -46,7 +46,7 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
           </span>
           <span class="lesson-card__progress">
             <RoundBadge index={round.index} />
-            <StarBar done={round.position} total={round.itemIds.length} />
+            <StarBar done={round.position} total={round.itemIds.length} missed={missedPositions(round)} />
           </span>
           <span class="sr-only"> for {lesson.title}</span>
         </a>

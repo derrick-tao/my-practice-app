@@ -103,6 +103,14 @@
   font-size: 0.8rem;
 }
 
+.starbar__stop--missed {
+  background: var(--flag);
+}
+
+.starbar__stop--missed::after {
+  content: '✕';
+}
+
 .starbar__stop--here {
   flex-basis: 38px;
   min-width: 24px;
@@ -637,6 +645,11 @@
 
 .lesson-card__button--keep-going .starbar__stop--done::after {
   content: none;
+}
+
+.lesson-card__button--keep-going .starbar__stop--missed {
+  /* No glyph this small: coral, and a rounded square against the round gold stops. */
+  border-radius: 30%;
 }
 
 .lesson-card__button--keep-going .starbar__stop--here {

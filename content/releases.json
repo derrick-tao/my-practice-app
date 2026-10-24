@@ -1,5 +1,13 @@
 [
   {
+    "id": "missed-stops",
+    "date": "2026-10-24",
+    "title": "Not yet shows on the trail",
+    "bullets": [
+      "A stop you marked Not yet turns coral with a cross, so you can see which ones to try again."
+    ]
+  },
+  {
     "id": "summit-climb-look",
     "date": "2026-10-23",
     "title": "A new look: the summit climb",

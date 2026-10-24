@@ -31,7 +31,7 @@ import {
   type Place,
   type Session,
 } from '../practice/session.ts';
-import { RoundBadge, StarBar } from '../practice/widgets.tsx';
+import { missedPositions, RoundBadge, StarBar } from '../practice/widgets.tsx';
 import { HOME_HREF } from '../router.ts';
 import { SaveFailed } from '../save-failed.tsx';
 import { getStorage } from '../storage/index.ts';
@@ -377,7 +377,7 @@ function PracticeRun({
           </button>
         )}
         <RoundBadge index={round.index} />
-        <StarBar done={round.position} total={round.itemIds.length} />
+        <StarBar done={round.position} total={round.itemIds.length} missed={missedPositions(round)} />
       </header>
       {saveFailed && <SaveFailed onRetry={sync.retry} />}
       <h1 class="sr-only">{lesson.title}</h1>
