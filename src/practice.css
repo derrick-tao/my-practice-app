@@ -14,15 +14,12 @@
 }
 
 .practice {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-height: 100dvh;
-}
-
-.practice {
-  position: relative;
-  isolation: isolate;
 }
 
 /* The hill behind the screen: green for Chinese, lilac for maths. */
@@ -77,11 +74,12 @@
 
 .starbar__stop {
   position: relative;
-  flex: none;
+  /* Fluid: the stops shrink together on a narrow screen instead of spilling out of the track. */
+  flex: 0 1 22px;
+  min-width: 10px;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  aspect-ratio: 1;
   border: 3px solid var(--ink);
   border-radius: 50%;
   background: var(--card);
@@ -101,9 +99,8 @@
 }
 
 .starbar__stop--here {
-  width: 38px;
-  height: 38px;
-  background: var(--card);
+  flex-basis: 38px;
+  min-width: 24px;
   box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--ink);
 }
 
@@ -115,6 +112,17 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* A narrow screen: the trail takes a row of its own under Home, so every stop has room. */
+@media (max-width: 639px) {
+  .practice__top {
+    flex-wrap: wrap;
+  }
+
+  .practice__top .starbar {
+    flex: 1 1 100%;
+  }
 }
 
 /* The rail: on a screen wide enough, the practice screen is a hill with its trail up the left. */
@@ -141,6 +149,15 @@
     flex-direction: column-reverse;
     width: 100%;
     height: auto;
+  }
+
+  .practice .starbar__stop {
+    flex: none;
+    width: 22px;
+  }
+
+  .practice .starbar__stop--here {
+    width: 38px;
   }
 
   .practice .starbar__track::before {
@@ -242,16 +259,15 @@
 }
 
 .btn--primary:active {
-  background: #15339a;
+  background: var(--accent-press);
 }
 
 .btn--good {
-  border-color: var(--good);
   background: var(--good);
 }
 
 .btn--good:active {
-  background: #0f5d32;
+  background: var(--good-press);
 }
 
 .btn--bad {
@@ -263,7 +279,20 @@
 }
 
 .btn--bad:active {
-  background: #e85a48;
+  background: var(--flag-press);
+}
+
+/* Delete, retry and "No": not marking, so no coral pennant. An outline in red ink on the card, still a pill. */
+.btn--danger,
+.btn--primary.btn--danger {
+  border-color: var(--bad);
+  background: var(--card);
+  color: var(--bad);
+}
+
+.btn--danger:active,
+.btn--primary.btn--danger:active {
+  background: var(--flag-soft);
 }
 
 .pulse {
@@ -433,12 +462,6 @@
     0 0 0 4px var(--ink);
 }
 
-@media (max-height: 500px) {
-  .completion__course {
-    display: none;
-  }
-}
-
 .completion__title {
   margin: 0;
   font-size: 3rem;
@@ -463,24 +486,29 @@
   font-size: 5rem;
   line-height: 1;
   transform: rotate(-9deg);
-  box-shadow:
-    inset 0 0 0 5px var(--paper),
-    inset 0 0 0 8px var(--bad),
-    inset 0 0 0 10px var(--paper),
-    inset 0 0 0 11.5px var(--bad);
 }
 
-/* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal. */
+/* A short screen (a phone on its side) keeps the finished page on one screen: a smaller seal, and no course. These come
+   after (and match the specificity of) the finished page's seal above, so they win. */
 @media (max-height: 500px) {
-  .seal {
+  .completion .seal {
     width: 56px;
     height: 56px;
     font-size: 2.2rem;
     box-shadow:
-      inset 0 0 0 3px var(--paper),
+      inset 0 0 0 3px var(--card),
       inset 0 0 0 5px var(--bad),
-      inset 0 0 0 6px var(--paper),
-      inset 0 0 0 7px var(--bad);
+      inset 0 0 0 6px var(--card),
+      inset 0 0 0 7px var(--bad),
+      0 0 0 3px var(--ink);
+  }
+
+  .completion__course {
+    display: none;
+  }
+
+  .completion__finish {
+    justify-content: center;
   }
 }
 
@@ -501,7 +529,7 @@
   }
 }
 
-/* A lesson card's button for a practice type in progress: "Keep going" with the round and the ruler, in place of the count. */
+/* A lesson card's button for a practice type in progress: "Keep going" with the round and the trail, in place of the count. */
 .lesson-card__button--keep-going {
   flex: 1;
   flex-direction: column;
@@ -525,9 +553,18 @@
   border-color: #fff;
 }
 
+.lesson-card__button--keep-going {
+  min-width: 0;
+}
+
+.lesson-card__progress .starbar {
+  gap: 8px;
+}
+
+/* Beside the 🔄 button and the count there is little room: the stops shrink to fit (down to a few pixels). */
 .lesson-card__button--keep-going .starbar__stop {
-  width: 16px;
-  height: 16px;
+  flex: 0 1 16px;
+  min-width: 5px;
   border-width: 2px;
   font-size: 0;
 }
@@ -537,12 +574,14 @@
 }
 
 .lesson-card__button--keep-going .starbar__stop--here {
-  width: 22px;
-  height: 22px;
+  flex-basis: 22px;
+  min-width: 8px;
   box-shadow: none;
 }
 
 .lesson-card__button--keep-going .starbar__text {
+  padding: 2px 10px;
+  font-size: 0.95rem;
   background: var(--card);
   color: var(--ink);
 }
@@ -653,7 +692,7 @@
   margin: 0;
   padding: 12px 16px;
   border-radius: 10px;
-  background: #ffef9f;
+  background: var(--highlighter);
   font-size: 1.3rem;
   font-weight: 700;
   text-align: center;

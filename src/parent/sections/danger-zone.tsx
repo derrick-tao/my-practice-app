@@ -68,7 +68,7 @@ function DangerZone() {
           {profile && (
             <button
               type="button"
-              class="btn btn--bad"
+              class="btn btn--danger"
               onClick={() => {
                 setErasedName(null);
                 setFlow({ kind: 'learner', step: 1, profileId: profile.id, name: profile.name });
@@ -79,7 +79,7 @@ function DangerZone() {
           )}
           <button
             type="button"
-            class="btn btn--bad"
+            class="btn btn--danger"
             onClick={() => {
               setErasedName(null);
               setFlow({ kind: 'everything', step: 1 });
@@ -173,7 +173,7 @@ function Choices({
 }) {
   return (
     <div class="row">
-      <button type="button" class="btn btn--bad" disabled={busy || disabled} onClick={onConfirm}>
+      <button type="button" class="btn btn--danger" disabled={busy || disabled} onClick={onConfirm}>
         {confirm}
       </button>
       <button type="button" class="btn" disabled={busy} onClick={onCancel}>

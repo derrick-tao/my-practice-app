@@ -8,7 +8,13 @@ const MAX_CONTROLS = 12;
 
 export function StarBar({ done, total }: { done: number; total: number }) {
   const controls = Math.min(total, MAX_CONTROLS);
-  const reached = total <= MAX_CONTROLS ? done : Math.floor((done / total) * controls);
+  // Past twelve items the stops stand for a share of the list: any progress ticks the first stop, only a finished list ticks them all.
+  const reached =
+    total <= MAX_CONTROLS || done <= 0
+      ? done
+      : done >= total
+        ? controls
+        : Math.min(controls - 1, Math.ceil((done / total) * controls));
   return (
     <div class="starbar">
       <div
@@ -21,7 +27,7 @@ export function StarBar({ done, total }: { done: number; total: number }) {
       >
         {Array.from({ length: controls }, (_, i) => (
           <i key={i} class={`starbar__stop${i < reached ? ' starbar__stop--done' : i === reached ? ' starbar__stop--here' : ''}`}>
-            {i === reached ? i + 1 : ''}
+            {i === reached ? done + 1 : ''}
           </i>
         ))}
       </div>

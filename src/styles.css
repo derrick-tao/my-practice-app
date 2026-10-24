@@ -9,11 +9,15 @@
   --cover: #8ed462;
   --lilac: #ebc1ff;
   --flag: #ff705d;
+  --flag-press: #e85a48;
+  --flag-soft: #ffe1dc;
+  --highlighter: #ffef9f;
   --gold: #f5e211;
-  --blue: #2ba0ff;
   --accent: #1d44c4;
   --accent-soft: #e3eafb;
+  --accent-press: #15339a;
   --good: #167a42;
+  --good-press: #0f5d32;
   --bad: #c42b22;
   --radius: 28px;
   --pill: 999px;
@@ -86,7 +90,7 @@ body {
   color: inherit;
 }
 
-/* The card's hill: green for Chinese, blue for maths, with a dotted trail of ticked controls up to a coral flag. */
+/* The card's hill: green for Chinese, lilac for maths, with a dotted trail of open controls up to a coral flag. */
 .lesson-card__hill {
   display: block;
   width: 100%;
@@ -103,7 +107,7 @@ body {
 }
 
 .lesson-card[data-subject='math'] .hill__body {
-  fill: var(--blue);
+  fill: var(--lilac);
 }
 
 .hill__trail {
@@ -118,18 +122,6 @@ body {
   fill: var(--card);
   stroke: var(--ink);
   stroke-width: 3;
-}
-
-.hill__stop--done {
-  fill: var(--gold);
-}
-
-.hill__tick {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .hill__flag {
@@ -224,7 +216,6 @@ body {
   flex: none;
   width: 64px;
   height: 64px;
-  border-radius: var(--radius);
   font-size: 1.8rem;
   text-decoration: none;
   background: var(--card);
@@ -569,8 +560,8 @@ body {
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--card);
-  border: 2px solid var(--rule-strong);
-  border-radius: 12px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
   cursor: pointer;
 }
 
@@ -579,14 +570,16 @@ body {
 }
 
 .numpad__key--minor {
-  border-color: var(--rule);
   color: var(--ink-soft);
 }
 
 .numpad__key--ok {
   color: #fff;
   background: var(--accent);
-  border-color: var(--accent);
+}
+
+.numpad__key--ok:active {
+  background: var(--accent-press);
 }
 
 /* The Check key's glyph: heavy, and sized to sit comfortably inside a digit-sized key. */

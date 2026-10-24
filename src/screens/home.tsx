@@ -69,7 +69,7 @@ function KeepGoingButton({ session, lesson }: { session: Session; lesson: Lesson
   );
 }
 
-/** The card's hill, drawn for show: a dotted trail of ticked controls up to a coral flag. */
+/** The card's hill, drawn for show: a dotted trail of open controls up to a coral flag (decoration: it shows no progress). */
 function Hill() {
   const stops = [
     [58, 92],
@@ -83,8 +83,7 @@ function Hill() {
       <path class="hill__trail" d="M36 104 L58 92 L88 66 L120 52 L152 30 L168 24" />
       {stops.map(([x, y], i) => (
         <g key={i} transform={`translate(${x} ${y})`}>
-          <circle r="9" class={i < 3 ? 'hill__stop hill__stop--done' : 'hill__stop'} />
-          {i < 3 && <path class="hill__tick" d="M-4 0l3 3.5 5.5-7" />}
+          <circle r="9" class="hill__stop" />
         </g>
       ))}
       <path class="hill__flag" d="M168 24 v-22 l16 6 -16 6" />

@@ -167,7 +167,7 @@ function DeleteConfirm({
         <button type="button" class="btn btn--audio" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" class="btn btn--primary btn--bad" disabled={!matches || busy} onClick={onConfirm}>
+        <button type="button" class="btn btn--primary btn--danger" disabled={!matches || busy} onClick={onConfirm}>
           Yes, delete {profile.name}
         </button>
       </div>
