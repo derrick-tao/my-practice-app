@@ -154,7 +154,7 @@ export function MathRun({
   const answerBox = problem && <MathBlank value={settled ? answerText(type, problem) : entry} testId="answer" done={settled && trueFalse} />;
 
   return (
-    <main class="screen practice">
+    <main class="screen practice practice--math">
       <header class="practice__top">
         <HomeButton />
         <RoundBadge index={round.index} />

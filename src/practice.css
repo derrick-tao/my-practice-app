@@ -20,13 +20,33 @@
   min-height: 100dvh;
 }
 
+.practice {
+  position: relative;
+  isolation: isolate;
+}
+
+/* The hill behind the screen: green for Chinese, lilac for maths. */
+.practice::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto;
+  height: 150px;
+  border-radius: 0 0 48px 48px;
+  background: var(--cover);
+}
+
+.practice--math::before {
+  background: var(--lilac);
+}
+
 .practice__top {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-/* Progress is a ruler: a tick for every tenth of the list, and the ink fills along it. */
+/* Progress is a climb: controls on a dotted trail. Across the top by default; up the left side where there is room. */
 .starbar {
   flex: 1;
   display: flex;
@@ -38,32 +58,120 @@
 .starbar__track {
   position: relative;
   flex: 1;
-  height: 20px;
-  border-radius: 6px;
-  border: 2px solid var(--rule-strong);
-  background: var(--card);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  height: 40px;
 }
 
-.starbar__track::after {
+.starbar__track::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--paper) calc(10% - 2px) 10%);
-  pointer-events: none;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  border-top: 5px dotted var(--ink);
+  transform: translateY(-50%);
 }
 
-.starbar__fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.25s ease;
+.starbar__stop {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 1rem;
+  font-weight: 800;
+  font-style: normal;
+  line-height: 1;
+}
+
+.starbar__stop--done {
+  background: var(--gold);
+}
+
+.starbar__stop--done::after {
+  content: '✓';
+  font-size: 0.8rem;
+}
+
+.starbar__stop--here {
+  width: 38px;
+  height: 38px;
+  background: var(--card);
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--ink);
 }
 
 .starbar__text {
+  padding: 4px 14px;
+  border-radius: var(--pill);
+  background: var(--gold);
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The rail: on a screen wide enough, the practice screen is a hill with its trail up the left. */
+@media (min-width: 640px) and (min-height: 600px) {
+  .screen.practice {
+    padding-left: 128px;
+  }
+
+  .practice__top {
+    margin-left: -108px;
+  }
+
+  .practice .starbar {
+    position: absolute;
+    left: 20px;
+    top: 112px;
+    bottom: 24px;
+    width: 84px;
+    flex-direction: column-reverse;
+    gap: 48px;
+  }
+
+  .practice .starbar__track {
+    flex-direction: column-reverse;
+    width: 100%;
+    height: auto;
+  }
+
+  .practice .starbar__track::before {
+    left: 50%;
+    right: auto;
+    top: 8px;
+    bottom: 8px;
+    width: 5px;
+    border-top: 0;
+    background: repeating-linear-gradient(to bottom, var(--ink) 0 5px, transparent 5px 11px);
+    transform: translateX(-50%);
+  }
+
+  /* The trail winds a little. */
+  .practice .starbar__stop:nth-child(odd) {
+    left: -10px;
+  }
+
+  .practice .starbar__stop:nth-child(even) {
+    left: 10px;
+  }
+
+  /* The finish: a flag at the top of the trail. */
+  .practice .starbar__track::after {
+    content: '🚩';
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    font-size: 1.6rem;
+    transform: translateX(-30%);
+  }
 }
 
 .practice__body {
@@ -119,8 +227,8 @@
   gap: 8px;
   min-height: 64px;
   padding: 0 20px;
-  border: 2px solid var(--accent);
-  border-radius: var(--radius);
+  border: 3px solid var(--ink);
+  border-radius: var(--pill);
   background: var(--card);
   color: var(--accent);
   font: inherit;
@@ -363,17 +471,30 @@
   color: #fff;
 }
 
-.lesson-card__button--keep-going .starbar__track {
-  border-color: rgb(255 255 255 / 70%);
-  background: rgb(255 255 255 / 14%);
+.lesson-card__button--keep-going .starbar__track::before {
+  border-color: #fff;
 }
 
-.lesson-card__button--keep-going .starbar__track::after {
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--accent) calc(10% - 2px) 10%);
+.lesson-card__button--keep-going .starbar__stop {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  font-size: 0;
 }
 
-.lesson-card__button--keep-going .starbar__fill {
-  background: #fff;
+.lesson-card__button--keep-going .starbar__stop--done::after {
+  content: none;
+}
+
+.lesson-card__button--keep-going .starbar__stop--here {
+  width: 22px;
+  height: 22px;
+  box-shadow: none;
+}
+
+.lesson-card__button--keep-going .starbar__text {
+  background: var(--card);
+  color: var(--ink);
 }
 
 /* "Couldn't save — tap to retry" */

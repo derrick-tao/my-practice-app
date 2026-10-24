@@ -1,6 +1,6 @@
 ---
 name: My Practice App
-description: A Grade 1 school exercise book on a screen. Green cover, ruled paper, ballpoint-blue buttons and red-ink marking.
+description: A summit climb on a screen. Cream paper, a green hill for Chinese and a lilac one for Math, heavy ink outlines, pill buttons, ballpoint-blue for what can be pressed and red-ink marking.
 colors:
   paper: "#f2f7ef"
   card: "#fcfef9"
@@ -77,14 +77,14 @@ components:
 
 ## Overview
 
-A Chinese school workbook (练习册) on a tablet. Pale green ruled paper, a dark green cover band, blue-black ink, and a teacher's red pen. The child practises on 田字格 squares, the same squares used on paper. The grown-ups area is the back pages of the same book: plainer and denser, with the same type and palette.
+A summit climb on a tablet: a trail map of the term's practice. Cream paper, a bright green hill band (lilac for Math), heavy blue-black outlines, and a teacher's red pen. The child practises on 田字格 squares, the same squares used on paper. The grown-ups area is the back pages of the same book: plainer and denser, with the same type and palette.
 
 This is an Operate-mode world: it lends type, palette, density and one signature move (the 田字格 square). Navigation and controls stay standard. Buttons look like buttons.
 
 ## Colors
 
-- **Paper** `#f2f7ef` is the page; **Card** `#fcfef9` is a sheet on it. **Rule** `#c5dccb` and **Rule strong** `#5e9871` are the ruled lines, borders and 田字格 strokes.
-- **Cover** `#1e5a3c` is the green band on Home and the slim bar in the parent area. White text only.
+- **Paper** `#f5f1e4` is the page; **Card** `#fffdf6` is a sheet on it. **Rule** `#ddd6bf` is the ruled lines; **Rule strong** `#2c2e2a` is the 3px outline on cards and buttons. The 田字格 strokes keep their own green.
+- **Cover** `#8ed462` is the green hill band on Home, practice screens and the parent bar; **Lilac** `#ebc1ff` is Math's hill; **Gold** `#f5e211` is a finished stop, the count pill and the subject tag. Ink text on all of them.
 - **Accent** `#1d44c4` (ballpoint blue) means pressable. Nothing that cannot be pressed is blue, except the progress fill and a trick's strategy line.
 - **Bad** `#c42b22` is red ink and appears only for marking: ❌ Not yet, the round-number circle, the 优 seal, the update dot, and the parent gate error.
 - **Good** `#167a42` is for ✅ and Next.
@@ -105,13 +105,14 @@ Flat. No shadows. Depth comes from 2px ruled borders and the paper/card tint dif
 
 ## Shapes
 
-Radius 14px for cards, buttons and bands; 10px for rows and inputs in the parent area; 4px for the ❌ button so it differs from ✅ by shape as well as colour. The 优 seal and round badge are circles.
+Radius 28px for cards and bands; pills (999px) for buttons, tags and the gear; 10px for rows and inputs in the parent area; 4px for the ❌ button so it differs from ✅ by shape as well as colour. The 优 seal and round badge are circles.
 
 ## Components
 
-- **Cover band**: green, the learner's name on a label, and the gear as a translucent square with a white outline.
+- **Cover band**: green, the learner's name, and the gear as a cream pill with an ink outline.
 - **Lesson card**: a worksheet: bold title on a ruled underline, a small subject tag, one blue button per practice type.
-- **Keep going**: a lesson card's button for a practice type in progress, with a ruler progress bar (a tick every 10%) filled in white and a 🔄 button beside it.
+- **Keep going**: a lesson card's button for a practice type in progress, with the small trail (no ticks) and a 🔄 button beside it.
+- **Summit rail** (`StarBar`): one stop per item on a dotted trail, up to 12. Done stops are gold with a ✓, the current one is ringed and numbered. Across the top on narrow screens; up the left, winding to a 🚩, where the screen is at least 640×600.
 - **田字格 stage**: a square cell with a dashed cross (`--tian` token). One cell per character in Write; the drawing canvas in Draw.
 - **优 seal**: red double-ring stamp on completion; its press animation runs only when reduced motion is not requested.
 - **Parent rows**: ruled rows with a › at the end, below a slim green bar.

@@ -1,17 +1,21 @@
-/* The workbook: pale green ruled paper, blue-black ink, ballpoint blue for what can be pressed, red ink only for marking. */
+/* The summit climb: cream paper, a green hill for Chinese and a lilac one for maths, heavy ink outlines, ballpoint blue for what can be pressed, red ink only for marking. */
 :root {
-  --paper: #f2f7ef;
-  --card: #fcfef9;
+  --paper: #f5f1e4;
+  --card: #fffdf6;
   --ink: #16213d;
   --ink-soft: #49566f;
-  --rule: #c5dccb;
-  --rule-strong: #5e9871;
-  --cover: #1e5a3c;
+  --rule: #ddd6bf;
+  --rule-strong: #2c2e2a;
+  --cover: #8ed462;
+  --lilac: #ebc1ff;
+  --flag: #ff705d;
+  --gold: #f5e211;
   --accent: #1d44c4;
   --accent-soft: #e3eafb;
   --good: #167a42;
   --bad: #c42b22;
-  --radius: 14px;
+  --radius: 28px;
+  --pill: 999px;
   /* One 田字格 cell: a square with a dashed cross. Sized by the element it sits behind (see .reveal__target, .drawing__canvas). */
   --tian: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='.4' y='.4' width='99.2' height='99.2' fill='none' stroke='%235e9871' stroke-width='.8'/%3E%3Cpath d='M50 0V100M0 50H100' stroke='%237fae8c' stroke-width='.5' stroke-dasharray='3 2.4' fill='none'/%3E%3C/svg%3E");
   font-family: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif;
@@ -77,7 +81,7 @@ body {
   padding: 20px;
   border-radius: var(--radius);
   background: var(--card);
-  border: 2px solid var(--rule-strong);
+  border: 3px solid var(--ink);
   color: inherit;
 }
 
@@ -89,7 +93,8 @@ body {
   gap: 8px;
   min-height: 96px;
   padding: 0 16px;
-  border-radius: var(--radius);
+  border-radius: var(--pill);
+  border: 3px solid var(--ink);
   background: var(--accent);
   color: #fff;
   font-size: 1.3rem;
@@ -115,9 +120,9 @@ body {
 .lesson-card__subject {
   align-self: flex-start;
   padding: 2px 12px;
-  border-radius: 8px;
-  background: #dcebdf;
-  color: #1c4a31;
+  border-radius: var(--pill);
+  background: var(--gold);
+  color: var(--ink);
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -127,7 +132,8 @@ body {
   align-items: center;
   min-height: 64px;
   padding: 0 24px;
-  border-radius: var(--radius);
+  border-radius: var(--pill);
+  border: 3px solid var(--ink);
   background: var(--accent);
   color: #fff;
   font-size: 1.3rem;
@@ -149,7 +155,7 @@ body {
   padding: 12px 12px 12px 20px;
   border-radius: var(--radius);
   background: var(--cover);
-  color: #fff;
+  color: var(--ink);
 }
 
 .home__top .screen__title {
@@ -167,13 +173,10 @@ body {
   border-radius: var(--radius);
   font-size: 1.8rem;
   text-decoration: none;
-  background: rgb(255 255 255 / 14%);
-  border: 2px solid rgb(255 255 255 / 55%);
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--pill);
   position: relative;
-}
-
-.gear:focus-visible {
-  outline-color: #fff;
 }
 
 /* The "an update is waiting" dot (src/pwa/update-dot.tsx): red ink, with a ring in the paper's colour so it holds
@@ -199,13 +202,13 @@ body {
 
 .home-button--quiet {
   background: transparent;
-  border: 2px solid currentColor;
+  border: 3px solid currentColor;
   color: var(--accent);
 }
 
-/* On the green bar the quiet button is white-on-translucent, like its neighbours. */
+/* On the green bar the quiet button is ink-on-cream, like its neighbours. */
 .parent__nav .home-button--quiet {
-  color: #fff;
+  color: var(--ink);
 }
 
 /* First run */
@@ -539,7 +542,7 @@ body {
   line-height: 1;
 }
 
-/* Parent area: the back pages of the same book. A slim green bar on top, then plain ruled rows. */
+/* Parent area: the back of the map. A slim green bar on top, then plain ruled rows. */
 .parent__nav {
   display: flex;
   gap: 8px;
@@ -554,12 +557,9 @@ body {
   min-height: 56px;
   padding: 0 18px;
   font-size: 1.1rem;
-  background: rgb(255 255 255 / 14%);
-  border: 2px solid rgb(255 255 255 / 55%);
-}
-
-.parent__nav .home-button:focus-visible {
-  outline-color: #fff;
+  background: var(--card);
+  color: var(--ink);
+  border: 3px solid var(--ink);
 }
 
 .parent .screen__title {
