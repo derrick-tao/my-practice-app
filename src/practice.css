@@ -624,7 +624,7 @@
   }
 }
 
-/* A lesson card's button for a practice type in progress: "Keep going" with the round and the trail, in place of the count. */
+/* A lesson card's button for a practice type in progress: "Keep going" with the round and the place, in place of the count. */
 .lesson-card__button--keep-going {
   flex: 1;
   flex-direction: column;
@@ -645,36 +645,9 @@
   color: #fff;
 }
 
-.lesson-card__button--keep-going .starbar__track::before {
-  border-color: #fff;
-}
-
-.lesson-card__progress .starbar {
-  gap: 8px;
-}
-
-/* Beside the 🔄 button and the count there is little room: the stops shrink to fit (down to a few pixels). */
-.lesson-card__button--keep-going .starbar__stop {
-  flex: 0 1 16px;
-  min-width: 10px;
-  border-width: 2px;
-  font-size: 0;
-}
-
-.lesson-card__button--keep-going .starbar__stop--done::after {
-  content: none;
-}
-
-.lesson-card__button--keep-going .starbar__stop--missed {
-  /* No glyph this small: coral, and a square (not round) with the ink outline, against the round gold stops. */
-  border-radius: 2px;
-  border: 2px solid var(--ink);
-}
-
-.lesson-card__button--keep-going .starbar__stop--here {
-  flex-basis: 22px;
-  min-width: 10px;
-  box-shadow: none;
+/* Beside the 🔄 button there is no room for a trail: the button shows only the place, as a small "2 / 12" chip. */
+.lesson-card__button--keep-going .starbar__track {
+  display: none;
 }
 
 .lesson-card__button--keep-going .starbar__text {
