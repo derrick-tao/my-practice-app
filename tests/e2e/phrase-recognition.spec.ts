@@ -49,7 +49,7 @@ test.describe('phrase recognition: the prompt phase', () => {
     expect(PHRASES).toContain(shown);
     // Nothing that gives the reading away: no pinyin, no sound, nothing to listen to yet.
     await expect(page.getByTestId('target')).toHaveCount(0);
-    await expect(page.locator('.reveal__pinyin')).toHaveCount(0);
+    await expect(page.locator('.reveal__pinyin')).not.toBeVisible();
     await expect(practice.listen).toHaveCount(0);
     await expect(practice.slow).toHaveCount(0);
     await settle(page);
@@ -93,6 +93,16 @@ test.describe('phrase recognition: Check and the revealed phase', () => {
     await expect.poll(async () => (await audio.played(lesson)).at(-1)?.rendition).toBe('normal');
   });
 
+  test('the phrase stays where it is when Check shows the pinyin', async ({ page, audio, loadLesson }) => {
+    const { practice } = await start({ page, audio, loadLesson });
+    const before = await practice.phrase.boundingBox();
+
+    await practice.check.click();
+
+    await expect(page.locator('.reveal__pinyin')).toBeVisible();
+    expect(await practice.target.boundingBox()).toEqual(before);
+  });
+
   test('when the browser rejects the audio, Listen pulses, and tapping it plays', async ({ page, audio, loadLesson }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await rejectAudioPlayback(page);
@@ -123,7 +133,7 @@ test.describe('phrase recognition: Check and the revealed phase', () => {
     expect(await audio.played(lesson)).toHaveLength(1);
     expect(await practice.lastHeardTarget()).toBe(first);
     await expect(practice.listen).toHaveCount(0);
-    await expect(page.locator('.reveal__pinyin')).toHaveCount(0);
+    await expect(page.locator('.reveal__pinyin')).not.toBeVisible();
   });
 
   test('the ✅ and ❌ sounds still play on a mark', async ({ page, audio, loadLesson }) => {

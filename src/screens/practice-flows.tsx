@@ -104,15 +104,24 @@ function TargetText({ item, fit, testId }: { item: ItemData; fit: boolean; testI
 function Reveal({
   item,
   fit,
+  pending = false,
 }: {
   item: ItemData;
   /** Fit the target on one line (phrases) rather than shrinking it by its length. */ fit: boolean;
+  /** The pinyin and clue take their room but are not shown yet, so the target does not move when they appear. */ pending?: boolean;
 }) {
+  const hidden = pending ? { 'aria-hidden': true, 'data-pending': '' } : {};
   return (
     <div class="reveal">
-      <TargetText item={item} fit={fit} testId="target" />
-      <div class="reveal__pinyin">{item.pinyin}</div>
-      {item.clue && <div class="reveal__clue">{item.clue}</div>}
+      <TargetText item={item} fit={fit} testId={pending ? 'prompt-phrase' : 'target'} />
+      <div class="reveal__pinyin" {...hidden}>
+        {item.pinyin}
+      </div>
+      {item.clue && (
+        <div class="reveal__clue" {...hidden}>
+          {item.clue}
+        </div>
+      )}
     </div>
   );
 }
@@ -154,13 +163,13 @@ const phraseRecognition: PracticeFlow = {
     round.phase === 'revealed' ? (
       <Reveal item={item} fit />
     ) : (
-      <div class="reveal">
-        <TargetText item={item} fit testId="prompt-phrase" />
-      </div>
+      // The pinyin's room is kept, so the phrase stays where it is when Check shows it.
+      <Reveal item={item} fit pending />
     ),
   Controls: (props) => (
     <>
-      {props.round.phase === 'revealed' && <ListenRow {...props} />}
+      {/* Listen and Slow come with Check; their room is kept, so the phrase does not shift up when they appear. */}
+      {props.round.phase === 'revealed' ? <ListenRow {...props} /> : <div class="row row--reserved" aria-hidden="true" />}
       <div class="row row--primary">
         {props.round.phase === 'prompt' && <CheckRow onCheck={props.onCheck} />}
         {props.round.phase === 'revealed' && <MarkButtons onMark={props.onMark} />}

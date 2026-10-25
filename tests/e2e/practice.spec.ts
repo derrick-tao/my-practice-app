@@ -259,14 +259,14 @@ test.describe('practice: reveal and marking', () => {
     expect(lesson.lists.dictation!).toHaveLength(3);
   });
 
-  test('the answer buttons differ in shape and icon, not just color', async ({ page, audio, loadLesson }) => {
+  test('the answer buttons are the same round shape and differ in icon and color', async ({ page, audio, loadLesson }) => {
     const { practice } = await start({ page, audio, loadLesson }, 'fixture-three');
     await practice.reveal();
     await expect(practice.gotIt).toContainText('✅');
     await expect(practice.notYet).toContainText('❌');
     const radius = (button: typeof practice.gotIt): Promise<string> =>
       button.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
-    expect(await radius(practice.gotIt)).not.toBe(await radius(practice.notYet));
+    expect(await radius(practice.notYet)).toBe(await radius(practice.gotIt));
   });
 });
 

@@ -187,6 +187,7 @@ function PracticeRun({
   const flow = flowOf(initial);
   const player = useAudioPlayer();
   const effects = useMemo(() => createEffects(sounds), []);
+  useEffect(() => () => effects.release(), []);
   const itemsById = useMemo(
     () => new Map((lesson.lists[practiceType] ?? []).map((item) => [item.target, item])),
     [lesson, practiceType],

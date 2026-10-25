@@ -67,6 +67,7 @@ export function MathRun({
   const type = MATH_TYPES[practiceType];
   const trueFalse = type.input === 'true-false';
   const effects = useMemo(() => createEffects(sounds), []);
+  useEffect(() => () => effects.release(), []);
 
   // What is shown is always what is saved: every change goes through `sync`, which saves it first.
   const [view, setView] = useState<SyncState>({ session: initial, saveFailed: false });

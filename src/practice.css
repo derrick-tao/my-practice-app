@@ -263,6 +263,10 @@
   flex: 1;
 }
 
+.row--reserved {
+  min-height: 64px;
+}
+
 .row--primary {
   min-height: 96px;
 }
@@ -313,8 +317,6 @@
   border-color: var(--ink);
   background: var(--flag);
   color: var(--ink);
-  /* Distinct shape as well as colour and icon (❌ against ✅): a softly rounded left edge, against the green button's full pill. */
-  border-radius: 40px var(--pill) var(--pill) 40px;
 }
 
 .btn--bad:active {
@@ -393,6 +395,11 @@
 .reveal__clue {
   font-size: 1.1rem;
   color: var(--ink-soft);
+}
+
+/* Room kept for the pinyin and clue before Check, so the target does not shift when they appear. */
+.reveal [data-pending] {
+  visibility: hidden;
 }
 
 .summary {
@@ -639,9 +646,11 @@
 .lesson-card__button--keep-going {
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 12px 14px;
+  text-align: center;
   font-size: clamp(0.8rem, 5.5cqi, 1.3rem);
 }
 
@@ -660,13 +669,17 @@
 .lesson-card__progress {
   display: flex;
   align-items: center;
-  align-self: stretch;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
 }
 
 .lesson-card__button--keep-going .round-badge {
+  min-height: 32px;
+  padding: 0 10px;
+  border-width: 2px;
   border-color: #fff;
   color: #fff;
+  font-size: 1rem;
 }
 
 /* Beside the 🔄 button there is no room for a trail: the button shows only the place, as a small "2 / 12" chip. */
@@ -675,7 +688,7 @@
 }
 
 .lesson-card__button--keep-going .starbar__text {
-  padding: 2px 10px;
+  padding: 4px 12px;
   font-size: 0.95rem;
   background: var(--card);
   color: var(--ink);

@@ -14,6 +14,6 @@ export function publishedLessons(manifest: Manifest): PublishedLesson[] {
 
 /** The published lessons, loaded from the content manifest. */
 export function usePublishedLessons(): Loadable<PublishedLesson[]> {
-  const manifest = useLoad(fetchManifest, []);
+  const manifest = useLoad(fetchManifest, [], 'manifest');
   return manifest.status === 'ready' ? { status: 'ready', value: publishedLessons(manifest.value) } : manifest;
 }
