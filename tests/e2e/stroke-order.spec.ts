@@ -386,9 +386,9 @@ test.describe('stroke order: auto-play', () => {
 
 test.describe('stroke order: opening it again and again', () => {
   // The page slowed down the more sessions had been opened in one visit, because each left its audio elements
-  // behind. Nothing here may stay loaded once the child is home: the item audio is let go, and the sound effects
-  // are one set for the whole visit rather than one per session.
-  test('lets go of its audio on leaving, and reuses the same sound effects', async ({ page, audio, loadLesson }) => {
+  // behind. Nothing here may stay loaded once the child is home: the item audio and the sound effects are both
+  // let go, and each session makes the same number of elements again.
+  test('lets go of its audio and sound effects on leaving', async ({ page, audio, loadLesson }) => {
     await page.addInitScript(() => {
       const made: HTMLAudioElement[] = [];
       const RealAudio = window.Audio;
@@ -405,7 +405,7 @@ test.describe('stroke order: opening it again and again', () => {
       page.evaluate(
         () =>
           (window as unknown as { __made: HTMLAudioElement[] }).__made.filter(
-            (e) => e.getAttribute('src') !== null && !e.src.includes('/sounds/'),
+            (e) => e.getAttribute('src') !== null,
           ).length,
       );
     const audioElementsMade = (): Promise<number> =>
@@ -421,7 +421,7 @@ test.describe('stroke order: opening it again and again', () => {
     await expect(practice.drawing).toBeVisible();
     await practice.home.click();
     await expect.poll(itemAudioLoaded).toBe(0);
-    // The second visit made only the item audio again: the three sound effects were not made a second time.
-    expect((await audioElementsMade()) - afterFirst).toBe(afterFirst - 3);
+    // The second visit made the same elements as the first, and none of them stays loaded.
+    expect((await audioElementsMade()) - afterFirst).toBe(afterFirst);
   });
 });

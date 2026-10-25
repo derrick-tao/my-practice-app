@@ -1,5 +1,16 @@
 [
   {
+    "id": "sounds-and-polish",
+    "date": "2026-10-24",
+    "title": "Sounds back, steadier screens",
+    "bullets": [
+      "The ✅ and ❌ sounds, and the cheer at the end, play again.",
+      "In 🗣️ Say, the phrase stays still when you press Check; the pinyin just appears underneath.",
+      "❌ Not yet is a round button like ✅ I got it, and Keep going is tidier.",
+      "Coming back to Home is quicker."
+    ]
+  },
+  {
     "id": "summit-climb-look",
     "date": "2026-10-24",
     "title": "A new look: the summit climb",

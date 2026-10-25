@@ -52,7 +52,7 @@ test.describe('learning setting: the session', () => {
 
     await expect(practice.check).toBeVisible();
     await expect(practice.next).toHaveCount(0);
-    await expect(pinyin(page)).toHaveCount(0);
+    await expect(pinyin(page)).not.toBeVisible();
   });
 
   test('shows the phrase with its pinyin and plays it on arrival; Next comes once it is heard, and has Listen and Slow beside it', async ({

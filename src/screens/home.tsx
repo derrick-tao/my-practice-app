@@ -182,7 +182,7 @@ export function HomeScreen() {
   const profile = activeProfileOf(app)!;
   const published = usePublishedLessons();
   // Each learner has their own practice in progress: look again whenever the learner changes.
-  const resume = useLoad(loadResume, [profile.id]);
+  const resume = useLoad(loadResume, [profile.id], `resume/`);
   // Cards wait for the sessions: their order, and which unassigned lessons stay, depend on them.
   const settled = published.status === 'ready' && resume.status !== 'loading';
   // Per device, not per learner: a waiting update is told to the grown-up by a dot on the gear, never to the child.
