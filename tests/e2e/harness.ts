@@ -44,6 +44,8 @@ export interface AudioProbe {
   released(): Promise<string[]>;
   /** How many times load() was called on an element that no longer had a source (the rest of letting go). */
   reloads(): Promise<number>;
+  /** The most recently played element whose source contains `source` (e.g. 'chime.wav', '/content/') plays to its end: `ended` fires on it. */
+  finish(source: string): Promise<void>;
   /** The page goes to the background (a switch to another app, a locked phone): visibilitychange to hidden. */
   hide(): Promise<void>;
   /** The page comes back to the foreground: visibilitychange to visible. */
@@ -55,6 +57,7 @@ export interface AudioProbe {
 declare global {
   interface Window {
     __audioPlays: string[];
+    __audioPlayed: HTMLMediaElement[];
     __audioPauses: string[];
     __audioReleases: string[];
     __audioReloads: number;
@@ -63,7 +66,9 @@ declare global {
 
 function installAudioStub(): void {
   window.__audioPlays = [];
+  window.__audioPlayed = [];
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement): Promise<void> {
+    window.__audioPlayed.push(this);
     window.__audioPlays.push(this.currentSrc || this.src);
     return Promise.resolve();
   };
@@ -116,6 +121,7 @@ function audioProbe(page: Page): AudioProbe {
     clear: () =>
       page.evaluate(() => {
         window.__audioPlays.length = 0;
+        window.__audioPlayed.length = 0;
         window.__audioPauses.length = 0;
         window.__audioReleases.length = 0;
         window.__audioReloads = 0;
@@ -123,6 +129,12 @@ function audioProbe(page: Page): AudioProbe {
     paused: () => page.evaluate(() => window.__audioPauses),
     released: () => page.evaluate(() => window.__audioReleases),
     reloads: () => page.evaluate(() => window.__audioReloads),
+    finish: (source) =>
+      page.evaluate((part) => {
+        const element = window.__audioPlayed.findLast((el) => (el.currentSrc || el.src).includes(part));
+        if (!element) throw new Error(`nothing with "${part}" has played`);
+        element.dispatchEvent(new Event('ended'));
+      }, source),
     hide: () => page.evaluate(setVisibility, 'hidden' as const),
     show: () => page.evaluate(setVisibility, 'visible' as const),
     close: () => page.evaluate(() => void window.dispatchEvent(new Event('pagehide'))),
