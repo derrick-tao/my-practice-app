@@ -114,4 +114,27 @@ test.describe('audio is let go when the app is hidden or closed: practice', () =
     await practice.listen.click();
     await practice.waitForItemAudio(2);
   });
+
+  test('a pagehide alone (the page stays alive, never hidden) releases the audio but sound still works after', async ({ page, audio, loadLesson }) => {
+    const { practice, lesson } = await start({ page, audio, loadLesson });
+    const [first] = await audio.played(lesson);
+    const heard = await practice.lastHeardTarget();
+
+    await audio.close();
+    expect(await audio.released()).toContainEqual(expect.stringContaining(first!.ref));
+
+    await practice.listen.click();
+    await practice.waitForItemAudio(2);
+    expect(await practice.lastHeardTarget()).toBe(heard);
+  });
+
+  test('a pagehide alone does not cancel the pending auto-play of the next item', async ({ page, audio, loadLesson }) => {
+    const { practice } = await start({ page, audio, loadLesson });
+    await practice.reveal();
+    await practice.gotIt.click();
+    await audio.close();
+
+    await practice.waitForItemAudio(2);
+    await expect(practice.progressText()).toHaveText('1 / 3');
+  });
 });

@@ -10,11 +10,13 @@ export interface Releasable {
 
 const live = new Set<Releasable>();
 const hiddenListeners = new Set<() => void>();
-let hidden = false;
 let installed = false;
 
-/** True while the app is in the background or closing: nothing may start playing then. */
-export const audioHidden = (): boolean => hidden;
+/**
+ * True while the page is in the background: nothing may start playing then. Read from the browser each time so it
+ * can never stick: `pagehide` only releases (the page may stay alive, e.g. an iOS handoff to mailto:), it sets no flag.
+ */
+export const audioHidden = (): boolean => document.visibilityState === 'hidden';
 
 /** Call `listener` each time the app is hidden, e.g. to drop a timer that would start audio. Returns how to stop. */
 export function onAudioHidden(listener: () => void): () => void {
@@ -23,22 +25,27 @@ export function onAudioHidden(listener: () => void): () => void {
   return () => void hiddenListeners.delete(listener);
 }
 
-function hide(): void {
-  hidden = true;
-  for (const listener of [...hiddenListeners]) listener();
+function releaseAll(): void {
   for (const item of [...live]) item.release();
+}
+
+/** The page went to the background: drop timers that would start audio, then let go of everything. */
+function handleHidden(): void {
+  for (const listener of [...hiddenListeners]) listener();
+  releaseAll();
 }
 
 /** The page-level handler, installed once: by whichever of the first registration or listener comes first. */
 function install(): void {
   if (installed) return;
   installed = true;
-  hidden = document.visibilityState === 'hidden';
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') handleHidden();
+  });
   // pagehide as well: it is not reliable when an iOS home-screen app is swiped away, nor visibilitychange alone.
-  document.addEventListener('visibilitychange', () => (document.visibilityState === 'hidden' ? hide() : (hidden = false)));
-  addEventListener('pagehide', hide);
-  // Coming back from the back-forward cache. Nothing replays: elements are made again on the next play.
-  addEventListener('pageshow', () => (hidden = false));
+  // Release only: the page can survive it, so it must not block later sound. Nothing replays; elements are made
+  // again on the next play.
+  addEventListener('pagehide', releaseAll);
 }
 
 /** Track `item` until it is unregistered. */
