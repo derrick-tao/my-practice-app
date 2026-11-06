@@ -1,0 +1,65 @@
+# Week 14 (Nov 2) lesson (Chinese): needing and wanting.
+# Draw (stroke-order) characters are listed easiest first, for when shuffle is off.
+id: week-14-2026-11-02
+title: Week 14 - Nov 2
+subject: chinese
+script: simplified
+testDates: 2026-11-02 to 2026-11-06
+dictation:
+  - target: 要
+    clue: 想要
+    pinyin: yào
+  - target: 食
+    clue: 食物
+    pinyin: shí
+  - target: 物
+    clue: 食物
+    pinyin: wù
+  - target: 空
+    clue: 空气
+    pinyin: kōng
+  - target: 气
+    clue: 空气
+    pinyin: qì
+  - target: 好
+    clue: 好吃
+    pinyin: hǎo
+stroke-order:
+  - target: 好
+    clue: 好吃
+    pinyin: hǎo
+  - target: 气
+    clue: 空气
+    pinyin: qì
+  - target: 要
+    clue: 想要
+    pinyin: yào
+  - target: 空
+    clue: 空气
+    pinyin: kōng
+  - target: 物
+    clue: 食物
+    pinyin: wù
+  - target: 食
+    clue: 食物
+    pinyin: shí
+
+# Vocabulary in the school's order, then the sentence pair. Pinyin is written where the generator could go wrong or for neutral tones.
+phrase-recognition:
+  - target: 水
+  - target: 食物
+  - target: 空气
+  - target: 房子
+    pinyin: fáng zi
+  - target: 衣服
+    pinyin: yī fu
+  - target: 好吃
+  - target: 好喝
+  - target: 干净
+  - target: 好看
+  - target: 需要
+  - target: 想要
+  - target: 你想要什么
+    pinyin: nǐ xiǎng yào shén me
+  - target: 我想要好吃的食物
+    pinyin: wǒ xiǎng yào hǎo chī de shí wù
