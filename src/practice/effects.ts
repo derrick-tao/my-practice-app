@@ -27,7 +27,8 @@ export interface Effects {
  * character audio). Elements shared for the life of the page were left behind in whatever state the browser had
  * put them in (iOS suspends idle media in a home-screen app), and the effects stayed silent until a reload; a
  * fresh set per screen that was never let go slowed the page instead. Registered while it holds elements, so
- * hiding or closing the app lets go of them too (iOS otherwise keeps them on the lock screen).
+ * hiding or closing the app lets go of them too (iOS otherwise keeps them on the lock screen). Each effect element is
+ * also let go when its sound ends (the 1.7 s fanfare is long enough for iOS to show it as playing).
  */
 export function createEffects(enabled: boolean): Effects {
   if (!enabled) return { play: () => 0, release: () => undefined };
@@ -36,6 +37,14 @@ export function createEffects(enabled: boolean): Effects {
     const element = new Audio(`${import.meta.env.BASE_URL}sounds/${name}.wav`);
     element.preload = 'auto';
     element.volume = 0.7;
+    // Let go as soon as it has been heard, so a finished effect cannot keep the lock-screen controls up; the next play
+    // makes a fresh one. Preloaded elements only end after a play, so the preload above is unaffected.
+    element.addEventListener('ended', () => {
+      if (elements.get(name) !== element) return;
+      discard(element);
+      elements.delete(name);
+      if (elements.size === 0) unregisterAudio(effects);
+    });
     elements.set(name, element);
     registerAudio(effects);
     return element;
