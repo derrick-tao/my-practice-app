@@ -3,7 +3,9 @@
 //  - The app under test is the real build served under /my-practice-app/ with fixture content
 //    (tests/fixtures/content/e2e). See playwright.config.ts.
 //  - Audio playback is stubbed: `HTMLMediaElement.play()` records the request instead of playing,
-//    so tests can tell whether, when and at what rate (normal vs slow) audio was requested.
+//    so tests can tell whether, when and at what rate (normal vs slow) audio was requested. It also records
+//    pause(), removing an element's source and load(), and a spec can hide/show the page and fire the
+//    closing event, to see that every element was stopped and let go.
 import { expect, test as base, type APIRequestContext, type Page } from '@playwright/test';
 import type { ItemData, LessonData, Manifest, PracticeTypeId, Rendition } from '../../src/content/types.ts';
 
@@ -34,23 +36,65 @@ export interface AudioProbe {
   played(lesson?: LessonData): Promise<PlayedAudio[]>;
   /** Sound effects requested so far, oldest first, by name: 'chime' (✅), 'gentle' (❌), 'fanfare' (completion). */
   effects(): Promise<string[]>;
-  /** Forget both the character audio and the sound effects requested so far. */
+  /** Forget the audio, effects and stop/release records so far. */
   clear(): Promise<void>;
+  /** Sources of media elements that were paused, oldest first. */
+  paused(): Promise<string[]>;
+  /** Sources of media elements whose source was removed (let go), oldest first. */
+  released(): Promise<string[]>;
+  /** How many times load() was called on an element that no longer had a source (the rest of letting go). */
+  reloads(): Promise<number>;
+  /** The most recently played element whose source contains `source` (e.g. 'chime.wav', '/content/') plays to its end: `ended` fires on it. */
+  finish(source: string): Promise<void>;
+  /** The page goes to the background (a switch to another app, a locked phone): visibilitychange to hidden. */
+  hide(): Promise<void>;
+  /** The page comes back to the foreground: visibilitychange to visible. */
+  show(): Promise<void>;
+  /** The page is closed or put away: pagehide. */
+  close(): Promise<void>;
 }
 
 declare global {
   interface Window {
     __audioPlays: string[];
+    __audioPlayed: HTMLMediaElement[];
+    __audioPauses: string[];
+    __audioReleases: string[];
+    __audioReloads: number;
   }
 }
 
 function installAudioStub(): void {
   window.__audioPlays = [];
+  window.__audioPlayed = [];
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement): Promise<void> {
+    window.__audioPlayed.push(this);
     window.__audioPlays.push(this.currentSrc || this.src);
     return Promise.resolve();
   };
-  HTMLMediaElement.prototype.pause = function pause(): void {};
+  window.__audioPauses = [];
+  window.__audioReleases = [];
+  window.__audioReloads = 0;
+  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement): void {
+    window.__audioPauses.push(this.currentSrc || this.src);
+  };
+  const removeAttribute = Element.prototype.removeAttribute;
+  Element.prototype.removeAttribute = function (this: Element, name: string): void {
+    if (this instanceof HTMLMediaElement && name === 'src') window.__audioReleases.push(this.currentSrc || this.src);
+    removeAttribute.call(this, name);
+  };
+  const load = HTMLMediaElement.prototype.load;
+  HTMLMediaElement.prototype.load = function (this: HTMLMediaElement): void {
+    if (!this.hasAttribute('src')) window.__audioReloads++;
+    load.call(this);
+  };
+}
+
+/** Make the page look hidden or visible to the app, as the browser does, and tell it. */
+function setVisibility(state: 'hidden' | 'visible'): void {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  Object.defineProperty(document, 'hidden', { value: state === 'hidden', configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
 }
 
 function audioProbe(page: Page): AudioProbe {
@@ -74,7 +118,26 @@ function audioProbe(page: Page): AudioProbe {
       const urls = await page.evaluate(() => window.__audioPlays);
       return urls.flatMap((url) => /\/sounds\/([a-z-]+)\.wav$/.exec(url)?.[1] ?? []);
     },
-    clear: () => page.evaluate(() => void (window.__audioPlays.length = 0)),
+    clear: () =>
+      page.evaluate(() => {
+        window.__audioPlays.length = 0;
+        window.__audioPlayed.length = 0;
+        window.__audioPauses.length = 0;
+        window.__audioReleases.length = 0;
+        window.__audioReloads = 0;
+      }),
+    paused: () => page.evaluate(() => window.__audioPauses),
+    released: () => page.evaluate(() => window.__audioReleases),
+    reloads: () => page.evaluate(() => window.__audioReloads),
+    finish: (source) =>
+      page.evaluate((part) => {
+        const element = window.__audioPlayed.findLast((el) => (el.currentSrc || el.src).includes(part));
+        if (!element) throw new Error(`nothing with "${part}" has played`);
+        element.dispatchEvent(new Event('ended'));
+      }, source),
+    hide: () => page.evaluate(setVisibility, 'hidden' as const),
+    show: () => page.evaluate(setVisibility, 'visible' as const),
+    close: () => page.evaluate(() => void window.dispatchEvent(new Event('pagehide'))),
   };
 }
 

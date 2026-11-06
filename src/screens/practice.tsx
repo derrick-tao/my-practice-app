@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { fetchLessonWithVersion } from '../content/client.ts';
 import { isRulesType, type ItemData, type LessonData, type ListTypeId, type PracticeTypeId, type Rendition } from '../content/types.ts';
 import { useAudioPlayer } from '../practice/audio.ts';
+import { onAudioHidden } from '../practice/audio-registry.ts';
 import { createEffects } from '../practice/effects.ts';
 import { loadKaiFont } from '../practice/kai-font.ts';
 import { realEnv } from '../practice/real-env.ts';
@@ -206,8 +207,14 @@ function PracticeRun({
   /** The next item's auto-play, waiting for the ✅/❌ sound to finish (see onMark). */
   const heldAudio = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cancelHeldAudio = (): void => clearTimeout(heldAudio.current);
-  // Leaving the screen drops it, so it never plays over another one.
-  useEffect(() => cancelHeldAudio, []);
+  // Leaving the screen drops it, so it never plays over another one; so does the app going to the background.
+  useEffect(() => {
+    const stopListening = onAudioHidden(cancelHeldAudio);
+    return () => {
+      stopListening();
+      cancelHeldAudio();
+    };
+  }, []);
 
   const round = currentRound(session);
   const itemId = currentItemId(round);
